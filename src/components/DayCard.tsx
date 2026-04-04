@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { Program } from '@/types'
 import { Pencil, Check, Lock } from 'lucide-react'
@@ -15,6 +16,7 @@ interface DayCardProps {
 }
 
 export default function DayCard({ dayName, dayNum, program, completed, isToday, readonly, onEdit, onToggle }: DayCardProps) {
+  const router = useRouter()
   const today = new Date().getDay()
   const todayNum = today === 0 ? 7 : today
   const isPast = !isToday && dayNum < todayNum
@@ -38,8 +40,14 @@ export default function DayCard({ dayName, dayNum, program, completed, isToday, 
         {isToday && <p className="text-white text-xs font-semibold mt-0.5">Auj.</p>}
       </div>
 
-      {/* Program */}
-      <div className="flex-1 min-w-0">
+      {/* Program — clickable zone navigates to programs page */}
+      <div
+        className={cn(
+          'flex-1 min-w-0',
+          program && !readonly ? 'cursor-pointer' : ''
+        )}
+        onClick={() => { if (program && !readonly) router.push('/programs') }}
+      >
         {program
           ? <p className={cn('text-sm font-semibold truncate', isToday ? 'text-white' : 'text-gray-900')}>{program.name}</p>
           : <p className={cn('text-sm italic', isToday ? 'text-white/40' : 'text-gray-300')}>Repos</p>
@@ -68,7 +76,7 @@ export default function DayCard({ dayName, dayNum, program, completed, isToday, 
 
         {program && (
           <button
-            onClick={readonly ? undefined : onToggle}
+            onClick={e => { e.stopPropagation(); if (!readonly) onToggle?.() }}
             disabled={readonly}
             className={cn(
               'w-9 h-9 rounded-xl border-2 flex items-center justify-center transition-all',

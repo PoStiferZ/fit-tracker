@@ -30,6 +30,11 @@ type FormState = {
   cardio_durations: string[]
   cardio_inclines: string[]
   cardio_speeds: string[]
+  work_reps_per_set: string[]
+  warmup_reps_per_set: string[]
+  work_rest_seconds: string[]
+  warmup_rest_seconds: string[]
+  cardio_rest_seconds: string[]
 }
 
 const defaultForm = (): FormState => ({
@@ -48,6 +53,11 @@ const defaultForm = (): FormState => ({
   cardio_durations: [],
   cardio_inclines: [],
   cardio_speeds: [],
+  work_reps_per_set: [],
+  warmup_reps_per_set: [],
+  work_rest_seconds: [],
+  warmup_rest_seconds: [],
+  cardio_rest_seconds: [],
 })
 
 function exerciseToForm(ex: Exercise): FormState {
@@ -68,6 +78,11 @@ function exerciseToForm(ex: Exercise): FormState {
     cardio_durations: ex.cardio_durations.map(String),
     cardio_inclines: ex.cardio_inclines.map(String),
     cardio_speeds: ex.cardio_speeds.map(String),
+    work_reps_per_set: (ex.work_reps_per_set || []).map(String),
+    warmup_reps_per_set: (ex.warmup_reps_per_set || []).map(String),
+    work_rest_seconds: (ex.work_rest_seconds || []).map(String),
+    warmup_rest_seconds: (ex.warmup_rest_seconds || []).map(String),
+    cardio_rest_seconds: (ex.cardio_rest_seconds || []).map(String),
   }
 }
 
@@ -95,6 +110,21 @@ function formToPayload(form: FormState) {
     cardio_speeds: form.exercise_type === 'cardio'
       ? form.cardio_speeds.slice(0, parseInt(form.cardio_sets) || 0).map(v => parseFloat(v) || 0)
       : [],
+    work_reps_per_set: workSets > 0
+      ? form.work_reps_per_set.slice(0, workSets).map(v => parseInt(v) || 0)
+      : [],
+    warmup_reps_per_set: warmupSets > 0
+      ? form.warmup_reps_per_set.slice(0, warmupSets).map(v => parseInt(v) || 0)
+      : [],
+    work_rest_seconds: workSets > 0
+      ? form.work_rest_seconds.slice(0, workSets).map(v => parseInt(v) || 0)
+      : [],
+    warmup_rest_seconds: warmupSets > 0
+      ? form.warmup_rest_seconds.slice(0, warmupSets).map(v => parseInt(v) || 0)
+      : [],
+    cardio_rest_seconds: form.exercise_type === 'cardio'
+      ? form.cardio_rest_seconds.slice(0, parseInt(form.cardio_sets) || 0).map(v => parseInt(v) || 0)
+      : [],
   }
 }
 
@@ -120,6 +150,35 @@ function formatHistoryDate(iso: string): string {
 function resizeLoads(loads: string[], newSize: number): string[] {
   if (newSize <= 0) return []
   return Array.from({ length: newSize }, (_, i) => loads[i] ?? '')
+}
+
+function RestInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const total = parseInt(value) || 0
+  const mins = Math.floor(total / 60)
+  const secs = total % 60
+  function update(m: number, s: number) {
+    onChange(String(Math.max(0, m) * 60 + Math.max(0, Math.min(59, s))))
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="number" inputMode="numeric" min={0} max={99}
+        value={mins || ''}
+        onChange={e => update(parseInt(e.target.value) || 0, secs)}
+        placeholder="0"
+        className="w-10 bg-orange-50 border border-orange-200 rounded-lg px-1 py-1.5 text-gray-900 text-xs font-bold text-center placeholder:text-gray-300 focus:outline-none"
+      />
+      <span className="text-[10px] text-orange-400 font-bold">m</span>
+      <input
+        type="number" inputMode="numeric" min={0} max={59}
+        value={secs || ''}
+        onChange={e => update(mins, parseInt(e.target.value) || 0)}
+        placeholder="0"
+        className="w-10 bg-orange-50 border border-orange-200 rounded-lg px-1 py-1.5 text-gray-900 text-xs font-bold text-center placeholder:text-gray-300 focus:outline-none"
+      />
+      <span className="text-[10px] text-orange-400 font-bold">s</span>
+    </div>
+  )
 }
 
 export default function ExercisesPage() {
@@ -166,21 +225,28 @@ export default function ExercisesPage() {
 
   function setWorkSets(val: string) {
     const n = parseInt(val) || 0
-    setForm(f => ({ ...f, work_sets: val, work_loads: resizeLoads(f.work_loads, n) }))
-  }
-  function setWarmupSets(val: string) {
-    const n = parseInt(val) || 0
-    setForm(f => ({ ...f, warmup_sets: val, warmup_loads: resizeLoads(f.warmup_loads, n) }))
-  }
-  function toggleHasWarmup(val: boolean) {
-    setForm(f => ({ ...f, has_warmup: val, warmup_sets: val ? f.warmup_sets : '', warmup_reps: val ? f.warmup_reps : '', warmup_loads: val ? f.warmup_loads : [] }))
+    setForm(f => ({
+      ...f,
+      work_sets: val,
+      work_loads: resizeLoads(f.work_loads, n),
+      work_reps_per_set: resizeLoads(f.work_reps_per_set, n),
+      work_rest_seconds: resizeLoads(f.work_rest_seconds, n),
+    }))
   }
 
-  function updateWorkLoad(i: number, val: string) {
-    setForm(f => { const loads = [...f.work_loads]; loads[i] = val; return { ...f, work_loads: loads } })
+  function setWarmupSets(val: string) {
+    const n = parseInt(val) || 0
+    setForm(f => ({
+      ...f,
+      warmup_sets: val,
+      warmup_loads: resizeLoads(f.warmup_loads, n),
+      warmup_reps_per_set: resizeLoads(f.warmup_reps_per_set, n),
+      warmup_rest_seconds: resizeLoads(f.warmup_rest_seconds, n),
+    }))
   }
-  function updateWarmupLoad(i: number, val: string) {
-    setForm(f => { const loads = [...f.warmup_loads]; loads[i] = val; return { ...f, warmup_loads: loads } })
+
+  function toggleHasWarmup(val: boolean) {
+    setForm(f => ({ ...f, has_warmup: val, warmup_sets: val ? f.warmup_sets : '', warmup_reps: val ? f.warmup_reps : '', warmup_loads: val ? f.warmup_loads : [], warmup_reps_per_set: val ? f.warmup_reps_per_set : [], warmup_rest_seconds: val ? f.warmup_rest_seconds : [] }))
   }
 
   function setCardioSets(val: string) {
@@ -191,6 +257,7 @@ export default function ExercisesPage() {
       cardio_durations: resizeLoads(f.cardio_durations, n),
       cardio_inclines: resizeLoads(f.cardio_inclines, n),
       cardio_speeds: resizeLoads(f.cardio_speeds, n),
+      cardio_rest_seconds: resizeLoads(f.cardio_rest_seconds, n),
     }))
   }
   function updateCardioDuration(i: number, val: string) {
@@ -423,44 +490,40 @@ export default function ExercisesPage() {
               </div>
 
               {/* Séries de travail */}
-              <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">💪 Séries de travail</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400 mb-1.5 font-semibold">Nb séries</p>
-                    <input type="number" inputMode="numeric" min={1} max={10}
-                      value={form.work_sets}
-                      onChange={e => setWorkSets(e.target.value)}
-                      placeholder="0"
-                      className={inputField + ' text-center font-bold text-xl'} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 mb-1.5 font-semibold">Nb reps</p>
-                    <input type="number" inputMode="numeric" min={1} max={100}
-                      value={form.work_reps}
-                      onChange={e => setForm(f => ({ ...f, work_reps: e.target.value }))}
-                      placeholder="0"
-                      className={inputField + ' text-center font-bold text-xl'} />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Séries de travail</label>
+                <input type="number" inputMode="numeric" min={1} max={20}
+                  value={form.work_sets}
+                  onChange={e => setWorkSets(e.target.value)}
+                  placeholder="Nombre de séries"
+                  className={inputField + " text-center text-xl font-bold"} />
                 {workSetsNum > 0 && (
-                  <div>
-                    <p className="text-[11px] text-gray-400 font-semibold mb-2">Charges par série</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {Array.from({ length: workSetsNum }).map((_, i) => (
-                        <div key={i}>
-                          <p className="text-[10px] text-gray-400 mb-1 font-semibold text-center">Série {i + 1}</p>
-                          <div className="relative">
-                            <input type="number" inputMode="decimal" min={0} step={0.5}
-                              value={form.work_loads[i] ?? ''}
-                              onChange={e => updateWorkLoad(i, e.target.value)}
-                              placeholder="0"
-                              className={inputField + ' text-center font-bold py-3 pr-7 text-sm'} />
-                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-semibold pointer-events-none">kg</span>
-                          </div>
-                        </div>
-                      ))}
+                  <div className="mt-3 space-y-2">
+                    <div className="grid grid-cols-[1.5rem_1fr_1fr_auto] gap-2 px-1">
+                      <div />
+                      <p className="text-[10px] font-bold text-gray-400 uppercase text-center">Poids (kg)</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase text-center">Reps</p>
+                      <p className="text-[10px] font-bold text-orange-400 uppercase">Repos</p>
                     </div>
+                    {Array.from({ length: workSetsNum }).map((_, i) => (
+                      <div key={i} className="grid grid-cols-[1.5rem_1fr_1fr_auto] gap-2 items-center">
+                        <span className="text-xs font-black text-gray-300 text-center">{i + 1}</span>
+                        <input type="number" inputMode="decimal" step={0.5} min={0}
+                          value={form.work_loads[i] ?? ''}
+                          onChange={e => setForm(f => { const a = [...f.work_loads]; a[i] = e.target.value; return { ...f, work_loads: a } })}
+                          placeholder="0"
+                          className="bg-gray-50 border border-gray-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-gray-900" />
+                        <input type="number" inputMode="numeric" min={1}
+                          value={form.work_reps_per_set[i] ?? ''}
+                          onChange={e => setForm(f => { const a = [...f.work_reps_per_set]; a[i] = e.target.value; return { ...f, work_reps_per_set: a } })}
+                          placeholder="0"
+                          className="bg-gray-50 border border-gray-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-gray-900" />
+                        <RestInput
+                          value={form.work_rest_seconds[i] ?? ''}
+                          onChange={v => setForm(f => { const a = [...f.work_rest_seconds]; a[i] = v; return { ...f, work_rest_seconds: a } })}
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -490,46 +553,44 @@ export default function ExercisesPage() {
                 </button>
               </div>
 
-              {/* Séries d'échauffement — conditional */}
+              {/* Échauffement — conditional */}
               {form.has_warmup && (
-                <div className="bg-orange-50 rounded-2xl p-4 space-y-3 border border-orange-100">
-                  <p className="text-xs font-bold text-orange-500 uppercase tracking-wider">🔥 Séries d&apos;échauffement</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-orange-400 mb-1.5 font-semibold">Nb séries</p>
-                      <input type="number" inputMode="numeric" min={1} max={10}
-                        value={form.warmup_sets}
-                        onChange={e => setWarmupSets(e.target.value)}
-                        placeholder="0"
-                        className="w-full bg-white border border-orange-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-orange-400 mb-1.5 font-semibold">Nb reps</p>
-                      <input type="number" inputMode="numeric" min={1} max={100}
-                        value={form.warmup_reps}
-                        onChange={e => setForm(f => ({ ...f, warmup_reps: e.target.value }))}
-                        placeholder="0"
-                        className="w-full bg-white border border-orange-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all" />
-                    </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Échauffement</label>
                   </div>
+                  <input type="number" inputMode="numeric" min={1} max={10}
+                    value={form.warmup_sets}
+                    onChange={e => setWarmupSets(e.target.value)}
+                    placeholder="Nombre de séries"
+                    className={inputField + " text-center text-xl font-bold"} />
                   {warmupSetsNum > 0 && (
-                    <div>
-                      <p className="text-[11px] text-orange-400 font-semibold mb-2">Charges par série</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {Array.from({ length: warmupSetsNum }).map((_, i) => (
-                          <div key={i}>
-                            <p className="text-[10px] text-orange-400 mb-1 font-semibold text-center">Série {i + 1}</p>
-                            <div className="relative">
-                              <input type="number" inputMode="decimal" min={0} step={0.5}
-                                value={form.warmup_loads[i] ?? ''}
-                                onChange={e => updateWarmupLoad(i, e.target.value)}
-                                placeholder="0"
-                                className="w-full bg-white border border-orange-200 rounded-2xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all pr-7" />
-                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-orange-300 font-semibold pointer-events-none">kg</span>
-                            </div>
-                          </div>
-                        ))}
+                    <div className="mt-3 space-y-2">
+                      <div className="grid grid-cols-[1.5rem_1fr_1fr_auto] gap-2 px-1">
+                        <div />
+                        <p className="text-[10px] font-bold text-gray-400 uppercase text-center">Poids (kg)</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase text-center">Reps</p>
+                        <p className="text-[10px] font-bold text-orange-400 uppercase">Repos</p>
                       </div>
+                      {Array.from({ length: warmupSetsNum }).map((_, i) => (
+                        <div key={i} className="grid grid-cols-[1.5rem_1fr_1fr_auto] gap-2 items-center">
+                          <span className="text-xs font-black text-gray-300 text-center">{i + 1}</span>
+                          <input type="number" inputMode="decimal" step={0.5} min={0}
+                            value={form.warmup_loads[i] ?? ''}
+                            onChange={e => setForm(f => { const a = [...f.warmup_loads]; a[i] = e.target.value; return { ...f, warmup_loads: a } })}
+                            placeholder="0"
+                            className="bg-gray-50 border border-gray-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-gray-900" />
+                          <input type="number" inputMode="numeric" min={1}
+                            value={form.warmup_reps_per_set[i] ?? ''}
+                            onChange={e => setForm(f => { const a = [...f.warmup_reps_per_set]; a[i] = e.target.value; return { ...f, warmup_reps_per_set: a } })}
+                            placeholder="0"
+                            className="bg-gray-50 border border-gray-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-gray-900" />
+                          <RestInput
+                            value={form.warmup_rest_seconds[i] ?? ''}
+                            onChange={v => setForm(f => { const a = [...f.warmup_rest_seconds]; a[i] = v; return { ...f, warmup_rest_seconds: a } })}
+                          />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -579,6 +640,13 @@ export default function ExercisesPage() {
                             placeholder="0"
                             className="w-full bg-sky-50 border border-sky-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none transition-all" />
                         </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className="text-[10px] text-orange-400 font-semibold">Repos</p>
+                        <RestInput
+                          value={form.cardio_rest_seconds[i] ?? ''}
+                          onChange={v => setForm(f => { const a = [...f.cardio_rest_seconds]; a[i] = v; return { ...f, cardio_rest_seconds: a } })}
+                        />
                       </div>
                     </div>
                   ))}

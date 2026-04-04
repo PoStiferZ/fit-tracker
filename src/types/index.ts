@@ -24,6 +24,11 @@ export interface Exercise {
   cardio_durations: number[]
   cardio_inclines: number[]
   cardio_speeds: number[]
+  work_reps_per_set: number[]
+  warmup_reps_per_set: number[]
+  work_rest_seconds: number[]
+  warmup_rest_seconds: number[]
+  cardio_rest_seconds: number[]
   created_at: string
 }
 

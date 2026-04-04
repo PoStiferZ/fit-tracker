@@ -5,8 +5,9 @@ import { getProfileId } from '@/lib/cookies'
 import type { Program, Exercise } from '@/types'
 import Navbar from '@/components/Navbar'
 import BottomSheet from '@/components/BottomSheet'
-import { Plus, ClipboardList, Trash2, Pencil, Check, GripVertical } from 'lucide-react'
+import { Plus, ClipboardList, Trash2, Pencil, Check, GripVertical, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import React from 'react'
 
 const btnPrimary = 'w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40 disabled:shadow-none'
 const btnSecondary = 'w-full bg-white text-gray-800 rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-gray-100'
@@ -33,6 +34,9 @@ export default function ProgramsPage() {
   const dragIndexRef = useRef<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
+  // Exercise search
+  const [exerciseSearch, setExerciseSearch] = useState('')
+
   useEffect(() => {
     const profileId = getProfileId()
     if (!profileId) return
@@ -49,10 +53,12 @@ export default function ProgramsPage() {
   function openCreate() {
     setEditId(null); setName(''); setSelectedIds([]); setSheetOpen(true)
     setSupersetPairs([]); setSupersetMode(false); setSupersetFirst(null)
+    setExerciseSearch('')
   }
   function openEdit(p: Program) {
     setEditId(p.id); setName(p.name); setSelectedIds(p.exercise_ids); setSheetOpen(true)
     setSupersetPairs(p.superset_pairs || []); setSupersetMode(false); setSupersetFirst(null)
+    setExerciseSearch('')
   }
 
   async function handleSave() {
@@ -148,6 +154,7 @@ export default function ProgramsPage() {
 
   // Exercises not yet selected
   const availableExercises = exercises.filter(e => !selectedIds.includes(e.id))
+  const filteredAvailable = availableExercises.filter(e => e.name.toLowerCase().includes(exerciseSearch.toLowerCase()))
   // Exercises in program, in order
   const selectedExercises = selectedIds
     .map(id => exercises.find(e => e.id === id))
@@ -193,25 +200,43 @@ export default function ProgramsPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-900 text-base">{p.name}</p>
                       <p className="text-xs text-gray-400 mt-0.5 font-medium">{exs.length} exercice{exs.length !== 1 ? 's' : ''}</p>
-                      {exs.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {exs.map((e, i) => {
-                            const pair = (p.superset_pairs || []).find(([a, b]: [string, string]) => a === e.id || b === e.id)
-                            const isSecond = pair && pair[1] === e.id
-                            return (
-                              <span key={e.id} className="flex items-center gap-1">
-                                {isSecond && <span className="text-[10px] text-violet-400 font-black">⚡</span>}
-                                <span className={cn(
-                                  'text-[11px] font-semibold px-2.5 py-1 rounded-xl',
-                                  pair ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'
-                                )}>
-                                  {i + 1}. {e.name}
-                                </span>
-                              </span>
-                            )
-                          })}
-                        </div>
-                      )}
+                      {exs.length > 0 && (() => {
+                        const pairs = p.superset_pairs || []
+                        const rendered: React.ReactNode[] = []
+                        const seen = new Set<string>()
+                        exs.forEach((e, i) => {
+                          if (seen.has(e.id)) return
+                          const pair = pairs.find(([a, b]: [string, string]) => a === e.id || b === e.id)
+                          if (pair) {
+                            const otherId = pair[0] === e.id ? pair[1] : pair[0]
+                            const other = exs.find(x => x.id === otherId)
+                            if (other && !seen.has(other.id)) {
+                              seen.add(e.id)
+                              seen.add(other.id)
+                              rendered.push(
+                                <div key={`ss-${e.id}`} className="flex flex-col bg-violet-50 border border-violet-200 rounded-xl overflow-hidden">
+                                  <div className="px-2 pt-1 pb-0.5">
+                                    <span className="text-[9px] font-black text-violet-400 uppercase tracking-wider">⚡ Superset</span>
+                                  </div>
+                                  {[e, other].map(ex => (
+                                    <span key={ex.id} className="text-[11px] font-semibold text-violet-700 px-2 py-1.5 border-t border-violet-100 first:border-t-0">
+                                      {ex.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )
+                              return
+                            }
+                          }
+                          seen.add(e.id)
+                          rendered.push(
+                            <span key={e.id} className="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-xl self-start">
+                              {i + 1}. {e.name}
+                            </span>
+                          )
+                        })
+                        return <div className="flex flex-wrap gap-1.5 mt-2 items-start">{rendered}</div>
+                      })()}
                     </div>
                     <div className="flex gap-1 shrink-0 mt-0.5">
                       <button onClick={() => openEdit(p)} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors">
@@ -366,8 +391,19 @@ export default function ProgramsPage() {
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                 Exercices disponibles
               </label>
+              {/* Search */}
+              <div className="relative mb-2">
+                <input
+                  type="text"
+                  value={exerciseSearch}
+                  onChange={e => setExerciseSearch(e.target.value)}
+                  placeholder="Rechercher un exercice..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 transition-all"
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
               <div className="space-y-1.5">
-                {availableExercises.map(ex => (
+                {filteredAvailable.map(ex => (
                   <button
                     key={ex.id}
                     type="button"
@@ -383,6 +419,9 @@ export default function ProgramsPage() {
                     </span>
                   </button>
                 ))}
+                {filteredAvailable.length === 0 && exerciseSearch && (
+                  <p className="text-gray-400 text-sm text-center py-3">Aucun résultat pour &quot;{exerciseSearch}&quot;</p>
+                )}
               </div>
             </div>
           )}
