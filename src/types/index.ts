@@ -5,6 +5,7 @@ export interface Profile {
   height_cm: number
   weight_kg: number
   created_at: string
+  pin_hash?: string
 }
 
 export interface Exercise {

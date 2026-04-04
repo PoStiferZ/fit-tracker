@@ -4,13 +4,15 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getProfileId, setProfileId } from '@/lib/cookies'
 import { cn } from '@/lib/utils'
+import { hashPin } from '@/lib/pin'
 import type { Profile } from '@/types'
 import ProfilePicker from '@/components/ProfilePicker'
+import PinPad from '@/components/PinPad'
 import { ArrowRight, Check } from 'lucide-react'
 
 type Screen = 'loading' | 'picker' | 'onboarding'
-type Step = 'name' | 'birth' | 'body'
-const STEPS: Step[] = ['name', 'birth', 'body']
+type Step = 'name' | 'birth' | 'body' | 'pin'
+const STEPS: Step[] = ['name', 'birth', 'body', 'pin']
 
 export default function EntryPage() {
   const router = useRouter()
@@ -21,8 +23,10 @@ export default function EntryPage() {
   const [birthDate, setBirthDate] = useState('')
   const [height, setHeight] = useState('')
   const [weight, setWeight] = useState('')
+  const [pin, setPin] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [currentProfileId, setCurrentProfileId] = useState<string | undefined>(getProfileId())
 
   useEffect(() => {
     async function init() {
@@ -39,6 +43,7 @@ export default function EntryPage() {
   }, [router])
 
   function selectProfile(p: Profile) {
+    setCurrentProfileId(p.id)
     setProfileId(p.id)
     router.replace('/dashboard')
   }
@@ -46,11 +51,13 @@ export default function EntryPage() {
   async function handleFinish() {
     setSaving(true)
     setError('')
+    const pinHash = await hashPin(pin)
     const { data, error: err } = await supabase.from('profiles').insert({
       first_name: firstName.trim(),
       birth_date: birthDate,
       height_cm: parseInt(height),
       weight_kg: parseFloat(weight),
+      pin_hash: pinHash,
     }).select().single()
 
     if (err || !data) {
@@ -74,7 +81,12 @@ export default function EntryPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb] px-4 py-8">
         <div className="w-full max-w-sm">
-          <ProfilePicker profiles={profiles} onSelect={selectProfile} onCreateNew={() => { setStep('name'); setScreen('onboarding') }} />
+          <ProfilePicker
+            profiles={profiles}
+            currentProfileId={currentProfileId}
+            onSelect={selectProfile}
+            onCreateNew={() => { setStep('name'); setScreen('onboarding') }}
+          />
         </div>
       </div>
     )
@@ -90,11 +102,12 @@ export default function EntryPage() {
         {/* Header */}
         <div className="bg-gray-950 rounded-3xl px-6 py-5 mb-6 relative overflow-hidden flex-shrink-0">
           <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)'}} />
-          <p className="text-white/60 text-xs font-semibold uppercase tracking-wider relative">Étape {stepIndex + 1} / 3</p>
+          <p className="text-white/60 text-xs font-semibold uppercase tracking-wider relative">Étape {stepIndex + 1} / 4</p>
           <h1 className="text-white text-xl font-bold mt-1 relative">
             {step === 'name' && 'Ton prénom'}
             {step === 'birth' && 'Ta date de naissance'}
             {step === 'body' && 'Tes mensurations'}
+            {step === 'pin' && 'Ton code secret'}
           </h1>
           <div className="flex gap-1.5 mt-3 relative">
             {STEPS.map((s, i) => (
@@ -174,11 +187,26 @@ export default function EntryPage() {
                   {error}
                 </div>
               )}
-              <button disabled={!height || !weight || saving} onClick={handleFinish}
+              <button disabled={!height || !weight} onClick={() => setStep('pin')}
                 className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
-                {saving ? 'Création...' : <><Check size={18} /> C&apos;est parti !</>}
+                Continuer <ArrowRight size={18} />
               </button>
               <button onClick={() => setStep('birth')} className="w-full text-center text-sm text-gray-400 py-1">← Retour</button>
+            </>
+          )}
+
+          {step === 'pin' && (
+            <>
+              <p className="text-sm text-gray-400 text-center">Choisis un code à 4 chiffres pour sécuriser ton profil</p>
+              <PinPad value={pin} onChange={setPin} />
+              <button
+                disabled={pin.length < 4 || saving}
+                onClick={handleFinish}
+                className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40"
+              >
+                {saving ? 'Création...' : <><Check size={18} /> C&apos;est parti !</>}
+              </button>
+              <button onClick={() => setStep('body')} className="w-full text-center text-sm text-gray-400 py-1">← Retour</button>
             </>
           )}
         </div>
