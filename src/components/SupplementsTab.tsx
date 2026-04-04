@@ -40,9 +40,37 @@ export default function SupplementsTab() {
       supabase.from('supplement_log').select('*').eq('date', viewDateISO),
     ])
     setSupplements(sRes.data || [])
-    setLogs(lRes.data || [])
+
+    let currentLogs = lRes.data || []
+
+    // Aujourd'hui sans logs → copier silencieusement les logs d'hier (completed uniquement)
+    if (dayOffset === 0 && currentLogs.length === 0) {
+      const todayDate = new Date()
+      todayDate.setHours(0, 0, 0, 0)
+      const yesterdayISO = addDays(todayDate, -1).toISOString().split('T')[0]
+      const { data: yLogs } = await supabase
+        .from('supplement_log')
+        .select('*')
+        .eq('date', yesterdayISO)
+      if (yLogs && yLogs.length > 0) {
+        const rows = yLogs
+          .filter(l => l.completed)
+          .map(l => ({
+            supplement_id: l.supplement_id,
+            moment: l.moment,
+            date: viewDateISO,
+            completed: true,
+          }))
+        if (rows.length > 0) {
+          const { data: inserted } = await supabase.from('supplement_log').insert(rows).select()
+          if (inserted) currentLogs = inserted
+        }
+      }
+    }
+
+    setLogs(currentLogs)
     setLoading(false)
-  }, [viewDateISO])
+  }, [viewDateISO, dayOffset])
 
   useEffect(() => { load() }, [load])
 

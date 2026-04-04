@@ -67,13 +67,42 @@ export default function DashboardPage() {
     setProfile(pRes.data)
     setAllProfiles(allPRes.data || [])
     setPrograms(progRes.data || [])
-    setWeekPlan(wpRes.data || [])
+
+    let currentPlan = wpRes.data || []
+
+    // Semaine courante vide → copier silencieusement la semaine précédente
+    if (isCurrentWeek && currentPlan.length === 0) {
+      const prevMonday = addWeeks(todayMonday, -1)
+      const prevWeekStart = formatDateISO(prevMonday)
+      const { data: prevData } = await supabase
+        .from('weekly_plan')
+        .select('*')
+        .eq('profile_id', profileId)
+        .eq('week_start', prevWeekStart)
+      if (prevData && prevData.length > 0) {
+        const rows = prevData
+          .filter(d => d.program_id)
+          .map(d => ({
+            profile_id: profileId,
+            day_of_week: d.day_of_week,
+            program_id: d.program_id,
+            completed: false,
+            week_start: weekStart,
+          }))
+        if (rows.length > 0) {
+          const { data: inserted } = await supabase.from('weekly_plan').insert(rows).select()
+          if (inserted) currentPlan = inserted
+        }
+      }
+    }
+
+    setWeekPlan(currentPlan)
     setLoading(false)
     if (isCurrentWeek) {
       const s = await fetchStreak()
       setStreak(s)
     }
-  }, [router, weekStart, isCurrentWeek])
+  }, [router, weekStart, isCurrentWeek, todayMonday])
 
   useEffect(() => { load() }, [load])
 
