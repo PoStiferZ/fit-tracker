@@ -60,8 +60,8 @@ export default function DashboardPage() {
     const [pRes, allPRes, progRes, wpRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', profileId).single(),
       supabase.from('profiles').select('*').order('first_name'),
-      supabase.from('programs').select('*').order('created_at'),
-      supabase.from('weekly_plan').select('*').eq('week_start', weekStart),
+      supabase.from('programs').select('*').eq('profile_id', profileId).order('created_at'),
+      supabase.from('weekly_plan').select('*').eq('profile_id', profileId).eq('week_start', weekStart),
     ])
     if (!pRes.data) { router.replace('/'); return }
     setProfile(pRes.data)
@@ -96,12 +96,13 @@ export default function DashboardPage() {
 
   async function assignProgram() {
     const programId = selectedProgram || null
+    const profileId = getProfileId()!
     const existing = weekPlan.find(d => d.day_of_week === editDay)
     let result
     if (existing) {
       result = await supabase.from('weekly_plan').update({ program_id: programId, completed: false }).eq('id', existing.id).select().single()
     } else {
-      result = await supabase.from('weekly_plan').insert({ day_of_week: editDay, program_id: programId, week_start: weekStart, completed: false }).select().single()
+      result = await supabase.from('weekly_plan').insert({ day_of_week: editDay, program_id: programId, week_start: weekStart, completed: false, profile_id: profileId }).select().single()
     }
     if (result.data) setWeekPlan(prev => [...prev.filter(d => d.day_of_week !== editDay), result.data])
     setEditDay(null)

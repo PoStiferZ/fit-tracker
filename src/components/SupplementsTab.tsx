@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getProfileId } from '@/lib/cookies'
 import { MOMENTS } from '@/lib/constants'
 import type { Supplement, SupplementLog } from '@/types'
 import DayNav from './DayNav'
@@ -31,9 +32,11 @@ export default function SupplementsTab() {
   const isPast = dayOffset < 0
 
   const load = useCallback(async () => {
+    const profileId = getProfileId()
+    if (!profileId) return
     setLoading(true)
     const [sRes, lRes] = await Promise.all([
-      supabase.from('supplements').select('*').order('created_at'),
+      supabase.from('supplements').select('*').eq('profile_id', profileId).order('created_at'),
       supabase.from('supplement_log').select('*').eq('date', viewDateISO),
     ])
     setSupplements(sRes.data || [])

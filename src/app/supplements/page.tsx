@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getProfileId } from '@/lib/cookies'
 import { MOMENTS } from '@/lib/constants'
 import type { Supplement } from '@/types'
 import Navbar from '@/components/Navbar'
@@ -29,7 +30,9 @@ export default function SupplementsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.from('supplements').select('*').order('created_at')
+    const profileId = getProfileId()
+    if (!profileId) return
+    supabase.from('supplements').select('*').eq('profile_id', profileId).order('created_at')
       .then(({ data }) => { setSupplements(data || []); setLoading(false) })
   }, [])
 
@@ -42,13 +45,14 @@ export default function SupplementsPage() {
 
   async function handleSave() {
     if (!form.name.trim()) return
+    const profileId = getProfileId()!
     setSaving(true)
     const payload = { name: form.name.trim(), dosage_type: form.dosage_type, dosage_amount: form.dosage_amount, moments: form.moments }
     if (editId) {
       const { data } = await supabase.from('supplements').update(payload).eq('id', editId).select().single()
       if (data) setSupplements(prev => prev.map(s => s.id === editId ? data : s))
     } else {
-      const { data } = await supabase.from('supplements').insert(payload).select().single()
+      const { data } = await supabase.from('supplements').insert({ ...payload, profile_id: profileId }).select().single()
       if (data) setSupplements(prev => [...prev, data])
     }
     setSaving(false); setSheetOpen(false)

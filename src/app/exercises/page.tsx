@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getProfileId } from '@/lib/cookies'
 import { MUSCLES } from '@/lib/constants'
 import type { Exercise, ExerciseLoadHistory } from '@/types'
 import Navbar from '@/components/Navbar'
@@ -112,7 +113,9 @@ export default function ExercisesPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
 
   useEffect(() => {
-    supabase.from('exercises').select('*').order('created_at')
+    const profileId = getProfileId()
+    if (!profileId) return
+    supabase.from('exercises').select('*').eq('profile_id', profileId).order('created_at')
       .then(({ data }) => { setExercises(data || []); setLoading(false) })
   }, [])
 
@@ -125,10 +128,13 @@ export default function ExercisesPage() {
 
   async function openHistory() {
     if (!editId) return
+    const profileId = getProfileId()
     setHistoryLoading(true); setHistorySheetOpen(true)
     const { data } = await supabase
       .from('exercise_load_history').select('*')
-      .eq('exercise_id', editId).order('recorded_at', { ascending: false })
+      .eq('exercise_id', editId)
+      .eq('profile_id', profileId)
+      .order('recorded_at', { ascending: false })
     setHistoryEntries(data || []); setHistoryLoading(false)
   }
 
@@ -165,11 +171,13 @@ export default function ExercisesPage() {
 
   async function handleSave() {
     if (!form.name.trim()) return
+    const profileId = getProfileId()!
     setSaving(true)
 
     if (editId && editExercise && loadsChanged(editExercise, form)) {
       await supabase.from('exercise_load_history').insert({
         exercise_id: editId,
+        profile_id: profileId,
         work_loads: editExercise.work_loads,
         warmup_loads: editExercise.warmup_loads,
         work_sets: editExercise.work_sets,
@@ -184,7 +192,7 @@ export default function ExercisesPage() {
       const { data } = await supabase.from('exercises').update(payload).eq('id', editId).select().single()
       if (data) setExercises(prev => prev.map(e => e.id === editId ? data : e))
     } else {
-      const { data } = await supabase.from('exercises').insert(payload).select().single()
+      const { data } = await supabase.from('exercises').insert({ ...payload, profile_id: profileId }).select().single()
       if (data) setExercises(prev => [...prev, data])
     }
     setSaving(false); setSheetOpen(false)

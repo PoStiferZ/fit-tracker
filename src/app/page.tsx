@@ -136,7 +136,7 @@ export default function EntryPage() {
                   autoFocus type="date" value={birthDate}
                   onChange={e => setBirthDate(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-lg placeholder:text-gray-300 focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 text-gray-900 text-base placeholder:text-gray-300 focus:outline-none focus:border-gray-900 focus:bg-white transition-all appearance-none"
                 />
               </div>
               <button disabled={!birthDate} onClick={() => setStep('body')}

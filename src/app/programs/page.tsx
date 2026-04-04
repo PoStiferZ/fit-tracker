@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getProfileId } from '@/lib/cookies'
 import type { Program, Exercise } from '@/types'
 import Navbar from '@/components/Navbar'
 import BottomSheet from '@/components/BottomSheet'
@@ -28,9 +29,11 @@ export default function ProgramsPage() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   useEffect(() => {
+    const profileId = getProfileId()
+    if (!profileId) return
     Promise.all([
-      supabase.from('programs').select('*').order('created_at'),
-      supabase.from('exercises').select('*').order('name'),
+      supabase.from('programs').select('*').eq('profile_id', profileId).order('created_at'),
+      supabase.from('exercises').select('*').eq('profile_id', profileId).order('name'),
     ]).then(([p, e]) => {
       setPrograms(p.data || [])
       setExercises(e.data || [])
@@ -43,13 +46,14 @@ export default function ProgramsPage() {
 
   async function handleSave() {
     if (!name.trim()) return
+    const profileId = getProfileId()!
     setSaving(true)
     const payload = { name: name.trim(), exercise_ids: selectedIds }
     if (editId) {
       const { data } = await supabase.from('programs').update(payload).eq('id', editId).select().single()
       if (data) setPrograms(prev => prev.map(p => p.id === editId ? data : p))
     } else {
-      const { data } = await supabase.from('programs').insert(payload).select().single()
+      const { data } = await supabase.from('programs').insert({ ...payload, profile_id: profileId }).select().single()
       if (data) setPrograms(prev => [...prev, data])
     }
     setSaving(false); setSheetOpen(false)
