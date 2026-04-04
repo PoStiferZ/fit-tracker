@@ -19,6 +19,11 @@ export interface Exercise {
   warmup_reps: number
   work_loads: number[]
   warmup_loads: number[]
+  exercise_type: 'strength' | 'cardio'
+  cardio_sets: number
+  cardio_durations: number[]
+  cardio_inclines: number[]
+  cardio_speeds: number[]
   created_at: string
 }
 
@@ -26,6 +31,7 @@ export interface Program {
   id: string
   name: string
   exercise_ids: string[]
+  superset_pairs: Array<[string, string]>
   created_at: string
 }
 

@@ -25,6 +25,11 @@ type FormState = {
   warmup_reps: string
   work_loads: string[]   // one per work set
   warmup_loads: string[] // one per warmup set
+  exercise_type: 'strength' | 'cardio'
+  cardio_sets: string
+  cardio_durations: string[]
+  cardio_inclines: string[]
+  cardio_speeds: string[]
 }
 
 const defaultForm = (): FormState => ({
@@ -38,6 +43,11 @@ const defaultForm = (): FormState => ({
   warmup_reps: '',
   work_loads: [],
   warmup_loads: [],
+  exercise_type: 'strength',
+  cardio_sets: '',
+  cardio_durations: [],
+  cardio_inclines: [],
+  cardio_speeds: [],
 })
 
 function exerciseToForm(ex: Exercise): FormState {
@@ -53,6 +63,11 @@ function exerciseToForm(ex: Exercise): FormState {
     warmup_reps: hasWarmup ? String(ex.warmup_reps) : '',
     work_loads: ex.work_loads.map(String),
     warmup_loads: hasWarmup ? ex.warmup_loads.map(String) : [],
+    exercise_type: ex.exercise_type ?? 'strength',
+    cardio_sets: ex.cardio_sets > 0 ? String(ex.cardio_sets) : '',
+    cardio_durations: ex.cardio_durations.map(String),
+    cardio_inclines: ex.cardio_inclines.map(String),
+    cardio_speeds: ex.cardio_speeds.map(String),
   }
 }
 
@@ -69,6 +84,17 @@ function formToPayload(form: FormState) {
     warmup_reps: form.has_warmup ? (parseInt(form.warmup_reps) || 0) : 0,
     work_loads: form.work_loads.slice(0, workSets).map(v => parseFloat(v) || 0),
     warmup_loads: form.has_warmup ? form.warmup_loads.slice(0, warmupSets).map(v => parseFloat(v) || 0) : [],
+    exercise_type: form.exercise_type,
+    cardio_sets: form.exercise_type === 'cardio' ? (parseInt(form.cardio_sets) || 0) : 0,
+    cardio_durations: form.exercise_type === 'cardio'
+      ? form.cardio_durations.slice(0, parseInt(form.cardio_sets) || 0).map(v => parseFloat(v) || 0)
+      : [],
+    cardio_inclines: form.exercise_type === 'cardio'
+      ? form.cardio_inclines.slice(0, parseInt(form.cardio_sets) || 0).map(v => parseFloat(v) || 0)
+      : [],
+    cardio_speeds: form.exercise_type === 'cardio'
+      ? form.cardio_speeds.slice(0, parseInt(form.cardio_sets) || 0).map(v => parseFloat(v) || 0)
+      : [],
   }
 }
 
@@ -155,6 +181,26 @@ export default function ExercisesPage() {
   }
   function updateWarmupLoad(i: number, val: string) {
     setForm(f => { const loads = [...f.warmup_loads]; loads[i] = val; return { ...f, warmup_loads: loads } })
+  }
+
+  function setCardioSets(val: string) {
+    const n = parseInt(val) || 0
+    setForm(f => ({
+      ...f,
+      cardio_sets: val,
+      cardio_durations: resizeLoads(f.cardio_durations, n),
+      cardio_inclines: resizeLoads(f.cardio_inclines, n),
+      cardio_speeds: resizeLoads(f.cardio_speeds, n),
+    }))
+  }
+  function updateCardioDuration(i: number, val: string) {
+    setForm(f => { const arr = [...f.cardio_durations]; arr[i] = val; return { ...f, cardio_durations: arr } })
+  }
+  function updateCardioIncline(i: number, val: string) {
+    setForm(f => { const arr = [...f.cardio_inclines]; arr[i] = val; return { ...f, cardio_inclines: arr } })
+  }
+  function updateCardioSpeed(i: number, val: string) {
+    setForm(f => { const arr = [...f.cardio_speeds]; arr[i] = val; return { ...f, cardio_speeds: arr } })
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -253,10 +299,16 @@ export default function ExercisesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 truncate">{ex.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5 font-medium">
-                      {ex.work_sets}×{ex.work_reps} reps
-                      {ex.warmup_sets > 0 && <span className="ml-1.5 text-orange-400">· {ex.warmup_sets} échauff.</span>}
+                      {ex.exercise_type === 'cardio' ? (
+                        <span>🏃 {ex.cardio_sets} série(s)</span>
+                      ) : (
+                        <>
+                          {ex.work_sets}×{ex.work_reps} reps
+                          {ex.warmup_sets > 0 && <span className="ml-1.5 text-orange-400">· {ex.warmup_sets} échauff.</span>}
+                        </>
+                      )}
                     </p>
-                    {ex.muscles.length > 0 && (
+                    {ex.exercise_type === 'strength' && ex.muscles.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {ex.muscles.slice(0, 2).map(m => (
                           <span key={m} className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{m}</span>
@@ -307,6 +359,25 @@ export default function ExercisesPage() {
               className={inputField + ' font-semibold'} />
           </div>
 
+          {/* Type d'exercice */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['strength', 'cardio'] as const).map(t => (
+                <button key={t} type="button"
+                  onClick={() => setForm(f => ({ ...f, exercise_type: t }))}
+                  className={cn(
+                    'py-3.5 rounded-2xl text-sm font-bold border-2 transition-all active:scale-95',
+                    form.exercise_type === t
+                      ? 'bg-gray-950 text-white border-gray-950'
+                      : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-300'
+                  )}>
+                  {t === 'strength' ? '🏋️ Musculation' : '🏃 Cardio'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Image */}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Image</label>
@@ -328,134 +399,189 @@ export default function ExercisesPage() {
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
           </div>
 
-          {/* Muscles */}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Muscles {form.muscles.length > 0 && <span className="text-gray-950 normal-case">({form.muscles.length})</span>}
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {MUSCLES.map(m => (
-                <button key={m} type="button" onClick={() => toggleMuscle(m)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95',
-                    form.muscles.includes(m)
-                      ? 'bg-gray-950 text-white border-gray-950'
-                      : 'border-gray-200 text-gray-500 hover:border-gray-400 bg-white'
-                  )}>
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Séries de travail */}
-          <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">💪 Séries de travail</p>
-            <div className="grid grid-cols-2 gap-3">
+          {/* Strength-only fields */}
+          {form.exercise_type === 'strength' && (
+            <>
+              {/* Muscles */}
               <div>
-                <p className="text-xs text-gray-400 mb-1.5 font-semibold">Nb séries</p>
-                <input type="number" inputMode="numeric" min={1} max={10}
-                  value={form.work_sets}
-                  onChange={e => setWorkSets(e.target.value)}
-                  placeholder="0"
-                  className={inputField + ' text-center font-bold text-xl'} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-400 mb-1.5 font-semibold">Nb reps</p>
-                <input type="number" inputMode="numeric" min={1} max={100}
-                  value={form.work_reps}
-                  onChange={e => setForm(f => ({ ...f, work_reps: e.target.value }))}
-                  placeholder="0"
-                  className={inputField + ' text-center font-bold text-xl'} />
-              </div>
-            </div>
-            {workSetsNum > 0 && (
-              <div>
-                <p className="text-[11px] text-gray-400 font-semibold mb-2">Charges par série</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: workSetsNum }).map((_, i) => (
-                    <div key={i}>
-                      <p className="text-[10px] text-gray-400 mb-1 font-semibold text-center">Série {i + 1}</p>
-                      <div className="relative">
-                        <input type="number" inputMode="decimal" min={0} step={0.5}
-                          value={form.work_loads[i] ?? ''}
-                          onChange={e => updateWorkLoad(i, e.target.value)}
-                          placeholder="0"
-                          className={inputField + ' text-center font-bold py-3 pr-7 text-sm'} />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-semibold pointer-events-none">kg</span>
-                      </div>
-                    </div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Muscles {form.muscles.length > 0 && <span className="text-gray-950 normal-case">({form.muscles.length})</span>}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {MUSCLES.map(m => (
+                    <button key={m} type="button" onClick={() => toggleMuscle(m)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95',
+                        form.muscles.includes(m)
+                          ? 'bg-gray-950 text-white border-gray-950'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-400 bg-white'
+                      )}>
+                      {m}
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Toggle échauffement */}
-          <div>
-            <button
-              type="button"
-              onClick={() => toggleHasWarmup(!form.has_warmup)}
-              className={cn(
-                'w-full flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all active:scale-[0.98]',
-                form.has_warmup
-                  ? 'bg-orange-50 border-orange-300 text-orange-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
+              {/* Séries de travail */}
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">💪 Séries de travail</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1.5 font-semibold">Nb séries</p>
+                    <input type="number" inputMode="numeric" min={1} max={10}
+                      value={form.work_sets}
+                      onChange={e => setWorkSets(e.target.value)}
+                      placeholder="0"
+                      className={inputField + ' text-center font-bold text-xl'} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1.5 font-semibold">Nb reps</p>
+                    <input type="number" inputMode="numeric" min={1} max={100}
+                      value={form.work_reps}
+                      onChange={e => setForm(f => ({ ...f, work_reps: e.target.value }))}
+                      placeholder="0"
+                      className={inputField + ' text-center font-bold text-xl'} />
+                  </div>
+                </div>
+                {workSetsNum > 0 && (
+                  <div>
+                    <p className="text-[11px] text-gray-400 font-semibold mb-2">Charges par série</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {Array.from({ length: workSetsNum }).map((_, i) => (
+                        <div key={i}>
+                          <p className="text-[10px] text-gray-400 mb-1 font-semibold text-center">Série {i + 1}</p>
+                          <div className="relative">
+                            <input type="number" inputMode="decimal" min={0} step={0.5}
+                              value={form.work_loads[i] ?? ''}
+                              onChange={e => updateWorkLoad(i, e.target.value)}
+                              placeholder="0"
+                              className={inputField + ' text-center font-bold py-3 pr-7 text-sm'} />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-semibold pointer-events-none">kg</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle échauffement */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleHasWarmup(!form.has_warmup)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all active:scale-[0.98]',
+                    form.has_warmup
+                      ? 'bg-orange-50 border-orange-300 text-orange-700'
+                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
+                  )}
+                >
+                  <div className={cn(
+                    'w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
+                    form.has_warmup ? 'bg-orange-500 border-orange-500' : 'border-gray-300'
+                  )}>
+                    {form.has_warmup && <Check size={12} className="text-white" strokeWidth={3} />}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold">Séries d&apos;échauffement</p>
+                    <p className="text-xs opacity-60 mt-0.5">Séries légères avant les séries de travail</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Séries d'échauffement — conditional */}
+              {form.has_warmup && (
+                <div className="bg-orange-50 rounded-2xl p-4 space-y-3 border border-orange-100">
+                  <p className="text-xs font-bold text-orange-500 uppercase tracking-wider">🔥 Séries d&apos;échauffement</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-orange-400 mb-1.5 font-semibold">Nb séries</p>
+                      <input type="number" inputMode="numeric" min={1} max={10}
+                        value={form.warmup_sets}
+                        onChange={e => setWarmupSets(e.target.value)}
+                        placeholder="0"
+                        className="w-full bg-white border border-orange-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-orange-400 mb-1.5 font-semibold">Nb reps</p>
+                      <input type="number" inputMode="numeric" min={1} max={100}
+                        value={form.warmup_reps}
+                        onChange={e => setForm(f => ({ ...f, warmup_reps: e.target.value }))}
+                        placeholder="0"
+                        className="w-full bg-white border border-orange-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all" />
+                    </div>
+                  </div>
+                  {warmupSetsNum > 0 && (
+                    <div>
+                      <p className="text-[11px] text-orange-400 font-semibold mb-2">Charges par série</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {Array.from({ length: warmupSetsNum }).map((_, i) => (
+                          <div key={i}>
+                            <p className="text-[10px] text-orange-400 mb-1 font-semibold text-center">Série {i + 1}</p>
+                            <div className="relative">
+                              <input type="number" inputMode="decimal" min={0} step={0.5}
+                                value={form.warmup_loads[i] ?? ''}
+                                onChange={e => updateWarmupLoad(i, e.target.value)}
+                                placeholder="0"
+                                className="w-full bg-white border border-orange-200 rounded-2xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all pr-7" />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-orange-300 font-semibold pointer-events-none">kg</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
-            >
-              <div className={cn(
-                'w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
-                form.has_warmup ? 'bg-orange-500 border-orange-500' : 'border-gray-300'
-              )}>
-                {form.has_warmup && <Check size={12} className="text-white" strokeWidth={3} />}
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-bold">Séries d&apos;échauffement</p>
-                <p className="text-xs opacity-60 mt-0.5">Séries légères avant les séries de travail</p>
-              </div>
-            </button>
-          </div>
+            </>
+          )}
 
-          {/* Séries d'échauffement — conditional */}
-          {form.has_warmup && (
-            <div className="bg-orange-50 rounded-2xl p-4 space-y-3 border border-orange-100">
-              <p className="text-xs font-bold text-orange-500 uppercase tracking-wider">🔥 Séries d&apos;échauffement</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-orange-400 mb-1.5 font-semibold">Nb séries</p>
-                  <input type="number" inputMode="numeric" min={1} max={10}
-                    value={form.warmup_sets}
-                    onChange={e => setWarmupSets(e.target.value)}
-                    placeholder="0"
-                    className="w-full bg-white border border-orange-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all" />
-                </div>
-                <div>
-                  <p className="text-xs text-orange-400 mb-1.5 font-semibold">Nb reps</p>
-                  <input type="number" inputMode="numeric" min={1} max={100}
-                    value={form.warmup_reps}
-                    onChange={e => setForm(f => ({ ...f, warmup_reps: e.target.value }))}
-                    placeholder="0"
-                    className="w-full bg-white border border-orange-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all" />
-                </div>
+          {/* Cardio-only fields */}
+          {form.exercise_type === 'cardio' && (
+            <div className="bg-sky-50 rounded-2xl p-4 space-y-3 border border-sky-100">
+              <p className="text-xs font-bold text-sky-500 uppercase tracking-wider">🏃 Séries cardio</p>
+              <div>
+                <p className="text-xs text-sky-400 mb-1.5 font-semibold">Nombre de séries</p>
+                <input type="number" inputMode="numeric" min={1} max={10}
+                  value={form.cardio_sets}
+                  onChange={e => setCardioSets(e.target.value)}
+                  placeholder="0"
+                  className="w-full bg-white border border-sky-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-sky-400 transition-all" />
               </div>
-              {warmupSetsNum > 0 && (
-                <div>
-                  <p className="text-[11px] text-orange-400 font-semibold mb-2">Charges par série</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Array.from({ length: warmupSetsNum }).map((_, i) => (
-                      <div key={i}>
-                        <p className="text-[10px] text-orange-400 mb-1 font-semibold text-center">Série {i + 1}</p>
-                        <div className="relative">
+              {(parseInt(form.cardio_sets) || 0) > 0 && (
+                <div className="space-y-3">
+                  {Array.from({ length: parseInt(form.cardio_sets) || 0 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl p-3 border border-sky-100">
+                      <p className="text-xs font-bold text-sky-400 mb-2">Série {i + 1}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <p className="text-[10px] text-sky-400 mb-1 font-semibold text-center">Durée (min)</p>
                           <input type="number" inputMode="decimal" min={0} step={0.5}
-                            value={form.warmup_loads[i] ?? ''}
-                            onChange={e => updateWarmupLoad(i, e.target.value)}
+                            value={form.cardio_durations[i] ?? ''}
+                            onChange={e => updateCardioDuration(i, e.target.value)}
                             placeholder="0"
-                            className="w-full bg-white border border-orange-200 rounded-2xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none focus:border-orange-400 transition-all pr-7" />
-                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-orange-300 font-semibold pointer-events-none">kg</span>
+                            className="w-full bg-sky-50 border border-sky-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none transition-all" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-sky-400 mb-1 font-semibold text-center">Inclinaison</p>
+                          <input type="number" inputMode="decimal" min={0} max={30} step={0.5}
+                            value={form.cardio_inclines[i] ?? ''}
+                            onChange={e => updateCardioIncline(i, e.target.value)}
+                            placeholder="0"
+                            className="w-full bg-sky-50 border border-sky-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none transition-all" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-sky-400 mb-1 font-semibold text-center">Vitesse</p>
+                          <input type="number" inputMode="decimal" min={0} max={30} step={0.1}
+                            value={form.cardio_speeds[i] ?? ''}
+                            onChange={e => updateCardioSpeed(i, e.target.value)}
+                            placeholder="0"
+                            className="w-full bg-sky-50 border border-sky-200 rounded-xl px-2 py-3 text-gray-900 text-sm font-bold text-center placeholder:text-gray-300 focus:outline-none transition-all" />
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

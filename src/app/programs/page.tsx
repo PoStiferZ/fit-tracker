@@ -24,6 +24,11 @@ export default function ProgramsPage() {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
+  // Superset state
+  const [supersetPairs, setSupersetPairs] = useState<Array<[string, string]>>([])
+  const [supersetMode, setSupersetMode] = useState(false)
+  const [supersetFirst, setSupersetFirst] = useState<string | null>(null)
+
   // Drag state
   const dragIndexRef = useRef<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
@@ -41,14 +46,20 @@ export default function ProgramsPage() {
     })
   }, [])
 
-  function openCreate() { setEditId(null); setName(''); setSelectedIds([]); setSheetOpen(true) }
-  function openEdit(p: Program) { setEditId(p.id); setName(p.name); setSelectedIds(p.exercise_ids); setSheetOpen(true) }
+  function openCreate() {
+    setEditId(null); setName(''); setSelectedIds([]); setSheetOpen(true)
+    setSupersetPairs([]); setSupersetMode(false); setSupersetFirst(null)
+  }
+  function openEdit(p: Program) {
+    setEditId(p.id); setName(p.name); setSelectedIds(p.exercise_ids); setSheetOpen(true)
+    setSupersetPairs(p.superset_pairs || []); setSupersetMode(false); setSupersetFirst(null)
+  }
 
   async function handleSave() {
     if (!name.trim()) return
     const profileId = getProfileId()!
     setSaving(true)
-    const payload = { name: name.trim(), exercise_ids: selectedIds }
+    const payload = { name: name.trim(), exercise_ids: selectedIds, superset_pairs: supersetPairs }
     if (editId) {
       const { data } = await supabase.from('programs').update(payload).eq('id', editId).select().single()
       if (data) setPrograms(prev => prev.map(p => p.id === editId ? data : p))
@@ -69,6 +80,39 @@ export default function ProgramsPage() {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     )
+    // Also remove from supersets if deselected
+    setSupersetPairs(prev => prev.filter(([a, b]) => a !== id && b !== id))
+  }
+
+  // ── Superset logic ────────────────────────────────────────────────────────
+  function isInSuperset(id: string): [string, string] | undefined {
+    return supersetPairs.find(([a, b]) => a === id || b === id)
+  }
+
+  function toggleSuperset(id: string) {
+    if (!supersetFirst) {
+      setSupersetFirst(id)
+    } else {
+      if (supersetFirst === id) {
+        setSupersetFirst(null)
+        return
+      }
+      const existingFirst = isInSuperset(supersetFirst)
+      const existingSecond = isInSuperset(id)
+      if (existingFirst || existingSecond) {
+        setSupersetPairs(prev => prev
+          .filter(([a, b]) => a !== supersetFirst && b !== supersetFirst && a !== id && b !== id)
+          .concat([[supersetFirst, id]])
+        )
+      } else {
+        setSupersetPairs(prev => [...prev, [supersetFirst, id]])
+      }
+      setSupersetFirst(null)
+    }
+  }
+
+  function removeSuperset(id: string) {
+    setSupersetPairs(prev => prev.filter(([a, b]) => a !== id && b !== id))
   }
 
   // ── Drag & drop handlers ──────────────────────────────────────────────────
@@ -151,11 +195,21 @@ export default function ProgramsPage() {
                       <p className="text-xs text-gray-400 mt-0.5 font-medium">{exs.length} exercice{exs.length !== 1 ? 's' : ''}</p>
                       {exs.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
-                          {exs.map((e, i) => (
-                            <span key={e.id} className="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-xl">
-                              {i + 1}. {e.name}
-                            </span>
-                          ))}
+                          {exs.map((e, i) => {
+                            const pair = (p.superset_pairs || []).find(([a, b]: [string, string]) => a === e.id || b === e.id)
+                            const isSecond = pair && pair[1] === e.id
+                            return (
+                              <span key={e.id} className="flex items-center gap-1">
+                                {isSecond && <span className="text-[10px] text-violet-400 font-black">⚡</span>}
+                                <span className={cn(
+                                  'text-[11px] font-semibold px-2.5 py-1 rounded-xl',
+                                  pair ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'
+                                )}>
+                                  {i + 1}. {e.name}
+                                </span>
+                              </span>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -213,33 +267,95 @@ export default function ProgramsPage() {
               </div>
             ) : (
               <div className="space-y-1.5">
-                {selectedExercises.map((ex, index) => (
-                  <div
-                    key={ex.id}
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={e => handleDragOver(e, index)}
-                    onDrop={e => handleDrop(e, index)}
-                    onDragEnd={handleDragEnd}
+                {/* Superset mode toggle */}
+                {selectedExercises.length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => { setSupersetMode(m => !m); setSupersetFirst(null) }}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-3 rounded-2xl border-2 bg-gray-950 border-gray-950 cursor-grab active:cursor-grabbing select-none transition-all',
-                      dragOverIndex === index && dragIndexRef.current !== index
-                        ? 'opacity-50 scale-[0.98]'
-                        : 'opacity-100'
+                      'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border-2 transition-all mb-2',
+                      supersetMode
+                        ? 'bg-violet-600 text-white border-violet-600'
+                        : 'bg-white text-violet-600 border-violet-200 hover:border-violet-400'
                     )}
                   >
-                    <GripVertical size={16} className="text-white/40 shrink-0" />
-                    <span className="text-xs font-black text-white/50 w-4 shrink-0">{index + 1}</span>
-                    <span className="flex-1 text-sm font-semibold text-white truncate">{ex.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleExercise(ex.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors shrink-0"
-                    >
-                      <span className="text-white/60 text-base leading-none">×</span>
-                    </button>
-                  </div>
-                ))}
+                    {supersetMode ? '✓ Mode superset actif — touche 2 exercices' : '⚡ Créer un superset'}
+                  </button>
+                )}
+
+                {selectedExercises.map((ex, index) => {
+                  const pair = isInSuperset(ex.id)
+                  const isSecondOfPair = pair && pair[1] === ex.id
+                  const isHighlighted = supersetFirst === ex.id
+                  const isCardio = ex.exercise_type === 'cardio'
+
+                  return (
+                    <div key={ex.id}>
+                      {/* Superset connector line — show above second element of pair */}
+                      {isSecondOfPair && (
+                        <div className="flex items-center gap-2 px-3 py-1 -mt-0.5 -mb-0.5">
+                          <div className="w-6" />
+                          <div className="flex-1 flex items-center gap-2">
+                            <div className="w-px h-4 bg-violet-400 ml-3" />
+                            <span className="text-[10px] font-black text-violet-500 uppercase tracking-wider">Superset</span>
+                          </div>
+                        </div>
+                      )}
+                      <div
+                        draggable={!supersetMode}
+                        onDragStart={() => !supersetMode && handleDragStart(index)}
+                        onDragOver={e => !supersetMode && handleDragOver(e, index)}
+                        onDrop={e => !supersetMode && handleDrop(e, index)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => supersetMode && toggleSuperset(ex.id)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-3 rounded-2xl border-2 select-none transition-all',
+                          pair
+                            ? 'bg-violet-600 border-violet-600 cursor-default'
+                            : isHighlighted
+                              ? 'bg-violet-100 border-violet-400 cursor-pointer'
+                              : supersetMode
+                                ? 'bg-gray-800 border-gray-800 cursor-pointer hover:border-violet-400'
+                                : 'bg-gray-950 border-gray-950 cursor-grab active:cursor-grabbing',
+                          dragOverIndex === index && dragIndexRef.current !== index && 'opacity-50 scale-[0.98]'
+                        )}
+                      >
+                        {!supersetMode && <GripVertical size={16} className="text-white/40 shrink-0" />}
+                        {supersetMode && (
+                          <div className={cn(
+                            'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
+                            pair ? 'bg-white border-white' : isHighlighted ? 'border-violet-600' : 'border-white/40'
+                          )}>
+                            {pair && <Check size={10} className="text-violet-600" strokeWidth={3} />}
+                          </div>
+                        )}
+                        <span className="text-xs font-black text-white/50 w-4 shrink-0">{index + 1}</span>
+                        <span className="flex-1 text-sm font-semibold text-white truncate">
+                          {isCardio && <span className="mr-1">🏃</span>}
+                          {ex.name}
+                        </span>
+                        {pair && !supersetMode && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); removeSuperset(ex.id) }}
+                            className="text-white/50 hover:text-white/80 text-xs font-bold px-1"
+                          >
+                            ×SS
+                          </button>
+                        )}
+                        {!supersetMode && (
+                          <button
+                            type="button"
+                            onClick={() => toggleExercise(ex.id)}
+                            className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors shrink-0"
+                          >
+                            <span className="text-white/60 text-base leading-none">×</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -261,7 +377,10 @@ export default function ProgramsPage() {
                     <div className="w-6 h-6 rounded-lg border-2 border-gray-300 flex items-center justify-center shrink-0">
                       <Plus size={12} className="text-gray-400" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{ex.name}</span>
+                    <span className="text-sm font-semibold text-gray-700 flex-1 truncate">
+                      {ex.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
+                      {ex.name}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -277,7 +396,7 @@ export default function ProgramsPage() {
           </button>
 
           {/* Confirm with check icon */}
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && !supersetMode && (
             <p className="text-center text-xs text-gray-400 -mt-2">
               <Check size={11} className="inline mr-1" />
               Glisse les exercices pour les réordonner
