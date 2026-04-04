@@ -72,8 +72,8 @@ export default function EntryPage() {
 
   if (screen === 'picker') {
     return (
-      <div className="min-h-screen flex items-end sm:items-center justify-center bg-[#f8f8fb] p-0 sm:p-6">
-        <div className="w-full sm:max-w-sm">
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb] px-4 py-8">
+        <div className="w-full max-w-sm">
           <ProfilePicker profiles={profiles} onSelect={selectProfile} onCreateNew={() => { setStep('name'); setScreen('onboarding') }} />
         </div>
       </div>
@@ -84,32 +84,30 @@ export default function EntryPage() {
   const stepIndex = STEPS.indexOf(step)
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8f8fb]">
-      {/* Hero gradient top */}
-      <div className="h-48 bg-gradient-to-br from-gray-950 via-gray-800 to-gray-700 relative overflow-hidden flex-shrink-0">
-        <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 70% 50%, #818cf8 0%, transparent 60%)'}} />
-        <div className="absolute bottom-6 left-6">
-          <p className="text-white/60 text-sm font-medium tracking-wide uppercase">Étape {stepIndex + 1} / 3</p>
-          <h1 className="text-white text-2xl font-bold mt-1">
+    <div className="min-h-screen bg-[#f8f8fb] flex flex-col">
+      <div className="flex-1 flex flex-col justify-start px-4 pt-12 pb-8 max-w-sm mx-auto w-full">
+
+        {/* Header */}
+        <div className="bg-gray-950 rounded-3xl px-6 py-5 mb-6 relative overflow-hidden flex-shrink-0">
+          <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)'}} />
+          <p className="text-white/60 text-xs font-semibold uppercase tracking-wider relative">Étape {stepIndex + 1} / 3</p>
+          <h1 className="text-white text-xl font-bold mt-1 relative">
             {step === 'name' && 'Ton prénom'}
             {step === 'birth' && 'Ta date de naissance'}
             {step === 'body' && 'Tes mensurations'}
           </h1>
+          <div className="flex gap-1.5 mt-3 relative">
+            {STEPS.map((s, i) => (
+              <div key={s} className={cn(
+                'h-1 rounded-full transition-all duration-300',
+                i <= stepIndex ? 'bg-white w-5' : 'bg-white/30 w-1.5'
+              )} />
+            ))}
+          </div>
         </div>
-        {/* Step dots */}
-        <div className="absolute bottom-6 right-6 flex gap-1.5">
-          {STEPS.map((s, i) => (
-            <div key={s} className={cn(
-              'h-1.5 rounded-full transition-all duration-300',
-              i <= stepIndex ? 'bg-white w-5' : 'bg-white/30 w-1.5'
-            )} />
-          ))}
-        </div>
-      </div>
 
-      {/* Form card */}
-      <div className="flex-1 px-4 -mt-6 max-w-sm mx-auto w-full">
-        <div className="bg-white rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] p-6 space-y-4">
+        {/* Form card */}
+        <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] p-6 space-y-4">
 
           {step === 'name' && (
             <>
@@ -123,7 +121,8 @@ export default function EntryPage() {
                   onKeyDown={e => e.key === 'Enter' && firstName.trim() && setStep('birth')}
                 />
               </div>
-              <button disabled={!firstName.trim()} onClick={() => setStep('birth')} className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
+              <button disabled={!firstName.trim()} onClick={() => setStep('birth')}
+                className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
                 Continuer <ArrowRight size={18} />
               </button>
             </>
@@ -140,7 +139,8 @@ export default function EntryPage() {
                   className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-lg placeholder:text-gray-300 focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
                 />
               </div>
-              <button disabled={!birthDate} onClick={() => setStep('body')} className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
+              <button disabled={!birthDate} onClick={() => setStep('body')}
+                className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
                 Continuer <ArrowRight size={18} />
               </button>
               <button onClick={() => setStep('name')} className="w-full text-center text-sm text-gray-400 py-1">← Retour</button>
@@ -153,19 +153,19 @@ export default function EntryPage() {
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Taille (cm)</label>
                   <input
-                    autoFocus type="number" value={height}
+                    autoFocus type="number" inputMode="numeric" value={height}
                     onChange={e => setHeight(e.target.value)}
                     placeholder="180" min={100} max={250}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-semibold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-semibold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 focus:bg-white transition-all text-center"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Poids (kg)</label>
                   <input
-                    type="number" value={weight}
+                    type="number" inputMode="decimal" value={weight}
                     onChange={e => setWeight(e.target.value)}
                     placeholder="75" min={30} max={300} step={0.5}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-semibold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-xl font-semibold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 focus:bg-white transition-all text-center"
                   />
                 </div>
               </div>
@@ -174,7 +174,8 @@ export default function EntryPage() {
                   {error}
                 </div>
               )}
-              <button disabled={!height || !weight || saving} onClick={handleFinish} className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
+              <button disabled={!height || !weight || saving} onClick={handleFinish}
+                className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
                 {saving ? 'Création...' : <><Check size={18} /> C&apos;est parti !</>}
               </button>
               <button onClick={() => setStep('birth')} className="w-full text-center text-sm text-gray-400 py-1">← Retour</button>

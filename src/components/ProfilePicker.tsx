@@ -14,7 +14,7 @@ export default function ProfilePicker({ profiles, onSelect, onCreateNew }: Profi
   return (
     <div className="w-full">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-gray-950 via-gray-800 to-gray-700 px-6 pt-16 pb-10 relative overflow-hidden sm:rounded-t-3xl">
+      <div className="bg-gradient-to-br from-gray-950 via-gray-800 to-gray-700 px-6 pt-16 pb-10 relative overflow-hidden rounded-3xl">
         <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 80% 20%, #818cf8 0%, transparent 60%)'}} />
         <div className="relative">
           <span className="text-4xl">💪</span>
@@ -24,7 +24,7 @@ export default function ProfilePicker({ profiles, onSelect, onCreateNew }: Profi
       </div>
 
       {/* Cards */}
-      <div className="bg-white sm:rounded-b-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] px-4 py-5 space-y-3">
+      <div className="bg-white rounded-b-3xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] px-4 py-5 space-y-3">
         {profiles.map((p) => (
           <button
             key={p.id}
