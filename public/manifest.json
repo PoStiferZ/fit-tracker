@@ -1,6 +1,6 @@
 {
-  "name": "Fit — Tracker Musculation",
-  "short_name": "Fit",
+  "name": "Fitrack",
+  "short_name": "Fitrack",
   "description": "Mon tracker de musculation personnel",
   "start_url": "/dashboard",
   "display": "standalone",

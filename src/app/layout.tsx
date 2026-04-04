@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Fit',
+  title: 'Fitrack',
   description: 'Mon tracker musculation',
   manifest: '/manifest.json',
   icons: {
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Fit',
+    title: 'Fitrack',
   },
 }
 
