@@ -204,9 +204,9 @@ export default function ExercisesPage() {
   const warmupSetsNum = form.has_warmup ? (parseInt(form.warmup_sets) || 0) : 0
 
   return (
-    <div className="sm:pl-60 pb-28 sm:pb-8 bg-[#f8f8fb] min-h-screen">
+    <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 pt-5 sm:px-6 sm:pt-6">
+      <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-2xl font-black text-gray-950">Exercices</h1>

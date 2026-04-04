@@ -140,9 +140,9 @@ export default function ProfilePage() {
   )
 
   return (
-    <div className="sm:pl-60 pb-28 sm:pb-8 bg-[#f8f8fb] min-h-screen">
+    <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 pt-5 sm:px-6 sm:pt-6 space-y-4">
+      <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6 space-y-4">
 
         {/* Profile card */}
         <div className="bg-gray-950 rounded-3xl p-5 relative overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.2)]">

@@ -31,7 +31,7 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <nav className="hidden sm:flex flex-col w-60 bg-white border-r border-gray-100 min-h-screen p-5 fixed left-0 top-0 shadow-sm">
+      <nav className="hidden md:flex flex-col w-60 bg-white border-r border-gray-100 min-h-screen p-5 fixed left-0 top-0 shadow-sm">
         <div className="mb-8 px-2 flex items-center gap-2.5">
           <span className="text-2xl">💪</span>
           <span className="text-xl font-black text-gray-950">Fit</span>
@@ -56,7 +56,7 @@ export default function Navbar() {
       </nav>
 
       {/* Mobile bottom bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 px-2 pb-3">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-2 pb-3">
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100 flex px-1 py-1.5">
           {mobileLinks.map(({ href, label, icon: Icon }) => {
             const active = pathname === href

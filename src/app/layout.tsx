@@ -4,6 +4,12 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Fit',
   description: 'Mon tracker musculation',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Fit',
+  },
 }
 
 export const viewport: Viewport = {

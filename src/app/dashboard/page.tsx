@@ -123,9 +123,9 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="sm:pl-60 pb-28 sm:pb-8 bg-[#f8f8fb] min-h-screen">
+    <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 pt-5 sm:px-6 sm:pt-6 space-y-4">
+      <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6 space-y-4">
 
         {/* Header */}
         <div className="flex items-center gap-3">
