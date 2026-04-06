@@ -2,255 +2,254 @@
 -- Fitrack v2 — Supplements schema + library seed
 -- ============================================================
 
--- 1. Bibliothèque globale
+-- 1. Bibliotheque globale
 CREATE TABLE IF NOT EXISTS supplement_library (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  category TEXT NOT NULL, -- protein|amino|vitamin|mineral|booster|recovery|health|hormone
+  category TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   benefits TEXT[] NOT NULL DEFAULT '{}',
-  recommended_moments TEXT[] NOT NULL DEFAULT '{}', -- hints only, user chooses
+  recommended_moments TEXT[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 2. Compléments choisis par l''utilisateur (remplace supplements)
--- On garde la table supplements existante et on ajoute library_supplement_id
+-- 2. Ajout colonnes sur supplements existant
 ALTER TABLE supplements ADD COLUMN IF NOT EXISTS library_supplement_id UUID REFERENCES supplement_library(id) ON DELETE SET NULL;
-ALTER TABLE supplements ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'custom'; -- library|custom
+ALTER TABLE supplements ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'custom';
 ALTER TABLE supplements ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
 ALTER TABLE supplements ADD COLUMN IF NOT EXISTS benefits TEXT[] NOT NULL DEFAULT '{}';
 
--- 3. Seed — bibliothèque de compléments (~45 refs)
- (name, category, description, benefits, recommended_moments) VALUES
+-- 3. Seed
+INSERT INTO supplement_library (name, category, description, benefits, recommended_moments) VALUES
 
--- PROTÉINES
-('Whey Protéine', 'protein',
- 'Protéine de lactosérum à assimilation rapide, issue du lait. Idéale post-effort pour la récupération musculaire.',
- ARRAY['Favorise la synthèse musculaire','Récupération rapide','Rassasiant'],
+-- PROTEINES
+('Whey Proteine', 'protein',
+ 'Proteine de lactoserum a assimilation rapide, issue du lait. Ideale post-effort pour la recuperation musculaire.',
+ ARRAY['Favorise la synthese musculaire','Recuperation rapide','Rassasiant'],
  ARRAY['post_workout','petit_dejeuner']),
 
-('Caséine', 'protein',
- 'Protéine à digestion lente, libère les acides aminés sur plusieurs heures. Parfaite avant de dormir.',
- ARRAY['Anti-catabolisme nocturne','Satiété prolongée','Préserve la masse musculaire'],
+('Caseine', 'protein',
+ 'Proteine a digestion lente, libere les acides amines sur plusieurs heures. Parfaite avant de dormir.',
+ ARRAY['Anti-catabolisme nocturne','Satiele prolongee','Preserve la masse musculaire'],
  ARRAY['avant_dormir']),
 
-('Protéine Végétale (Pea/Rice)', 'protein',
- 'Alternative végane à la whey. Mélange de protéines de pois et de riz pour un profil d''acides aminés complet.',
- ARRAY['Convient aux végans','Bonne digestibilité','Soutien musculaire'],
+('Proteine Vegetale (Pea/Rice)', 'protein',
+ 'Alternative vegane a la whey. Melange de proteines de pois et de riz pour un profil complet en acides amines.',
+ ARRAY['Convient aux vegans','Bonne digestibilite','Soutien musculaire'],
  ARRAY['post_workout','petit_dejeuner']),
 
--- ACIDES AMINÉS
-('Créatine Monohydrate', 'amino',
- 'Acide aminé stocké dans les muscles, augmente la force et la puissance lors des efforts courts et intenses.',
- ARRAY['Augmente la force','Améliore la puissance explosive','Favorise la prise de masse'],
+-- ACIDES AMINES
+('Creatine Monohydrate', 'amino',
+ 'Acide amine stocke dans les muscles, augmente la force et la puissance lors des efforts courts et intenses.',
+ ARRAY['Augmente la force','Ameliore la puissance explosive','Favorise la prise de masse'],
  ARRAY['pre_workout','post_workout','petit_dejeuner']),
 
 ('BCAA (2:1:1)', 'amino',
- 'Leucine, Isoleucine, Valine — les 3 acides aminés branchés essentiels. Limitent le catabolisme musculaire.',
- ARRAY['Anti-catabolisme','Réduction de la fatigue musculaire','Soutien de la récupération'],
+ 'Leucine, Isoleucine, Valine — les 3 acides amines branches essentiels. Limitent le catabolisme musculaire.',
+ ARRAY['Anti-catabolisme','Reduction de la fatigue musculaire','Soutien de la recuperation'],
  ARRAY['pre_workout','post_workout']),
 
 ('L-Glutamine', 'amino',
- 'Acide aminé le plus abondant dans le muscle. Soutient la récupération et l''immunité après les efforts intenses.',
- ARRAY['Récupération musculaire','Soutien immunitaire','Santé intestinale'],
+ 'Acide amine le plus abondant dans le muscle. Soutient la recuperation et l''immunite apres les efforts intenses.',
+ ARRAY['Recuperation musculaire','Soutien immunitaire','Sante intestinale'],
  ARRAY['post_workout','avant_dormir']),
 
 ('L-Arginine', 'amino',
- 'Précurseur de l''oxyde nitrique, favorise la vasodilatation et le flux sanguin vers les muscles.',
- ARRAY['Améliore la vascularisation','Pompe musculaire','Soutient la performance'],
+ 'Precurseur de l''oxyde nitrique, favorise la vasodilatation et le flux sanguin vers les muscles.',
+ ARRAY['Ameliore la vascularisation','Pompe musculaire','Soutient la performance'],
  ARRAY['pre_workout']),
 
 ('L-Citrulline', 'amino',
  'Plus efficace que l''arginine pour augmenter le NO. Retarde la fatigue musculaire.',
- ARRAY['Endurance musculaire','Pompe','Réduction des courbatures'],
+ ARRAY['Endurance musculaire','Pompe','Reduction des courbatures'],
  ARRAY['pre_workout']),
 
 ('Taurine', 'amino',
- 'Acide aminé aux propriétés antioxydantes. Réduit les dommages musculaires et la fatigue mentale.',
- ARRAY['Antioxydant','Réduction de la fatigue','Hydratation cellulaire'],
+ 'Acide amine aux proprietes antioxydantes. Reduit les dommages musculaires et la fatigue mentale.',
+ ARRAY['Antioxydant','Reduction de la fatigue','Hydratation cellulaire'],
  ARRAY['pre_workout','petit_dejeuner']),
 
-('Bêta-Alanine', 'amino',
- 'Précurseur de la carnosine, tampon l''acide lactique dans les muscles. Améliore l''endurance.',
- ARRAY['Retarde la fatigue','Endurance','Performance sur les séries longues'],
+('Beta-Alanine', 'amino',
+ 'Precurseur de la carnosine, tamponne l''acide lactique dans les muscles. Ameliore l''endurance.',
+ ARRAY['Retarde la fatigue','Endurance','Performance sur les series longues'],
  ARRAY['pre_workout']),
 
-('EAA (Acides Aminés Essentiels)', 'amino',
- 'Les 9 acides aminés essentiels que le corps ne peut pas synthétiser. Plus complet que les BCAA.',
- ARRAY['Synthèse protéique complète','Récupération','Anti-catabolisme'],
+('EAA (Acides Amines Essentiels)', 'amino',
+ 'Les 9 acides amines essentiels que le corps ne peut pas synthetiser. Plus complet que les BCAA.',
+ ARRAY['Synthese proteique complete','Recuperation','Anti-catabolisme'],
  ARRAY['pre_workout','post_workout']),
 
 -- VITAMINES
 ('Vitamine D3', 'vitamin',
- 'Essentielle à la santé osseuse, immunitaire et hormonale. La majorité de la population en manque (surtout en hiver).',
- ARRAY['Santé osseuse','Immunité','Régulation hormonale','Énergie'],
+ 'Essentielle a la sante osseuse, immunitaire et hormonale. La majorite de la population en manque, surtout en hiver.',
+ ARRAY['Sante osseuse','Immunite','Regulation hormonale','Energie'],
  ARRAY['petit_dejeuner']),
 
 ('Vitamine C', 'vitamin',
- 'Antioxydant puissant, soutient l''immunité et la production de collagène.',
- ARRAY['Immunité','Antioxydant','Synthèse du collagène','Absorption du fer'],
+ 'Antioxydant puissant, soutient l''immunite et la production de collagene.',
+ ARRAY['Immunite','Antioxydant','Synthese du collagene','Absorption du fer'],
  ARRAY['petit_dejeuner','dejeuner']),
 
 ('Vitamine B12', 'vitamin',
- 'Indispensable à la production d''énergie et au bon fonctionnement nerveux. Souvent déficitaire chez les végans.',
- ARRAY['Énergie','Fonctionnement neurologique','Hématopoïèse'],
+ 'Indispensable a la production d''energie et au bon fonctionnement nerveux. Souvent deficitaire chez les vegans.',
+ ARRAY['Energie','Fonctionnement neurologique','Hematopoiese'],
  ARRAY['petit_dejeuner']),
 
 ('Vitamine K2 (MK-7)', 'vitamin',
- 'Favorise la fixation du calcium dans les os et prévient les dépôts artériels. Souvent associée à la D3.',
- ARRAY['Santé osseuse','Santé cardiovasculaire','Absorption du calcium'],
+ 'Favorise la fixation du calcium dans les os et previent les depots arteriels. Souvent associee a la D3.',
+ ARRAY['Sante osseuse','Sante cardiovasculaire','Absorption du calcium'],
  ARRAY['petit_dejeuner']),
 
 ('Complexe Vitamine B', 'vitamin',
- 'Ensemble des vitamines B (B1, B2, B3, B5, B6, B8, B9, B12). Essentielles au métabolisme énergétique.',
- ARRAY['Métabolisme énergétique','Anti-fatigue','Fonctionnement nerveux'],
+ 'Ensemble des vitamines B (B1, B2, B3, B5, B6, B8, B9, B12). Essentielles au metabolisme energetique.',
+ ARRAY['Metabolisme energetique','Anti-fatigue','Fonctionnement nerveux'],
  ARRAY['petit_dejeuner']),
 
 ('Vitamine E', 'vitamin',
- 'Antioxydant liposoluble qui protège les cellules du stress oxydatif.',
+ 'Antioxydant liposoluble qui protege les cellules du stress oxydatif.',
  ARRAY['Antioxydant','Protection cellulaire','Peau et cheveux'],
  ARRAY['dejeuner','diner']),
 
--- MINÉRAUX
-('Magnésium Bisglycinate', 'mineral',
- 'Forme de magnésium à haute biodisponibilité. Réduit le stress, améliore le sommeil et la récupération musculaire.',
- ARRAY['Réduction du stress','Qualité du sommeil','Récupération musculaire','Crampes'],
+-- MINERAUX
+('Magnesium Bisglycinate', 'mineral',
+ 'Forme de magnesium a haute biodisponibilite. Reduit le stress, ameliore le sommeil et la recuperation musculaire.',
+ ARRAY['Reduction du stress','Qualite du sommeil','Recuperation musculaire','Crampes'],
  ARRAY['diner','avant_dormir']),
 
 ('Zinc', 'mineral',
- 'Minéral clé pour la testostérone, l''immunité et la cicatrisation. Souvent déficitaire chez les sportifs.',
- ARRAY['Testostérone','Immunité','Cicatrisation','Antioxydant'],
+ 'Mineral cle pour la testosterone, l''immunite et la cicatrisation. Souvent deficitaire chez les sportifs.',
+ ARRAY['Testosterone','Immunite','Cicatrisation','Antioxydant'],
  ARRAY['avant_dormir']),
 
-('ZMA (Zinc + Magnésium + B6)', 'mineral',
- 'Formule combinant zinc, magnésium et vitamine B6 pour optimiser la récupération nocturne et les hormones.',
- ARRAY['Récupération nocturne','Testostérone','Qualité du sommeil'],
+('ZMA (Zinc + Magnesium + B6)', 'mineral',
+ 'Formule combinant zinc, magnesium et vitamine B6 pour optimiser la recuperation nocturne et les hormones.',
+ ARRAY['Recuperation nocturne','Testosterone','Qualite du sommeil'],
  ARRAY['avant_dormir']),
 
 ('Fer', 'mineral',
- 'Composant central de l''hémoglobine. Une carence entraîne fatigue et baisse des performances.',
- ARRAY['Transport de l''oxygène','Anti-fatigue','Performance aérobie'],
+ 'Composant central de l''hemoglobine. Une carence entraine fatigue et baisse des performances.',
+ ARRAY['Transport de l''oxygene','Anti-fatigue','Performance aerobie'],
  ARRAY['petit_dejeuner']),
 
 ('Calcium', 'mineral',
- 'Indispensable à la solidité osseuse et à la contraction musculaire.',
- ARRAY['Santé osseuse','Contraction musculaire','Dents'],
+ 'Indispensable a la solidite osseuse et a la contraction musculaire.',
+ ARRAY['Sante osseuse','Contraction musculaire','Dents'],
  ARRAY['petit_dejeuner','diner']),
 
 ('Potassium', 'mineral',
- 'Électrolyte essentiel à l''équilibre hydrique et à la fonction musculaire.',
- ARRAY['Équilibre électrolytique','Prévention des crampes','Pression artérielle'],
+ 'Electrolyte essentiel a l''equilibre hydrique et a la fonction musculaire.',
+ ARRAY['Equilibre electrolytique','Prevention des crampes','Pression arterielle'],
  ARRAY['post_workout','diner']),
 
 ('Iode', 'mineral',
- 'Nécessaire à la synthèse des hormones thyroïdiennes qui régulent le métabolisme.',
- ARRAY['Métabolisme','Thyroïde','Énergie'],
+ 'Necessaire a la synthese des hormones thyroidiennes qui regulent le metabolisme.',
+ ARRAY['Metabolisme','Thyroide','Energie'],
  ARRAY['petit_dejeuner']),
 
--- BOOSTERS / PERFORMANCE
-('Caféine', 'booster',
- 'Stimulant du système nerveux central. Améliore la vigilance, la concentration et la performance sportive.',
- ARRAY['Énergie','Concentration','Performance','Brûleur de graisses'],
+-- BOOSTERS
+('Cafeine', 'booster',
+ 'Stimulant du systeme nerveux central. Ameliore la vigilance, la concentration et la performance sportive.',
+ ARRAY['Energie','Concentration','Performance','Bruleur de graisses'],
  ARRAY['pre_workout','petit_dejeuner']),
 
-('Pré-Workout (complexe)', 'booster',
- 'Formule multi-ingrédients combinant stimulants, vasodilatateurs et acides aminés pour maximiser la performance.',
- ARRAY['Énergie explosive','Pompe musculaire','Endurance','Focus'],
+('Pre-Workout (complexe)', 'booster',
+ 'Formule multi-ingredients combinant stimulants, vasodilatateurs et acides amines pour maximiser la performance.',
+ ARRAY['Energie explosive','Pompe musculaire','Endurance','Focus'],
  ARRAY['pre_workout']),
 
 ('Ashwagandha (KSM-66)', 'booster',
- 'Adaptogène qui réduit le cortisol (hormone du stress), améliore la récupération et soutient la testostérone.',
- ARRAY['Réduction du stress','Taux de testostérone','Récupération','Sommeil'],
+ 'Adaptogene qui reduit le cortisol (hormone du stress), ameliore la recuperation et soutient la testosterone.',
+ ARRAY['Reduction du stress','Taux de testosterone','Recuperation','Sommeil'],
  ARRAY['diner','avant_dormir']),
 
 ('Rhodiola Rosea', 'booster',
- 'Plante adaptogène qui améliore la résistance à la fatigue physique et mentale.',
+ 'Plante adaptogene qui ameliore la resistance a la fatigue physique et mentale.',
  ARRAY['Anti-fatigue','Endurance mentale','Gestion du stress'],
  ARRAY['petit_dejeuner','pre_workout']),
 
 ('Tribulus Terrestris', 'booster',
- 'Plante utilisée pour soutenir la libido et les niveaux de testostérone.',
- ARRAY['Libido','Testostérone','Énergie'],
+ 'Plante utilisee pour soutenir la libido et les niveaux de testosterone.',
+ ARRAY['Libido','Testosterone','Energie'],
  ARRAY['petit_dejeuner']),
 
--- RÉCUPÉRATION
-('Oméga-3 (EPA/DHA)', 'recovery',
- 'Acides gras essentiels à la protection cardiovasculaire et à la réduction de l''inflammation.',
- ARRAY['Anti-inflammatoire','Santé cardiovasculaire','Récupération','Cerveau'],
+-- RECUPERATION
+('Omega-3 (EPA/DHA)', 'recovery',
+ 'Acides gras essentiels a la protection cardiovasculaire et a la reduction de l''inflammation.',
+ ARRAY['Anti-inflammatoire','Sante cardiovasculaire','Recuperation','Cerveau'],
  ARRAY['petit_dejeuner','diner']),
 
-('Collagène Hydrolysé', 'recovery',
- 'Protéine structurelle qui soutient les articulations, tendons, peau et os.',
- ARRAY['Articulations','Tendons','Peau','Prévention des blessures'],
+('Collagene Hydrolyse', 'recovery',
+ 'Proteine structurelle qui soutient les articulations, tendons, peau et os.',
+ ARRAY['Articulations','Tendons','Peau','Prevention des blessures'],
  ARRAY['petit_dejeuner','post_workout']),
 
 ('Curcumine (Curcuma)', 'recovery',
- 'Puissant anti-inflammatoire naturel, améliore la récupération post-entraînement.',
- ARRAY['Anti-inflammatoire','Récupération','Antioxydant','Articulations'],
+ 'Puissant anti-inflammatoire naturel, ameliore la recuperation post-entrainement.',
+ ARRAY['Anti-inflammatoire','Recuperation','Antioxydant','Articulations'],
  ARRAY['diner','avant_dormir']),
 
-('Glucosamine + Chondroïtine', 'recovery',
- 'Duo pour la santé des cartilages articulaires et la prévention de leur dégradation.',
- ARRAY['Cartilage','Articulations','Mobilité','Prévention des blessures'],
+('Glucosamine + Chondroitine', 'recovery',
+ 'Duo pour la sante des cartilages articulaires et la prevention de leur degradation.',
+ ARRAY['Cartilage','Articulations','Mobilite','Prevention des blessures'],
  ARRAY['petit_dejeuner','diner']),
 
-('HMB (Bêta-Hydroxy Bêta-Méthylbutyrate)', 'recovery',
- 'Métabolite de la leucine, puissant anti-catabolique. Utile lors des phases de sèche ou de récupération.',
- ARRAY['Anti-catabolisme','Préservation musculaire','Récupération'],
+('HMB', 'recovery',
+ 'Metabolite de la leucine, puissant anti-catabolique. Utile lors des phases de seche ou de recuperation.',
+ ARRAY['Anti-catabolisme','Preservation musculaire','Recuperation'],
  ARRAY['post_workout','avant_dormir']),
 
-('Électrolytes', 'recovery',
- 'Mélange de sodium, potassium, magnésium et chlorure pour la réhydratation après l''effort.',
- ARRAY['Réhydratation','Prévention des crampes','Endurance'],
+('Electrolytes', 'recovery',
+ 'Melange de sodium, potassium, magnesium et chlorure pour la rehydratation apres l''effort.',
+ ARRAY['Rehydratation','Prevention des crampes','Endurance'],
  ARRAY['post_workout','pre_workout']),
 
 ('Spiruline', 'recovery',
- 'Super-aliment riche en protéines, fer, antioxydants et vitamines B. Soutient l''immunité et l''énergie.',
- ARRAY['Énergie','Immunité','Antioxydant','Fer'],
+ 'Super-aliment riche en proteines, fer, antioxydants et vitamines B. Soutient l''immunite et l''energie.',
+ ARRAY['Energie','Immunite','Antioxydant','Fer'],
  ARRAY['petit_dejeuner','collation_matin']),
 
--- SANTÉ GÉNÉRALE
+-- SANTE GENERALE
 ('Probiotiques', 'health',
- 'Bactéries bénéfiques qui renforcent le microbiote intestinal et l''immunité.',
- ARRAY['Microbiote','Immunité','Digestion','Absorption des nutriments'],
+ 'Bacteries benefiques qui renforcent le microbiote intestinal et l''immunite.',
+ ARRAY['Microbiote','Immunite','Digestion','Absorption des nutriments'],
  ARRAY['petit_dejeuner','avant_dormir']),
 
 ('Vitamine D3 + K2', 'health',
- 'Association synergique pour la santé osseuse et cardiovasculaire. La K2 guide le calcium vers les os.',
- ARRAY['Santé osseuse','Cardiovasculaire','Immunité'],
+ 'Association synergique pour la sante osseuse et cardiovasculaire. La K2 guide le calcium vers les os.',
+ ARRAY['Sante osseuse','Cardiovasculaire','Immunite'],
  ARRAY['petit_dejeuner']),
 
 ('Huile de poisson', 'health',
- 'Source naturelle d''oméga-3 EPA et DHA. Soutient le cerveau, le cœur et la réduction de l''inflammation.',
- ARRAY['Cerveau','Cœur','Anti-inflammatoire'],
+ 'Source naturelle d''omega-3 EPA et DHA. Soutient le cerveau, le coeur et la reduction de l''inflammation.',
+ ARRAY['Cerveau','Coeur','Anti-inflammatoire'],
  ARRAY['petit_dejeuner','diner']),
 
 ('Charbon Actif', 'health',
- 'Aide à éliminer les toxines et les gaz digestifs. À utiliser ponctuellement.',
- ARRAY['Détox','Ballonnements','Digestion'],
+ 'Aide a eliminer les toxines et les gaz digestifs. A utiliser ponctuellement.',
+ ARRAY['Detox','Ballonnements','Digestion'],
  ARRAY['collation']),
 
-('Mélatonine', 'health',
- 'Hormone du sommeil. Aide à s''endormir plus vite et à réguler le cycle circadien.',
- ARRAY['Endormissement','Qualité du sommeil','Récupération'],
+('Melatonine', 'health',
+ 'Hormone du sommeil. Aide a s''endormir plus vite et a reguler le cycle circadien.',
+ ARRAY['Endormissement','Qualite du sommeil','Recuperation'],
  ARRAY['avant_dormir']),
 
 ('5-HTP', 'health',
- 'Précurseur de la sérotonine et de la mélatonine. Améliore l''humeur et le sommeil.',
- ARRAY['Humeur','Sommeil','Anxiété'],
+ 'Precurseur de la serotonine et de la melatonine. Ameliore l''humeur et le sommeil.',
+ ARRAY['Humeur','Sommeil','Anxiete'],
  ARRAY['diner','avant_dormir']),
 
-('Resvératrol', 'health',
- 'Antioxydant puissant présent dans le raisin. Soutient la longévité cellulaire et la santé cardiovasculaire.',
- ARRAY['Antioxydant','Cardiovasculaire','Anti-âge'],
+('Resveratrol', 'health',
+ 'Antioxydant puissant present dans le raisin. Soutient la longevite cellulaire et la sante cardiovasculaire.',
+ ARRAY['Antioxydant','Cardiovasculaire','Anti-age'],
  ARRAY['diner']),
 
-('NAC (N-Acétyl Cystéine)', 'health',
- 'Précurseur du glutathion, le principal antioxydant de l''organisme. Soutient le foie et l''immunité.',
- ARRAY['Antioxydant','Foie','Immunité','Détox'],
+('NAC (N-Acetyl Cysteine)', 'health',
+ 'Precurseur du glutathion, le principal antioxydant de l''organisme. Soutient le foie et l''immunite.',
+ ARRAY['Antioxydant','Foie','Immunite','Detox'],
  ARRAY['petit_dejeuner','avant_dormir']),
 
 ('Ginseng', 'health',
- 'Adaptogène classique qui améliore l''énergie, la cognition et la résistance au stress.',
- ARRAY['Énergie','Concentration','Adaptogène','Immunité'],
+ 'Adaptogene classique qui ameliore l''energie, la cognition et la resistance au stress.',
+ ARRAY['Energie','Concentration','Adaptogene','Immunite'],
  ARRAY['petit_dejeuner']);
