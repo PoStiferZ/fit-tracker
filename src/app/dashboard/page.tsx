@@ -6,7 +6,7 @@ import { getProfileId, setProfileId } from '@/lib/cookies'
 import { calculateAge, getMonday, formatDateISO, cn } from '@/lib/utils'
 import { fetchStreak } from '@/lib/streak'
 import { DAYS } from '@/lib/constants'
-import type { Profile, Program, Workout, WeeklyPlan } from '@/types'
+import type { Profile, Program, Workout, WeeklyPlan, LiveSession } from '@/types'
 import Navbar from '@/components/Navbar'
 import DayCard from '@/components/DayCard'
 import BottomSheet from '@/components/BottomSheet'
@@ -14,7 +14,7 @@ import ProgressRing from '@/components/ProgressRing'
 import ProfileAvatar from '@/components/ProfileAvatar'
 import SupplementsTab from '@/components/SupplementsTab'
 import WeekNav from '@/components/WeekNav'
-import { Users, Check, Plus, Lock, ChevronRight } from 'lucide-react'
+import { Users, Check, Plus, Lock, ChevronRight, Play } from 'lucide-react'
 
 type Tab = 'semaine' | 'complements'
 
@@ -49,6 +49,11 @@ export default function DashboardPage() {
   const [assignStep, setAssignStep] = useState<'program' | 'workout'>('program')
   const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>('')
+
+  // Launch sheet
+  const [launchWorkout, setLaunchWorkout] = useState<Workout | null>(null)
+  const [launchExerciseCount, setLaunchExerciseCount] = useState<number>(0)
+  const [launching, setLaunching] = useState(false)
 
   const todayMonday = getMonday(new Date())
   const viewMonday = addWeeks(todayMonday, weekOffset)
@@ -205,6 +210,34 @@ export default function DashboardPage() {
     setEditDay(null)
   }
 
+  async function openLaunchSheet(workout: Workout) {
+    setLaunchWorkout(workout)
+    const { count } = await supabase
+      .from('workout_exercises')
+      .select('id', { count: 'exact', head: true })
+      .eq('workout_id', workout.id)
+    setLaunchExerciseCount(count || 0)
+  }
+
+  async function startLiveSession() {
+    if (!launchWorkout || launching) return
+    const profileId = getProfileId()!
+    setLaunching(true)
+    const { data, error } = await supabase
+      .from('live_sessions')
+      .insert({
+        profile_id: profileId,
+        workout_id: launchWorkout.id,
+        status: 'active',
+      })
+      .select()
+      .single()
+    setLaunching(false)
+    if (error || !data) { console.error(error); return }
+    const session = data as LiveSession
+    router.push(`/session/live?id=${session.id}`)
+  }
+
   function switchProfile(p: Profile) {
     setProfileId(p.id)
     setProfileSheetOpen(false)
@@ -333,6 +366,7 @@ export default function DashboardPage() {
                     readonly={isPastWeek}
                     onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
                     onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}
+                    onLaunch={isToday && getWorkoutForDay(dayNum) ? () => openLaunchSheet(getWorkoutForDay(dayNum)!) : undefined}
                   />
                 )
               })}
@@ -444,6 +478,36 @@ export default function DashboardPage() {
             </button>
           )}
         </div>
+      </BottomSheet>
+
+      {/* Launch live session */}
+      <BottomSheet
+        isOpen={!!launchWorkout}
+        onClose={() => setLaunchWorkout(null)}
+        title="Démarrer une séance ?"
+      >
+        {launchWorkout && (
+          <div className="space-y-4 pb-2">
+            <div className="bg-gray-50 rounded-2xl px-4 py-4 border border-gray-100">
+              <p className="font-bold text-gray-900 text-lg">{launchWorkout.name}</p>
+              <p className="text-sm text-gray-400 mt-1">{launchExerciseCount} exercice{launchExerciseCount !== 1 ? 's' : ''}</p>
+            </div>
+            <button
+              onClick={startLiveSession}
+              disabled={launching}
+              className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[64px] flex items-center justify-center gap-2 text-base transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-60"
+            >
+              {launching ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Play size={18} className="fill-white" />
+                  C&apos;est parti 🚀
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </BottomSheet>
 
       {/* Profile switcher */}

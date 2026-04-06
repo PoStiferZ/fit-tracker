@@ -133,6 +133,32 @@ export interface BodyWeightEntry {
   created_at: string
 }
 
+// ─── Live session types ──────────────────────────────────────────────────────
+export interface LiveSession {
+  id: string
+  profile_id: string
+  workout_id: string
+  started_at: string
+  finished_at: string | null
+  status: 'active' | 'finished' | 'abandoned'
+  created_at: string
+}
+
+export interface LiveSessionSet {
+  id: string
+  live_session_id: string
+  workout_exercise_id: string
+  set_index: number
+  set_type: 'work' | 'warmup' | 'cardio'
+  reps: number | null
+  weight_kg: number | null
+  rest_seconds: number | null
+  duration_seconds: number | null
+  skipped: boolean
+  completed_at: string
+  created_at: string
+}
+
 // ─── Legacy v1 types (kept for session page compat) ─────────────────────────
 export interface Exercise {
   id: string

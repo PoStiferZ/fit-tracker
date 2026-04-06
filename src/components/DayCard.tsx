@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { Program, Workout } from '@/types'
-import { Pencil, Check, Lock } from 'lucide-react'
+import { Pencil, Check, Lock, Play } from 'lucide-react'
 
 interface DayCardProps {
   dayName: string
@@ -15,6 +15,7 @@ interface DayCardProps {
   readonly?: boolean
   onEdit?: () => void
   onToggle?: () => void
+  onLaunch?: () => void
 }
 
 export default function DayCard({
@@ -28,6 +29,7 @@ export default function DayCard({
   readonly,
   onEdit,
   onToggle,
+  onLaunch,
 }: DayCardProps) {
   const router = useRouter()
   const today = new Date().getDay()
@@ -76,6 +78,15 @@ export default function DayCard({
               <p className={cn('text-xs truncate mt-0.5', isToday ? 'text-white/40' : 'text-gray-400')}>
                 {program.name}
               </p>
+            )}
+            {isToday && onLaunch && !readonly && (
+              <button
+                onClick={e => { e.stopPropagation(); onLaunch() }}
+                className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors"
+              >
+                <Play size={9} className="fill-current" />
+                Lancer
+              </button>
             )}
           </div>
         ) : (
