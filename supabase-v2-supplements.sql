@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS supplement_library (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 2. Compléments choisis par l'utilisateur (remplace supplements)
+-- 2. Compléments choisis par l''utilisateur (remplace supplements)
 -- On garde la table supplements existante et on ajoute library_supplement_id
 ALTER TABLE supplements ADD COLUMN IF NOT EXISTS library_supplement_id UUID REFERENCES supplement_library(id) ON DELETE SET NULL;
 ALTER TABLE supplements ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'custom'; -- library|custom
@@ -21,7 +21,7 @@ ALTER TABLE supplements ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAU
 ALTER TABLE supplements ADD COLUMN IF NOT EXISTS benefits TEXT[] NOT NULL DEFAULT '{}';
 
 -- 3. Seed — bibliothèque de compléments (~45 refs)
-INSERT INTO supplement_library (name, category, description, benefits, recommended_moments) VALUES
+ (name, category, description, benefits, recommended_moments) VALUES
 
 -- PROTÉINES
 ('Whey Protéine', 'protein',
@@ -35,7 +35,7 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['avant_dormir']),
 
 ('Protéine Végétale (Pea/Rice)', 'protein',
- 'Alternative végane à la whey. Mélange de protéines de pois et de riz pour un profil d'acides aminés complet.',
+ 'Alternative végane à la whey. Mélange de protéines de pois et de riz pour un profil d''acides aminés complet.',
  ARRAY['Convient aux végans','Bonne digestibilité','Soutien musculaire'],
  ARRAY['post_workout','petit_dejeuner']),
 
@@ -51,17 +51,17 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['pre_workout','post_workout']),
 
 ('L-Glutamine', 'amino',
- 'Acide aminé le plus abondant dans le muscle. Soutient la récupération et l'immunité après les efforts intenses.',
+ 'Acide aminé le plus abondant dans le muscle. Soutient la récupération et l''immunité après les efforts intenses.',
  ARRAY['Récupération musculaire','Soutien immunitaire','Santé intestinale'],
  ARRAY['post_workout','avant_dormir']),
 
 ('L-Arginine', 'amino',
- 'Précurseur de l'oxyde nitrique, favorise la vasodilatation et le flux sanguin vers les muscles.',
+ 'Précurseur de l''oxyde nitrique, favorise la vasodilatation et le flux sanguin vers les muscles.',
  ARRAY['Améliore la vascularisation','Pompe musculaire','Soutient la performance'],
  ARRAY['pre_workout']),
 
 ('L-Citrulline', 'amino',
- 'Plus efficace que l'arginine pour augmenter le NO. Retarde la fatigue musculaire.',
+ 'Plus efficace que l''arginine pour augmenter le NO. Retarde la fatigue musculaire.',
  ARRAY['Endurance musculaire','Pompe','Réduction des courbatures'],
  ARRAY['pre_workout']),
 
@@ -71,7 +71,7 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['pre_workout','petit_dejeuner']),
 
 ('Bêta-Alanine', 'amino',
- 'Précurseur de la carnosine, tampon l'acide lactique dans les muscles. Améliore l'endurance.',
+ 'Précurseur de la carnosine, tampon l''acide lactique dans les muscles. Améliore l''endurance.',
  ARRAY['Retarde la fatigue','Endurance','Performance sur les séries longues'],
  ARRAY['pre_workout']),
 
@@ -87,12 +87,12 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['petit_dejeuner']),
 
 ('Vitamine C', 'vitamin',
- 'Antioxydant puissant, soutient l'immunité et la production de collagène.',
+ 'Antioxydant puissant, soutient l''immunité et la production de collagène.',
  ARRAY['Immunité','Antioxydant','Synthèse du collagène','Absorption du fer'],
  ARRAY['petit_dejeuner','dejeuner']),
 
 ('Vitamine B12', 'vitamin',
- 'Indispensable à la production d'énergie et au bon fonctionnement nerveux. Souvent déficitaire chez les végans.',
+ 'Indispensable à la production d''énergie et au bon fonctionnement nerveux. Souvent déficitaire chez les végans.',
  ARRAY['Énergie','Fonctionnement neurologique','Hématopoïèse'],
  ARRAY['petit_dejeuner']),
 
@@ -118,7 +118,7 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['diner','avant_dormir']),
 
 ('Zinc', 'mineral',
- 'Minéral clé pour la testostérone, l'immunité et la cicatrisation. Souvent déficitaire chez les sportifs.',
+ 'Minéral clé pour la testostérone, l''immunité et la cicatrisation. Souvent déficitaire chez les sportifs.',
  ARRAY['Testostérone','Immunité','Cicatrisation','Antioxydant'],
  ARRAY['avant_dormir']),
 
@@ -128,8 +128,8 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['avant_dormir']),
 
 ('Fer', 'mineral',
- 'Composant central de l'hémoglobine. Une carence entraîne fatigue et baisse des performances.',
- ARRAY['Transport de l'oxygène','Anti-fatigue','Performance aérobie'],
+ 'Composant central de l''hémoglobine. Une carence entraîne fatigue et baisse des performances.',
+ ARRAY['Transport de l''oxygène','Anti-fatigue','Performance aérobie'],
  ARRAY['petit_dejeuner']),
 
 ('Calcium', 'mineral',
@@ -138,7 +138,7 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['petit_dejeuner','diner']),
 
 ('Potassium', 'mineral',
- 'Électrolyte essentiel à l'équilibre hydrique et à la fonction musculaire.',
+ 'Électrolyte essentiel à l''équilibre hydrique et à la fonction musculaire.',
  ARRAY['Équilibre électrolytique','Prévention des crampes','Pression artérielle'],
  ARRAY['post_workout','diner']),
 
@@ -175,7 +175,7 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
 
 -- RÉCUPÉRATION
 ('Oméga-3 (EPA/DHA)', 'recovery',
- 'Acides gras essentiels à la protection cardiovasculaire et à la réduction de l'inflammation.',
+ 'Acides gras essentiels à la protection cardiovasculaire et à la réduction de l''inflammation.',
  ARRAY['Anti-inflammatoire','Santé cardiovasculaire','Récupération','Cerveau'],
  ARRAY['petit_dejeuner','diner']),
 
@@ -200,18 +200,18 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['post_workout','avant_dormir']),
 
 ('Électrolytes', 'recovery',
- 'Mélange de sodium, potassium, magnésium et chlorure pour la réhydratation après l'effort.',
+ 'Mélange de sodium, potassium, magnésium et chlorure pour la réhydratation après l''effort.',
  ARRAY['Réhydratation','Prévention des crampes','Endurance'],
  ARRAY['post_workout','pre_workout']),
 
 ('Spiruline', 'recovery',
- 'Super-aliment riche en protéines, fer, antioxydants et vitamines B. Soutient l'immunité et l'énergie.',
+ 'Super-aliment riche en protéines, fer, antioxydants et vitamines B. Soutient l''immunité et l''énergie.',
  ARRAY['Énergie','Immunité','Antioxydant','Fer'],
  ARRAY['petit_dejeuner','collation_matin']),
 
 -- SANTÉ GÉNÉRALE
 ('Probiotiques', 'health',
- 'Bactéries bénéfiques qui renforcent le microbiote intestinal et l'immunité.',
+ 'Bactéries bénéfiques qui renforcent le microbiote intestinal et l''immunité.',
  ARRAY['Microbiote','Immunité','Digestion','Absorption des nutriments'],
  ARRAY['petit_dejeuner','avant_dormir']),
 
@@ -221,7 +221,7 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['petit_dejeuner']),
 
 ('Huile de poisson', 'health',
- 'Source naturelle d'oméga-3 EPA et DHA. Soutient le cerveau, le cœur et la réduction de l'inflammation.',
+ 'Source naturelle d''oméga-3 EPA et DHA. Soutient le cerveau, le cœur et la réduction de l''inflammation.',
  ARRAY['Cerveau','Cœur','Anti-inflammatoire'],
  ARRAY['petit_dejeuner','diner']),
 
@@ -231,12 +231,12 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['collation']),
 
 ('Mélatonine', 'health',
- 'Hormone du sommeil. Aide à s'endormir plus vite et à réguler le cycle circadien.',
+ 'Hormone du sommeil. Aide à s''endormir plus vite et à réguler le cycle circadien.',
  ARRAY['Endormissement','Qualité du sommeil','Récupération'],
  ARRAY['avant_dormir']),
 
 ('5-HTP', 'health',
- 'Précurseur de la sérotonine et de la mélatonine. Améliore l'humeur et le sommeil.',
+ 'Précurseur de la sérotonine et de la mélatonine. Améliore l''humeur et le sommeil.',
  ARRAY['Humeur','Sommeil','Anxiété'],
  ARRAY['diner','avant_dormir']),
 
@@ -246,11 +246,11 @@ INSERT INTO supplement_library (name, category, description, benefits, recommend
  ARRAY['diner']),
 
 ('NAC (N-Acétyl Cystéine)', 'health',
- 'Précurseur du glutathion, le principal antioxydant de l'organisme. Soutient le foie et l'immunité.',
+ 'Précurseur du glutathion, le principal antioxydant de l''organisme. Soutient le foie et l''immunité.',
  ARRAY['Antioxydant','Foie','Immunité','Détox'],
  ARRAY['petit_dejeuner','avant_dormir']),
 
 ('Ginseng', 'health',
- 'Adaptogène classique qui améliore l'énergie, la cognition et la résistance au stress.',
+ 'Adaptogène classique qui améliore l''énergie, la cognition et la résistance au stress.',
  ARRAY['Énergie','Concentration','Adaptogène','Immunité'],
  ARRAY['petit_dejeuner']);
