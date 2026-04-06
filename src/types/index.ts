@@ -91,18 +91,35 @@ export interface WeeklyPlan {
   is_override: boolean
 }
 
+export interface SupplementLibraryItem {
+  id: string
+  name: string
+  category: 'protein' | 'amino' | 'vitamin' | 'mineral' | 'booster' | 'recovery' | 'health'
+  description: string
+  benefits: string[]
+  recommended_moments: string[]
+  created_at: string
+}
+
 export interface Supplement {
   id: string
+  profile_id: string
   name: string
   dosage_type: 'gelule' | 'poudre'
   dosage_amount: number
   moments: string[]
   created_at: string
+  // v2 additions
+  library_supplement_id?: string | null
+  source?: 'library' | 'custom'
+  description?: string
+  benefits?: string[]
 }
 
 export interface SupplementLog {
   id: string
   supplement_id: string
+  profile_id: string
   moment: string
   date: string
   completed: boolean

@@ -11,10 +11,14 @@ export const MUSCLES = [
 export const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 export const MOMENTS = [
-  { key: 'matin', label: 'Matin', emoji: '🌅' },
-  { key: 'midi', label: 'Midi', emoji: '☀️' },
-  { key: 'avant_seance', label: 'Avant séance', emoji: '💪' },
-  { key: 'soir', label: 'Soir', emoji: '🌙' },
+  { key: 'petit_dejeuner', label: 'Petit-déjeuner', emoji: '🌅' },
+  { key: 'collation_matin', label: 'Collation matin', emoji: '🍎' },
+  { key: 'dejeuner', label: 'Déjeuner', emoji: '☀️' },
+  { key: 'collation', label: 'Collation', emoji: '🥜' },
+  { key: 'pre_workout', label: 'Avant sport', emoji: '💪' },
+  { key: 'post_workout', label: 'Après sport', emoji: '🏋️' },
+  { key: 'diner', label: 'Dîner', emoji: '🌆' },
+  { key: 'avant_dormir', label: 'Avant de dormir', emoji: '🌙' },
 ]
 
 // Avatar background colors for profile initials
