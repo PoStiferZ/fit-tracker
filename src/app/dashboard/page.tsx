@@ -6,7 +6,7 @@ import { getProfileId, setProfileId } from '@/lib/cookies'
 import { calculateAge, getMonday, formatDateISO, cn } from '@/lib/utils'
 import { fetchStreak } from '@/lib/streak'
 import { DAYS } from '@/lib/constants'
-import type { Profile, Program, WeeklyPlan } from '@/types'
+import type { Profile, Program, Workout, WeeklyPlan } from '@/types'
 import Navbar from '@/components/Navbar'
 import DayCard from '@/components/DayCard'
 import BottomSheet from '@/components/BottomSheet'
@@ -14,7 +14,7 @@ import ProgressRing from '@/components/ProgressRing'
 import ProfileAvatar from '@/components/ProfileAvatar'
 import SupplementsTab from '@/components/SupplementsTab'
 import WeekNav from '@/components/WeekNav'
-import { Users, Check, Plus, Lock } from 'lucide-react'
+import { Users, Check, Plus, Lock, ChevronRight } from 'lucide-react'
 
 type Tab = 'semaine' | 'complements'
 
@@ -36,14 +36,19 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [allProfiles, setAllProfiles] = useState<Profile[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
+  const [workouts, setWorkouts] = useState<Workout[]>([]) // all workouts across all programs
   const [weekPlan, setWeekPlan] = useState<WeeklyPlan[]>([])
   const [streak, setStreak] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [editDay, setEditDay] = useState<number | null>(null)
-  const [selectedProgram, setSelectedProgram] = useState<string>('')
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('semaine')
   const [weekOffset, setWeekOffset] = useState(0)
+
+  // Assignment sheet
+  const [editDay, setEditDay] = useState<number | null>(null)
+  const [assignStep, setAssignStep] = useState<'program' | 'workout'>('program')
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('')
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>('')
 
   const todayMonday = getMonday(new Date())
   const viewMonday = addWeeks(todayMonday, weekOffset)
@@ -66,11 +71,25 @@ export default function DashboardPage() {
     if (!pRes.data) { router.replace('/'); return }
     setProfile(pRes.data)
     setAllProfiles(allPRes.data || [])
-    setPrograms(progRes.data || [])
+    const progs: Program[] = progRes.data || []
+    setPrograms(progs)
 
-    let currentPlan = wpRes.data || []
+    // Load all workouts for these programs
+    if (progs.length > 0) {
+      const programIds = progs.map(p => p.id)
+      const { data: wks } = await supabase
+        .from('workouts')
+        .select('*')
+        .in('program_id', programIds)
+        .order('order_index')
+      setWorkouts(wks || [])
+    } else {
+      setWorkouts([])
+    }
 
-    // Semaine courante vide → copier silencieusement la semaine précédente
+    let currentPlan: WeeklyPlan[] = wpRes.data || []
+
+    // Auto-copy previous week if current week is empty
     if (isCurrentWeek && currentPlan.length === 0) {
       const prevMonday = addWeeks(todayMonday, -1)
       const prevWeekStart = formatDateISO(prevMonday)
@@ -81,13 +100,15 @@ export default function DashboardPage() {
         .eq('week_start', prevWeekStart)
       if (prevData && prevData.length > 0) {
         const rows = prevData
-          .filter(d => d.program_id)
-          .map(d => ({
+          .filter((d: WeeklyPlan) => d.workout_id || d.program_id)
+          .map((d: WeeklyPlan) => ({
             profile_id: profileId,
             day_of_week: d.day_of_week,
             program_id: d.program_id,
+            workout_id: d.workout_id,
             completed: false,
             week_start: weekStart,
+            is_override: false,
           }))
         if (rows.length > 0) {
           const { data: inserted } = await supabase.from('weekly_plan').insert(rows).select()
@@ -106,14 +127,25 @@ export default function DashboardPage() {
 
   useEffect(() => { load() }, [load])
 
-  const getProgramForDay = (day: number) => {
+  const getProgramForDay = (day: number): Program | null => {
     const entry = weekPlan.find(d => d.day_of_week === day)
     if (!entry?.program_id) return null
     return programs.find(p => p.id === entry.program_id) || null
   }
+
+  const getWorkoutForDay = (day: number): Workout | null => {
+    const entry = weekPlan.find(d => d.day_of_week === day)
+    if (!entry?.workout_id) return null
+    return workouts.find(w => w.id === entry.workout_id) || null
+  }
+
   const getDayEntry = (day: number) => weekPlan.find(d => d.day_of_week === day)
+
   const completedCount = weekPlan.filter(d => d.completed).length
-  const scheduledCount = weekPlan.filter(d => d.program_id).length
+  const scheduledCount = weekPlan.filter(d => d.workout_id || d.program_id).length
+
+  const workoutsForProgram = (programId: string) =>
+    workouts.filter(w => w.program_id === programId).sort((a, b) => a.order_index - b.order_index)
 
   async function toggleCompleted(dayOfWeek: number, current: boolean) {
     if (isPastWeek) return
@@ -123,17 +155,53 @@ export default function DashboardPage() {
     if (data) setWeekPlan(prev => prev.map(d => d.id === data.id ? data : d))
   }
 
-  async function assignProgram() {
-    const programId = selectedProgram || null
+  function openAssignSheet(day: number) {
+    const entry = getDayEntry(day)
+    setEditDay(day)
+    setSelectedProgramId(entry?.program_id || '')
+    setSelectedWorkoutId(entry?.workout_id || '')
+    setAssignStep('program')
+  }
+
+  async function assignWorkout() {
     const profileId = getProfileId()!
+    const programId = selectedProgramId || null
+    const workoutId = selectedWorkoutId || null
     const existing = weekPlan.find(d => d.day_of_week === editDay)
     let result
     if (existing) {
-      result = await supabase.from('weekly_plan').update({ program_id: programId, completed: false }).eq('id', existing.id).select().single()
+      result = await supabase
+        .from('weekly_plan')
+        .update({ program_id: programId, workout_id: workoutId, completed: false })
+        .eq('id', existing.id)
+        .select()
+        .single()
     } else {
-      result = await supabase.from('weekly_plan').insert({ day_of_week: editDay, program_id: programId, week_start: weekStart, completed: false, profile_id: profileId }).select().single()
+      result = await supabase
+        .from('weekly_plan')
+        .insert({
+          day_of_week: editDay,
+          program_id: programId,
+          workout_id: workoutId,
+          completed: false,
+          week_start: weekStart,
+          profile_id: profileId,
+          is_override: false,
+        })
+        .select()
+        .single()
     }
     if (result.data) setWeekPlan(prev => [...prev.filter(d => d.day_of_week !== editDay), result.data])
+    setEditDay(null)
+  }
+
+  async function clearDay() {
+    const profileId = getProfileId()!
+    const existing = weekPlan.find(d => d.day_of_week === editDay)
+    if (existing) {
+      await supabase.from('weekly_plan').update({ program_id: null, workout_id: null, completed: false }).eq('id', existing.id)
+      setWeekPlan(prev => prev.map(d => d.day_of_week === editDay ? { ...d, program_id: null, workout_id: null, completed: false } : d))
+    }
     setEditDay(null)
   }
 
@@ -149,8 +217,6 @@ export default function DashboardPage() {
       <div className="w-9 h-9 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
     </div>
   )
-
-
 
   return (
     <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
@@ -253,20 +319,20 @@ export default function DashboardPage() {
               {DAYS.map((dayName, i) => {
                 const dayNum = i + 1
                 const isToday = isCurrentWeek && dayNum === todayNum
+                const entry = getDayEntry(dayNum)
                 return (
                   <DayCard
                     key={dayNum}
                     dayName={dayName}
                     dayNum={dayNum}
                     program={getProgramForDay(dayNum)}
-                    completed={getDayEntry(dayNum)?.completed || false}
+                    workout={getWorkoutForDay(dayNum)}
+                    completed={entry?.completed || false}
                     isToday={isToday}
+                    isOverride={entry?.is_override || false}
                     readonly={isPastWeek}
-                    onEdit={isPastWeek ? undefined : () => {
-                      setSelectedProgram(getDayEntry(dayNum)?.program_id || '')
-                      setEditDay(dayNum)
-                    }}
-                    onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, getDayEntry(dayNum)?.completed || false)}
+                    onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
+                    onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}
                   />
                 )
               })}
@@ -280,34 +346,103 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Bottom sheet — assign program */}
-      <BottomSheet isOpen={editDay !== null} onClose={() => setEditDay(null)} title={`${editDay ? DAYS[editDay - 1] : ''}`}>
+      {/* Bottom sheet — assign workout (step 1: choose program) */}
+      <BottomSheet
+        isOpen={editDay !== null && assignStep === 'program'}
+        onClose={() => setEditDay(null)}
+        title={`${editDay ? DAYS[editDay - 1] : ''} — Choisir un programme`}
+      >
         <div className="space-y-2.5 pb-2">
+          {/* Rest option */}
           <button
-            onClick={() => setSelectedProgram('')}
+            onClick={clearDay}
             className={cn(
               'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all text-sm font-semibold min-h-[56px]',
-              selectedProgram === '' ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
+              !getDayEntry(editDay ?? 0)?.workout_id
+                ? 'border-gray-950 bg-gray-950 text-white'
+                : 'border-gray-100 bg-gray-50 text-gray-700'
             )}
           >
             🧘 Repos
           </button>
-          {programs.map(p => (
-            <button key={p.id} onClick={() => setSelectedProgram(p.id)}
+
+          {programs.map(p => {
+            const wks = workoutsForProgram(p.id)
+            return (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setSelectedProgramId(p.id)
+                  setSelectedWorkoutId('')
+                  setAssignStep('workout')
+                }}
+                className={cn(
+                  'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all min-h-[56px] flex items-center justify-between',
+                  selectedProgramId === p.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
+                )}
+              >
+                <div>
+                  <p className="text-sm font-semibold">{p.name}</p>
+                  <p className={cn('text-xs mt-0.5', selectedProgramId === p.id ? 'text-white/50' : 'text-gray-400')}>
+                    {wks.length} séance{wks.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <ChevronRight size={16} className={selectedProgramId === p.id ? 'text-white/50' : 'text-gray-300'} />
+              </button>
+            )
+          })}
+
+          {programs.length === 0 && (
+            <p className="text-gray-400 text-sm text-center py-6">Crée d&apos;abord un programme dans l&apos;onglet Programmes</p>
+          )}
+        </div>
+      </BottomSheet>
+
+      {/* Bottom sheet — assign workout (step 2: choose workout) */}
+      <BottomSheet
+        isOpen={editDay !== null && assignStep === 'workout'}
+        onClose={() => setAssignStep('program')}
+        title={`${editDay ? DAYS[editDay - 1] : ''} — Choisir une séance`}
+      >
+        <div className="space-y-2.5 pb-2">
+          <button
+            onClick={() => setAssignStep('program')}
+            className="flex items-center gap-1.5 text-sm font-bold text-gray-400 hover:text-gray-900 mb-2 transition-colors"
+          >
+            ← {programs.find(p => p.id === selectedProgramId)?.name}
+          </button>
+
+          {workoutsForProgram(selectedProgramId).map((w, i) => (
+            <button
+              key={w.id}
+              onClick={() => setSelectedWorkoutId(w.id)}
               className={cn(
-                'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all text-sm font-semibold min-h-[56px]',
-                selectedProgram === p.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
+                'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all text-sm font-semibold min-h-[56px] flex items-center gap-3',
+                selectedWorkoutId === w.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
               )}
             >
-              {p.name}
+              <span className={cn('text-xs font-black w-5', selectedWorkoutId === w.id ? 'text-white/50' : 'text-gray-300')}>
+                {i + 1}.
+              </span>
+              {w.name}
+              {selectedWorkoutId === w.id && <Check size={16} className="ml-auto text-white" />}
             </button>
           ))}
-          {programs.length === 0 && (
-            <p className="text-gray-400 text-sm text-center py-6">Crée d&apos;abord un programme</p>
+
+          {workoutsForProgram(selectedProgramId).length === 0 && (
+            <p className="text-gray-400 text-sm text-center py-6">
+              Ce programme n&apos;a pas encore de séances. Modifie-le d&apos;abord.
+            </p>
           )}
-          <button onClick={assignProgram} className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] mt-2">
-            <Check size={18} /> Confirmer
-          </button>
+
+          {selectedWorkoutId && (
+            <button
+              onClick={assignWorkout}
+              className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] mt-2"
+            >
+              <Check size={18} /> Confirmer
+            </button>
+          )}
         </div>
       </BottomSheet>
 

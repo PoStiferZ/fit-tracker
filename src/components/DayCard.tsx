@@ -1,25 +1,39 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import type { Program } from '@/types'
+import type { Program, Workout } from '@/types'
 import { Pencil, Check, Lock } from 'lucide-react'
 
 interface DayCardProps {
   dayName: string
   dayNum: number
   program: Program | null
+  workout: Workout | null
   completed: boolean
   isToday?: boolean
+  isOverride?: boolean
   readonly?: boolean
   onEdit?: () => void
   onToggle?: () => void
 }
 
-export default function DayCard({ dayName, dayNum, program, completed, isToday, readonly, onEdit, onToggle }: DayCardProps) {
+export default function DayCard({
+  dayName,
+  dayNum,
+  program,
+  workout,
+  completed,
+  isToday,
+  isOverride,
+  readonly,
+  onEdit,
+  onToggle,
+}: DayCardProps) {
   const router = useRouter()
   const today = new Date().getDay()
   const todayNum = today === 0 ? 7 : today
   const isPast = !isToday && dayNum < todayNum
+  const hasSession = !!workout
 
   return (
     <div className={cn(
@@ -40,18 +54,33 @@ export default function DayCard({ dayName, dayNum, program, completed, isToday, 
         {isToday && <p className="text-white text-xs font-semibold mt-0.5">Auj.</p>}
       </div>
 
-      {/* Program — clickable zone navigates to programs page */}
+      {/* Workout info — clickable zone navigates to programs page */}
       <div
         className={cn(
           'flex-1 min-w-0',
-          program && !readonly ? 'cursor-pointer' : ''
+          hasSession && !readonly ? 'cursor-pointer' : ''
         )}
-        onClick={() => { if (program && !readonly) router.push('/programs') }}
+        onClick={() => { if (hasSession && !readonly) router.push('/programs') }}
       >
-        {program
-          ? <p className={cn('text-sm font-semibold truncate', isToday ? 'text-white' : 'text-gray-900')}>{program.name}</p>
-          : <p className={cn('text-sm italic', isToday ? 'text-white/40' : 'text-gray-300')}>Repos</p>
-        }
+        {hasSession ? (
+          <div>
+            <div className="flex items-center gap-1.5">
+              <p className={cn('text-sm font-semibold truncate', isToday ? 'text-white' : 'text-gray-900')}>
+                {workout!.name}
+              </p>
+              {isOverride && (
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" title="Override semaine" />
+              )}
+            </div>
+            {program && (
+              <p className={cn('text-xs truncate mt-0.5', isToday ? 'text-white/40' : 'text-gray-400')}>
+                {program.name}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className={cn('text-sm italic', isToday ? 'text-white/40' : 'text-gray-300')}>Repos</p>
+        )}
       </div>
 
       {/* Actions */}
@@ -74,7 +103,7 @@ export default function DayCard({ dayName, dayNum, program, completed, isToday, 
           )
         )}
 
-        {program && (
+        {hasSession && (
           <button
             onClick={e => { e.stopPropagation(); if (!readonly) onToggle?.() }}
             disabled={readonly}

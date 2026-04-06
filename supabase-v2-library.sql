@@ -1,0 +1,166 @@
+-- ============================================================
+-- Fitrack v2 — Exercise Library Seed Data (~170 exercises)
+-- ============================================================
+
+INSERT INTO exercise_library (name, muscles_primary, muscles_secondary, equipment, exercise_type) VALUES
+
+-- ===================== CHEST =====================
+('Barbell Bench Press', ARRAY['chest'], ARRAY['triceps','shoulders'], 'barbell', 'strength'),
+('Incline Barbell Bench Press', ARRAY['chest'], ARRAY['triceps','shoulders'], 'barbell', 'strength'),
+('Decline Barbell Bench Press', ARRAY['chest'], ARRAY['triceps'], 'barbell', 'strength'),
+('Dumbbell Bench Press', ARRAY['chest'], ARRAY['triceps','shoulders'], 'dumbbell', 'strength'),
+('Incline Dumbbell Bench Press', ARRAY['chest'], ARRAY['triceps','shoulders'], 'dumbbell', 'strength'),
+('Decline Dumbbell Bench Press', ARRAY['chest'], ARRAY['triceps'], 'dumbbell', 'strength'),
+('Dumbbell Flyes', ARRAY['chest'], ARRAY['shoulders'], 'dumbbell', 'strength'),
+('Incline Dumbbell Flyes', ARRAY['chest'], ARRAY['shoulders'], 'dumbbell', 'strength'),
+('Cable Crossover', ARRAY['chest'], ARRAY['shoulders'], 'cable', 'strength'),
+('Low Cable Fly', ARRAY['chest'], ARRAY['shoulders'], 'cable', 'strength'),
+('High Cable Fly', ARRAY['chest'], ARRAY['triceps'], 'cable', 'strength'),
+('Chest Press Machine', ARRAY['chest'], ARRAY['triceps','shoulders'], 'machine', 'strength'),
+('Pec Deck Machine', ARRAY['chest'], ARRAY['shoulders'], 'machine', 'strength'),
+('Push Up', ARRAY['chest'], ARRAY['triceps','shoulders'], 'bodyweight', 'strength'),
+('Wide Push Up', ARRAY['chest'], ARRAY['shoulders'], 'bodyweight', 'strength'),
+('Diamond Push Up', ARRAY['chest'], ARRAY['triceps'], 'bodyweight', 'strength'),
+('Dips (Chest)', ARRAY['chest'], ARRAY['triceps','shoulders'], 'bodyweight', 'strength'),
+
+-- ===================== BACK =====================
+('Deadlift', ARRAY['back'], ARRAY['glutes','hamstrings','traps'], 'barbell', 'strength'),
+('Romanian Deadlift', ARRAY['back'], ARRAY['hamstrings','glutes'], 'barbell', 'strength'),
+('Barbell Row', ARRAY['back'], ARRAY['biceps','rear_delts'], 'barbell', 'strength'),
+('Pendlay Row', ARRAY['back'], ARRAY['biceps','rear_delts'], 'barbell', 'strength'),
+('T-Bar Row', ARRAY['back'], ARRAY['biceps','rear_delts'], 'machine', 'strength'),
+('Dumbbell Row', ARRAY['back'], ARRAY['biceps','rear_delts'], 'dumbbell', 'strength'),
+('Cable Row', ARRAY['back'], ARRAY['biceps','rear_delts'], 'cable', 'strength'),
+('Wide Grip Cable Row', ARRAY['back'], ARRAY['rear_delts'], 'cable', 'strength'),
+('Lat Pulldown', ARRAY['back'], ARRAY['biceps'], 'cable', 'strength'),
+('Wide Grip Lat Pulldown', ARRAY['back'], ARRAY['biceps'], 'cable', 'strength'),
+('Close Grip Lat Pulldown', ARRAY['back'], ARRAY['biceps'], 'cable', 'strength'),
+('Straight Arm Pulldown', ARRAY['back'], ARRAY['triceps'], 'cable', 'strength'),
+('Pull Up', ARRAY['back'], ARRAY['biceps'], 'bodyweight', 'strength'),
+('Chin Up', ARRAY['back'], ARRAY['biceps'], 'bodyweight', 'strength'),
+('Assisted Pull Up', ARRAY['back'], ARRAY['biceps'], 'machine', 'strength'),
+('Machine Row', ARRAY['back'], ARRAY['biceps','rear_delts'], 'machine', 'strength'),
+('Hyperextension', ARRAY['back'], ARRAY['glutes','hamstrings'], 'machine', 'strength'),
+('Good Morning', ARRAY['back'], ARRAY['hamstrings','glutes'], 'barbell', 'strength'),
+
+-- ===================== SHOULDERS =====================
+('Overhead Press (Barbell)', ARRAY['shoulders'], ARRAY['triceps','traps'], 'barbell', 'strength'),
+('Seated Dumbbell Press', ARRAY['shoulders'], ARRAY['triceps'], 'dumbbell', 'strength'),
+('Arnold Press', ARRAY['shoulders'], ARRAY['triceps'], 'dumbbell', 'strength'),
+('Lateral Raise', ARRAY['shoulders'], ARRAY['traps'], 'dumbbell', 'strength'),
+('Cable Lateral Raise', ARRAY['shoulders'], ARRAY['traps'], 'cable', 'strength'),
+('Machine Lateral Raise', ARRAY['shoulders'], ARRAY['traps'], 'machine', 'strength'),
+('Front Raise', ARRAY['shoulders'], ARRAY['chest'], 'dumbbell', 'strength'),
+('Cable Front Raise', ARRAY['shoulders'], ARRAY['chest'], 'cable', 'strength'),
+('Rear Delt Fly', ARRAY['rear_delts'], ARRAY['traps'], 'dumbbell', 'strength'),
+('Cable Rear Delt Fly', ARRAY['rear_delts'], ARRAY['traps'], 'cable', 'strength'),
+('Pec Deck Rear Delt', ARRAY['rear_delts'], ARRAY['traps'], 'machine', 'strength'),
+('Face Pull', ARRAY['rear_delts'], ARRAY['traps','biceps'], 'cable', 'strength'),
+('Upright Row', ARRAY['shoulders'], ARRAY['traps','biceps'], 'barbell', 'strength'),
+('Machine Shoulder Press', ARRAY['shoulders'], ARRAY['triceps'], 'machine', 'strength'),
+('Pike Push Up', ARRAY['shoulders'], ARRAY['triceps'], 'bodyweight', 'strength'),
+
+-- ===================== BICEPS =====================
+('Barbell Curl', ARRAY['biceps'], ARRAY['forearms'], 'barbell', 'strength'),
+('EZ Bar Curl', ARRAY['biceps'], ARRAY['forearms'], 'barbell', 'strength'),
+('Dumbbell Curl', ARRAY['biceps'], ARRAY['forearms'], 'dumbbell', 'strength'),
+('Hammer Curl', ARRAY['biceps'], ARRAY['forearms'], 'dumbbell', 'strength'),
+('Incline Dumbbell Curl', ARRAY['biceps'], ARRAY['forearms'], 'dumbbell', 'strength'),
+('Concentration Curl', ARRAY['biceps'], ARRAY['forearms'], 'dumbbell', 'strength'),
+('Preacher Curl', ARRAY['biceps'], ARRAY['forearms'], 'barbell', 'strength'),
+('Preacher Curl Machine', ARRAY['biceps'], ARRAY['forearms'], 'machine', 'strength'),
+('Cable Curl', ARRAY['biceps'], ARRAY['forearms'], 'cable', 'strength'),
+('High Cable Curl', ARRAY['biceps'], ARRAY['forearms'], 'cable', 'strength'),
+('Spider Curl', ARRAY['biceps'], ARRAY['forearms'], 'barbell', 'strength'),
+('Reverse Curl', ARRAY['biceps'], ARRAY['forearms'], 'barbell', 'strength'),
+
+-- ===================== TRICEPS =====================
+('Close Grip Bench Press', ARRAY['triceps'], ARRAY['chest','shoulders'], 'barbell', 'strength'),
+('Skull Crusher', ARRAY['triceps'], ARRAY['forearms'], 'barbell', 'strength'),
+('Overhead Triceps Extension (Barbell)', ARRAY['triceps'], ARRAY[],  'barbell', 'strength'),
+('Overhead Triceps Extension (Dumbbell)', ARRAY['triceps'], ARRAY[], 'dumbbell', 'strength'),
+('Triceps Pushdown (Bar)', ARRAY['triceps'], ARRAY[], 'cable', 'strength'),
+('Triceps Pushdown (Rope)', ARRAY['triceps'], ARRAY[], 'cable', 'strength'),
+('Cable Overhead Triceps Extension', ARRAY['triceps'], ARRAY[], 'cable', 'strength'),
+('Dips (Triceps)', ARRAY['triceps'], ARRAY['chest','shoulders'], 'bodyweight', 'strength'),
+('Triceps Kickback', ARRAY['triceps'], ARRAY[], 'dumbbell', 'strength'),
+('Machine Triceps Dip', ARRAY['triceps'], ARRAY[], 'machine', 'strength'),
+
+-- ===================== FOREARMS =====================
+('Wrist Curl', ARRAY['forearms'], ARRAY[], 'barbell', 'strength'),
+('Reverse Wrist Curl', ARRAY['forearms'], ARRAY[], 'barbell', 'strength'),
+('Farmer Walk', ARRAY['forearms'], ARRAY['traps','core'], 'dumbbell', 'strength'),
+('Plate Pinch', ARRAY['forearms'], ARRAY[], 'barbell', 'strength'),
+
+-- ===================== TRAPS =====================
+('Barbell Shrug', ARRAY['traps'], ARRAY['shoulders'], 'barbell', 'strength'),
+('Dumbbell Shrug', ARRAY['traps'], ARRAY['shoulders'], 'dumbbell', 'strength'),
+('Cable Shrug', ARRAY['traps'], ARRAY['shoulders'], 'cable', 'strength'),
+('Behind The Back Shrug', ARRAY['traps'], ARRAY['shoulders'], 'barbell', 'strength'),
+
+-- ===================== CORE / ABS =====================
+('Crunch', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Cable Crunch', ARRAY['core'], ARRAY[], 'cable', 'strength'),
+('Sit Up', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Decline Sit Up', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Leg Raise', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Hanging Leg Raise', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Ab Wheel Rollout', ARRAY['core'], ARRAY['shoulders','back'], 'bodyweight', 'strength'),
+('Russian Twist', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Plank', ARRAY['core'], ARRAY['shoulders'], 'bodyweight', 'strength'),
+('Side Plank', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Mountain Climber', ARRAY['core'], ARRAY['shoulders'], 'bodyweight', 'strength'),
+('V-Up', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Bicycle Crunch', ARRAY['core'], ARRAY[], 'bodyweight', 'strength'),
+('Woodchopper', ARRAY['core'], ARRAY['shoulders'], 'cable', 'strength'),
+
+-- ===================== QUADS =====================
+('Barbell Squat', ARRAY['quads'], ARRAY['glutes','hamstrings'], 'barbell', 'strength'),
+('Front Squat', ARRAY['quads'], ARRAY['glutes','core'], 'barbell', 'strength'),
+('Hack Squat', ARRAY['quads'], ARRAY['glutes'], 'machine', 'strength'),
+('Leg Press', ARRAY['quads'], ARRAY['glutes','hamstrings'], 'machine', 'strength'),
+('Leg Extension', ARRAY['quads'], ARRAY[], 'machine', 'strength'),
+('Bulgarian Split Squat', ARRAY['quads'], ARRAY['glutes','hamstrings'], 'dumbbell', 'strength'),
+('Lunge', ARRAY['quads'], ARRAY['glutes','hamstrings'], 'dumbbell', 'strength'),
+('Walking Lunge', ARRAY['quads'], ARRAY['glutes','hamstrings'], 'dumbbell', 'strength'),
+('Goblet Squat', ARRAY['quads'], ARRAY['glutes'], 'dumbbell', 'strength'),
+('Sumo Squat', ARRAY['quads'], ARRAY['glutes','inner_thighs'], 'barbell', 'strength'),
+('Step Up', ARRAY['quads'], ARRAY['glutes'], 'dumbbell', 'strength'),
+('Wall Sit', ARRAY['quads'], ARRAY[], 'bodyweight', 'strength'),
+('Sissy Squat', ARRAY['quads'], ARRAY[], 'bodyweight', 'strength'),
+
+-- ===================== HAMSTRINGS =====================
+('Romanian Deadlift (Dumbbell)', ARRAY['hamstrings'], ARRAY['glutes','back'], 'dumbbell', 'strength'),
+('Leg Curl (Lying)', ARRAY['hamstrings'], ARRAY[], 'machine', 'strength'),
+('Leg Curl (Seated)', ARRAY['hamstrings'], ARRAY[], 'machine', 'strength'),
+('Nordic Curl', ARRAY['hamstrings'], ARRAY[], 'bodyweight', 'strength'),
+('Glute Ham Raise', ARRAY['hamstrings'], ARRAY['glutes'], 'machine', 'strength'),
+('Stiff Leg Deadlift', ARRAY['hamstrings'], ARRAY['back','glutes'], 'barbell', 'strength'),
+
+-- ===================== GLUTES =====================
+('Hip Thrust', ARRAY['glutes'], ARRAY['hamstrings'], 'barbell', 'strength'),
+('Cable Hip Kickback', ARRAY['glutes'], ARRAY['hamstrings'], 'cable', 'strength'),
+('Glute Bridge', ARRAY['glutes'], ARRAY['hamstrings'], 'bodyweight', 'strength'),
+('Donkey Kick', ARRAY['glutes'], ARRAY[], 'bodyweight', 'strength'),
+('Abductor Machine', ARRAY['glutes'], ARRAY['inner_thighs'], 'machine', 'strength'),
+('Adductor Machine', ARRAY['inner_thighs'], ARRAY['glutes'], 'machine', 'strength'),
+('Sumo Deadlift', ARRAY['glutes'], ARRAY['hamstrings','back'], 'barbell', 'strength'),
+('Cable Pull Through', ARRAY['glutes'], ARRAY['hamstrings'], 'cable', 'strength'),
+
+-- ===================== CALVES =====================
+('Standing Calf Raise', ARRAY['calves'], ARRAY[], 'machine', 'strength'),
+('Seated Calf Raise', ARRAY['calves'], ARRAY[], 'machine', 'strength'),
+('Donkey Calf Raise', ARRAY['calves'], ARRAY[], 'machine', 'strength'),
+('Single Leg Calf Raise', ARRAY['calves'], ARRAY[], 'bodyweight', 'strength'),
+('Leg Press Calf Raise', ARRAY['calves'], ARRAY[], 'machine', 'strength'),
+
+-- ===================== CARDIO =====================
+('Treadmill', ARRAY['cardio'], ARRAY[], 'cardio', 'cardio'),
+('Cycling (Stationary)', ARRAY['cardio'], ARRAY[], 'cardio', 'cardio'),
+('Rowing Machine', ARRAY['cardio'], ARRAY['back','arms'], 'cardio', 'cardio'),
+('Elliptical', ARRAY['cardio'], ARRAY[], 'cardio', 'cardio'),
+('Stair Climber', ARRAY['cardio'], ARRAY['glutes','quads'], 'cardio', 'cardio'),
+('Jump Rope', ARRAY['cardio'], ARRAY['calves'], 'cardio', 'cardio'),
+('Assault Bike', ARRAY['cardio'], ARRAY['arms','shoulders'], 'cardio', 'cardio'),
+('Ski Erg', ARRAY['cardio'], ARRAY['back','shoulders'], 'cardio', 'cardio'),
+('Battle Ropes', ARRAY['cardio'], ARRAY['shoulders','arms'], 'cardio', 'cardio');

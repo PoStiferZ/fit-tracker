@@ -1,11 +1,10 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Dumbbell, ClipboardList, Pill, User, Settings } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Pill, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const manageLinks = [
-  { href: '/exercises', label: 'Exercices', icon: Dumbbell },
   { href: '/programs', label: 'Programmes', icon: ClipboardList },
   { href: '/supplements', label: 'Compléments', icon: Pill },
 ]
@@ -18,7 +17,6 @@ const allLinks = [
 
 const mobileLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/exercises', label: 'Exercices', icon: Dumbbell },
   { href: '/programs', label: 'Programmes', icon: ClipboardList },
   { href: '/supplements', label: 'Compléments', icon: Pill },
   { href: '/profile', label: 'Profil', icon: User },
@@ -26,7 +24,6 @@ const mobileLinks = [
 
 export default function Navbar() {
   const pathname = usePathname()
-  const isManage = manageLinks.some(l => l.href === pathname)
 
   return (
     <>
@@ -34,7 +31,7 @@ export default function Navbar() {
       <nav className="hidden md:flex flex-col w-60 bg-white border-r border-gray-100 min-h-screen p-5 fixed left-0 top-0 shadow-sm">
         <div className="mb-8 px-2 flex items-center gap-2.5">
           <span className="text-2xl">💪</span>
-          <span className="text-xl font-black text-gray-950">Fit</span>
+          <span className="text-xl font-black text-gray-950">Fitrack</span>
         </div>
         <div className="space-y-1 flex-1">
           {allLinks.map(({ href, label, icon: Icon }) => (
@@ -51,7 +48,7 @@ export default function Navbar() {
         </div>
         {/* Sidebar footer */}
         <div className="pt-4 border-t border-gray-100">
-          <p className="text-[10px] font-bold text-gray-300 uppercase tracking-wider px-3">Fit v1</p>
+          <p className="text-[10px] font-bold text-gray-300 uppercase tracking-wider px-3">Fitrack v2</p>
         </div>
       </nav>
 
