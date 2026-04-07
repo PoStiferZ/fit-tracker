@@ -319,6 +319,15 @@ function LiveSessionInner() {
     return () => clearInterval(iv)
   }, [phase])
 
+  // Cycle animation for exercise ring (60s loop) — must be unconditional
+  useEffect(() => {
+    setCycleSeconds(0)
+    const iv = setInterval(() => {
+      setCycleSeconds(prev => (prev + 1) % 60)
+    }, 1000)
+    return () => clearInterval(iv)
+  }, [currentExIdx, currentSetIdx, currentSetType])
+
   // Build sets from workout_exercises
   const buildSets = useCallback((exs: ExerciseWithName[]): LiveSetState[] => {
     const result: LiveSetState[] = []
@@ -634,17 +643,6 @@ function LiveSessionInner() {
       </div>
     )
   }
-
-  // Phase: exercise — cycle animation
-  useEffect(() => {
-    setCycleSeconds(0)
-    const iv = setInterval(() => {
-      setCycleSeconds(prev => (prev + 1) % 60)
-    }, 1000)
-    return () => clearInterval(iv)
-  // Reset when set changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFlatIdx])
 
   const circumference = 2 * Math.PI * 120 // ≈ 754
   const currentSet = sets[currentFlatIdx]
