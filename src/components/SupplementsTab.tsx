@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
 import { MOMENTS } from '@/lib/constants'
@@ -18,12 +18,17 @@ function formatDayLabel(date: Date): string {
   return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
+// Module-level cache so supplements survive tab switches
+let cachedSupplements: Supplement[] | null = null
+
 export default function SupplementsTab() {
   const [dayOffset, setDayOffset] = useState(0)
-  const [supplements, setSupplements] = useState<Supplement[]>([])
+  const [supplements, setSupplements] = useState<Supplement[]>(cachedSupplements ?? [])
   const [logs, setLogs] = useState<SupplementLog[]>([])
-  const [loading, setLoading] = useState(true)
+  // Only show spinner on first-ever load, not on tab switches
+  const [loading, setLoading] = useState(cachedSupplements === null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const mounted = useRef(true)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -34,14 +39,22 @@ export default function SupplementsTab() {
   const load = useCallback(async () => {
     const profileId = getProfileId()
     if (!profileId) return
-    setLoading(true)
+
+    // Only show loading spinner if we have no cached data
+    if (cachedSupplements === null) setLoading(true)
+
     const [sRes, lRes] = await Promise.all([
       supabase.from('supplements').select('*').eq('profile_id', profileId).order('created_at'),
       supabase.from('supplement_log').select('*').eq('date', viewDateISO),
     ])
-    setSupplements(sRes.data || [])
 
-    let currentLogs = lRes.data || []
+    const supps: Supplement[] = sRes.data || []
+    cachedSupplements = supps
+
+    if (!mounted.current) return
+    setSupplements(supps)
+
+    let currentLogs: SupplementLog[] = lRes.data || []
 
     // Aujourd'hui sans logs → copier silencieusement les logs d'hier (completed uniquement)
     if (dayOffset === 0 && currentLogs.length === 0) {
@@ -49,13 +62,11 @@ export default function SupplementsTab() {
       todayDate.setHours(0, 0, 0, 0)
       const yesterdayISO = addDays(todayDate, -1).toISOString().split('T')[0]
       const { data: yLogs } = await supabase
-        .from('supplement_log')
-        .select('*')
-        .eq('date', yesterdayISO)
+        .from('supplement_log').select('*').eq('date', yesterdayISO)
       if (yLogs && yLogs.length > 0) {
         const rows = yLogs
-          .filter(l => l.completed)
-          .map(l => ({
+          .filter((l: SupplementLog) => l.completed)
+          .map((l: SupplementLog) => ({
             supplement_id: l.supplement_id,
             moment: l.moment,
             date: viewDateISO,
@@ -63,33 +74,61 @@ export default function SupplementsTab() {
           }))
         if (rows.length > 0) {
           const { data: inserted } = await supabase.from('supplement_log').insert(rows).select()
-          if (inserted) currentLogs = inserted
+          if (inserted && mounted.current) currentLogs = inserted
         }
       }
     }
 
-    setLogs(currentLogs)
-    setLoading(false)
+    if (mounted.current) {
+      setLogs(currentLogs)
+      setLoading(false)
+    }
   }, [viewDateISO, dayOffset])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    mounted.current = true
+    load()
+    return () => { mounted.current = false }
+  }, [load])
 
   async function toggleLog(supplement: Supplement, momentKey: string) {
-    if (isPast) return // readonly
+    if (isPast) return
+
     const existing = logs.find(l => l.supplement_id === supplement.id && l.moment === momentKey)
+
+    // Optimistic update
     if (existing) {
+      const newCompleted = !existing.completed
+      setLogs(prev => prev.map(l => l.id === existing.id ? { ...l, completed: newCompleted } : l))
       const { data } = await supabase
         .from('supplement_log')
-        .update({ completed: !existing.completed })
+        .update({ completed: newCompleted })
         .eq('id', existing.id)
         .select().single()
-      if (data) setLogs(prev => prev.map(l => l.id === data.id ? data : l))
+      // Reconcile with server value
+      if (data && mounted.current) setLogs(prev => prev.map(l => l.id === data.id ? data : l))
     } else {
+      // Optimistic: add a fake log instantly
+      const tempId = `temp-${Date.now()}`
+      const tempLog: SupplementLog = {
+        id: tempId,
+        supplement_id: supplement.id,
+        profile_id: getProfileId()!,
+        moment: momentKey,
+        date: viewDateISO,
+        completed: true,
+      }
+      setLogs(prev => [...prev, tempLog])
       const { data } = await supabase
         .from('supplement_log')
         .insert({ supplement_id: supplement.id, moment: momentKey, date: viewDateISO, completed: true })
         .select().single()
-      if (data) setLogs(prev => [...prev, data])
+      if (data && mounted.current) {
+        setLogs(prev => prev.map(l => l.id === tempId ? data : l))
+      } else if (!data && mounted.current) {
+        // Rollback on failure
+        setLogs(prev => prev.filter(l => l.id !== tempId))
+      }
     }
   }
 
@@ -150,7 +189,7 @@ export default function SupplementsTab() {
               {totalDoses > 0 && (
                 <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-green-500 rounded-full transition-all duration-500"
+                    className="h-full bg-green-500 rounded-full transition-all duration-300"
                     style={{ width: `${(doneDoses / totalDoses) * 100}%` }}
                   />
                 </div>

@@ -156,8 +156,12 @@ export default function DashboardPage() {
     if (isPastWeek) return
     const entry = weekPlan.find(d => d.day_of_week === dayOfWeek)
     if (!entry) return
+    // Optimistic update — immediate visual feedback
+    setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, completed: !current } : d))
     const { data } = await supabase.from('weekly_plan').update({ completed: !current }).eq('id', entry.id).select().single()
+    // Reconcile with server
     if (data) setWeekPlan(prev => prev.map(d => d.id === data.id ? data : d))
+    else setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, completed: current } : d)) // rollback
   }
 
   function openAssignSheet(day: number) {
@@ -295,8 +299,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Semaine tab ── */}
-        {activeTab === 'semaine' && (
-          <div className="space-y-3">
+        <div className={cn('space-y-3', activeTab !== 'semaine' && 'hidden')}>
 
             {/* Progress card */}
             <div className={cn(
@@ -371,13 +374,12 @@ export default function DashboardPage() {
                 )
               })}
             </div>
-          </div>
-        )}
+        </div>
 
-        {/* ── Compléments tab ── */}
-        {activeTab === 'complements' && (
+        {/* ── Compléments tab — kept mounted to preserve dayOffset state ── */}
+        <div className={cn(activeTab !== 'complements' && 'hidden')}>
           <SupplementsTab />
-        )}
+        </div>
       </main>
 
       {/* Bottom sheet — assign workout (step 1: choose program) */}
