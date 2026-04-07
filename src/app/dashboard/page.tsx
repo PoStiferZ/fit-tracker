@@ -195,11 +195,26 @@ export default function DashboardPage() {
   }
 
   async function clearDay() {
+    // "Repos" = no workout assigned, auto-completed
     const profileId = getProfileId()!
     const existing = weekPlan.find(d => d.day_of_week === editDay)
     if (existing) {
-      await supabase.from('weekly_plan').update({ program_id: null, workout_id: null, completed: false }).eq('id', existing.id)
-      setWeekPlan(prev => prev.map(d => d.day_of_week === editDay ? { ...d, program_id: null, workout_id: null, completed: false } : d))
+      const updated = { program_id: null as string | null, workout_id: null as string | null, completed: true }
+      await supabase.from('weekly_plan').update(updated).eq('id', existing.id)
+      setWeekPlan(prev => prev.map(d => d.day_of_week === editDay ? { ...d, ...updated } : d))
+    } else {
+      // No entry yet → insert a rest row
+      const row = {
+        profile_id: profileId,
+        day_of_week: editDay!,
+        program_id: null as string | null,
+        workout_id: null as string | null,
+        completed: true,
+        week_start: weekStart,
+        is_override: false,
+      }
+      const { data } = await supabase.from('weekly_plan').insert(row).select().single()
+      if (data) setWeekPlan(prev => [...prev, data])
     }
     setEditDay(null)
   }

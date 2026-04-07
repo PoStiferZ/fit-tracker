@@ -94,8 +94,18 @@ export default function DayCard({
           <div className="w-9 h-9 flex items-center justify-center">
             <Lock size={13} className={isToday ? 'text-white/30' : 'text-gray-300'} />
           </div>
+        ) : completed ? (
+          /* Always show green check when completed — including rest days */
+          <button
+            onClick={e => { e.stopPropagation(); onToggle?.() }}
+            className="w-9 h-9 rounded-xl bg-green-500 border-2 border-green-500 shadow-[0_2px_8px_rgba(34,197,94,0.4)] flex items-center justify-center active:scale-90 transition-all"
+          >
+            <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="2.5,8.5 6.5,12.5 13.5,4.5" />
+            </svg>
+          </button>
         ) : hasSession && onLaunch ? (
-          /* Démarrer button (today only) */
+          /* Démarrer button — only if not yet completed */
           <button
             onClick={e => { e.stopPropagation(); onLaunch() }}
             className={cn(
@@ -109,24 +119,14 @@ export default function DayCard({
             Démarrer
           </button>
         ) : hasSession ? (
-          /* Completed toggle (non-today days with session, no launch) */
+          /* Manual toggle for days without launch */
           <button
             onClick={e => { e.stopPropagation(); onToggle?.() }}
             className={cn(
               'w-9 h-9 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90',
-              completed
-                ? 'bg-green-500 border-green-500 shadow-[0_2px_8px_rgba(34,197,94,0.4)]'
-                : isToday
-                  ? 'border-white/30 hover:border-white/60'
-                  : 'border-gray-200 hover:border-gray-400'
+              isToday ? 'border-white/30 hover:border-white/60' : 'border-gray-200 hover:border-gray-400'
             )}
-          >
-            {completed && (
-              <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="2.5,8.5 6.5,12.5 13.5,4.5" />
-              </svg>
-            )}
-          </button>
+          />
         ) : null}
       </div>
     </div>
