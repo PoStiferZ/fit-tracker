@@ -89,10 +89,14 @@ function RestTimer({
   initialSeconds,
   onDone,
   onSkip,
+  nextSet,
+  nextExercise,
 }: {
   initialSeconds: number
   onDone: () => void
   onSkip: () => void
+  nextSet: LiveSetState | null
+  nextExercise: ExerciseWithName | null
 }) {
   const [remaining, setRemaining] = useState(initialSeconds)
   const [total, setTotal] = useState(initialSeconds)
@@ -113,10 +117,7 @@ function RestTimer({
     setTotal(initialSeconds)
     intervalRef.current = setInterval(() => {
       setRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!)
-          return 0
-        }
+        if (prev <= 1) { clearInterval(intervalRef.current!); return 0 }
         return prev - 1
       })
     }, 1000)
@@ -135,44 +136,117 @@ function RestTimer({
   const mins = Math.floor(remaining / 60)
   const secs = remaining % 60
 
+  // SVG ring — same style as exercise phase
+  const RADIUS = 120
+  const STROKE = 10
+  const circumference = 2 * Math.PI * RADIUS
+  const dashOffset = circumference * (1 - progress)
+
+  // Next set info
+  const isNextNewExercise = nextSet && nextExercise &&
+    (nextSet.exerciseIndex !== (nextSet.setIndex > 0 ? nextSet.exerciseIndex : -99))
+  const nextLabel = nextSet
+    ? nextSet.setType === 'warmup'
+      ? `Échauffement ${nextSet.setIndex + 1}`
+      : nextSet.setType === 'cardio'
+        ? `Cardio ${nextSet.setIndex + 1}`
+        : `Série ${nextSet.setIndex + 1}`
+    : null
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-8 bg-[#f8f8fb]">
-      <h2 className="text-2xl font-black text-gray-950">Repos</h2>
+    <div className="flex-1 flex flex-col items-center justify-between px-5 pb-[env(safe-area-inset-bottom,20px)]">
 
-      {/* Progress bar */}
-      <div className="w-72 h-2 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-indigo-500 rounded-full transition-all duration-1000"
-          style={{ width: `${progress * 100}%` }}
-        />
+      {/* Ring timer */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6">
+        <div className="relative" style={{ width: RADIUS * 2 + STROKE * 2 + 8, height: RADIUS * 2 + STROKE * 2 + 8 }}>
+          <svg
+            width={RADIUS * 2 + STROKE * 2 + 8}
+            height={RADIUS * 2 + STROKE * 2 + 8}
+            className="-rotate-90"
+            viewBox={`0 0 ${RADIUS * 2 + STROKE * 2 + 8} ${RADIUS * 2 + STROKE * 2 + 8}`}
+          >
+            {/* Track */}
+            <circle
+              cx={(RADIUS * 2 + STROKE * 2 + 8) / 2}
+              cy={(RADIUS * 2 + STROKE * 2 + 8) / 2}
+              r={RADIUS}
+              fill="none"
+              stroke="#e5e7eb"
+              strokeWidth={STROKE}
+            />
+            {/* Progress — animates over total duration */}
+            <circle
+              cx={(RADIUS * 2 + STROKE * 2 + 8) / 2}
+              cy={(RADIUS * 2 + STROKE * 2 + 8) / 2}
+              r={RADIUS}
+              fill="none"
+              stroke="#6366f1"
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              style={{ transition: 'stroke-dashoffset 1s linear' }}
+            />
+          </svg>
+          {/* Center: time + label */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Repos</span>
+            <span className="font-mono text-5xl font-black text-gray-950 tabular-nums leading-none">
+              {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+            </span>
+          </div>
+        </div>
+
+        {/* +/- buttons */}
+        <div className="flex items-center gap-4">
+          <button onClick={() => adjust(-10)}
+            className="w-14 h-14 rounded-2xl bg-white shadow-sm border border-gray-100 flex items-center justify-center font-bold text-gray-600 text-sm active:scale-95 transition-transform">
+            −10s
+          </button>
+          <button onClick={() => adjust(10)}
+            className="w-14 h-14 rounded-2xl bg-white shadow-sm border border-gray-100 flex items-center justify-center font-bold text-gray-600 text-sm active:scale-95 transition-transform">
+            +10s
+          </button>
+        </div>
       </div>
 
-      {/* Timer */}
-      <div className="flex items-center gap-6">
-        <button
-          onClick={() => adjust(-10)}
-          className="w-14 h-14 rounded-2xl bg-white shadow-sm border border-gray-100 flex items-center justify-center font-bold text-gray-600 text-sm active:scale-95 transition-transform"
-        >
-          −10s
-        </button>
-        <span className="font-mono text-7xl font-black text-gray-950 tabular-nums w-56 text-center">
-          {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
-        </span>
-        <button
-          onClick={() => adjust(10)}
-          className="w-14 h-14 rounded-2xl bg-white shadow-sm border border-gray-100 flex items-center justify-center font-bold text-gray-600 text-sm active:scale-95 transition-transform"
-        >
-          +10s
-        </button>
-      </div>
+      {/* Next up card */}
+      {nextSet && nextExercise && (
+        <div className="w-full bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-4 mb-4">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Prochaine série</p>
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              'px-2.5 py-1 rounded-xl text-xs font-bold shrink-0',
+              nextSet.setType === 'warmup' ? 'bg-amber-100 text-amber-700' :
+              nextSet.setType === 'cardio' ? 'bg-green-100 text-green-700' :
+              'bg-indigo-100 text-indigo-700'
+            )}>
+              {nextLabel}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-gray-900 text-sm truncate">{nextExercise.name}</p>
+              {nextSet.setType === 'cardio' ? (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {Math.floor(nextSet.durationSeconds / 60)}min
+                  {nextSet.speed > 0 && ` · ${nextSet.speed}km/h`}
+                  {nextSet.incline > 0 && ` · ${nextSet.incline}% pente`}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {nextSet.reps} rép.
+                  {nextSet.weight > 0 && <span className="font-bold text-gray-700"> · {nextSet.weight}kg</span>}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Skip */}
-      <button
-        onClick={onSkip}
-        className="flex items-center gap-2 text-gray-400 text-sm font-semibold hover:text-gray-700 transition-colors"
-      >
+      <button onClick={onSkip}
+        className="w-full flex items-center justify-center gap-2 text-gray-500 text-sm font-semibold bg-white border border-gray-200 rounded-2xl min-h-[52px] active:scale-[0.98] transition-all mb-2">
         <SkipForward size={16} />
-        Passer →
+        Passer le repos
       </button>
     </div>
   )
@@ -616,10 +690,16 @@ function LiveSessionInner() {
   const totalEx = exercises.length
 
   if (phase === 'rest') {
+    // Find next incomplete set
+    const nextFlatIdx = sets.findIndex((s, i) => i > currentFlatIdx && !s.completed)
+    const nextSet = nextFlatIdx !== -1 ? sets[nextFlatIdx] : null
+    const nextExercise = nextSet ? (exercises[nextSet.exerciseIndex] ?? null) : null
+
     return (
-      <div className="min-h-screen flex flex-col bg-[#f8f8fb]">
+      <div className="h-[100dvh] flex flex-col bg-[#f8f8fb]">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-5 pt-[env(safe-area-inset-top,16px)] pb-4 bg-[#f8f8fb]">
+        <div className="shrink-0 flex items-center justify-between px-5 bg-[#f8f8fb]"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button
             onClick={() => router.replace('/dashboard')}
             className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
@@ -639,6 +719,8 @@ function LiveSessionInner() {
           initialSeconds={restDuration}
           onDone={onRestDone}
           onSkip={onRestSkip}
+          nextSet={nextSet}
+          nextExercise={nextExercise}
         />
       </div>
     )
