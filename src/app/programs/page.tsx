@@ -217,9 +217,10 @@ export default function ProgramsPage() {
   // ────────────────────────────────────────────────────────────────────────────
   if (view === 'program-name') {
     return (
-      <div className="min-h-screen bg-[#f8f8fb] flex flex-col">
+      <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-[env(safe-area-inset-top,16px)] pb-3 bg-white border-b border-gray-100">
+        <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button onClick={() => setView('list')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
             <ChevronLeft size={20} className="text-gray-700" />
           </button>
@@ -228,19 +229,23 @@ export default function ProgramsPage() {
           </h1>
         </div>
 
-        <div className="flex-1 flex flex-col px-5 pt-10 gap-6">
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nom du programme</label>
-            <input
-              type="text"
-              value={draft.name}
-              onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-              placeholder="Ex: Push Pull Legs, Full Body..."
-              autoFocus
-              className="w-full bg-white border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-lg font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
-            />
-          </div>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 pt-8">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nom du programme</label>
+          <input
+            type="text"
+            value={draft.name}
+            onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+            onKeyDown={e => { if (e.key === 'Enter' && draft.name.trim()) setView('workouts') }}
+            placeholder="Ex: Push Pull Legs, Full Body..."
+            autoFocus
+            className="w-full bg-white border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-lg font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
+          />
+        </div>
 
+        {/* Footer button */}
+        <div className="shrink-0 px-5 pt-4 bg-[#f8f8fb]"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
           <button
             onClick={() => { if (draft.name.trim()) setView('workouts') }}
             disabled={!draft.name.trim()}
@@ -258,84 +263,69 @@ export default function ProgramsPage() {
   // ────────────────────────────────────────────────────────────────────────────
   if (view === 'workouts') {
     return (
-      <div className="min-h-screen bg-[#f8f8fb] flex flex-col pb-8">
+      <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-[env(safe-area-inset-top,16px)] pb-3 bg-white border-b border-gray-100">
+        <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button onClick={() => setView('program-name')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
             <ChevronLeft size={20} className="text-gray-700" />
           </button>
           <h1 className="font-black text-gray-900 text-lg flex-1 truncate">{draft.name}</h1>
+          <button
+            onClick={() => openWorkoutSheet(null)}
+            className="flex items-center gap-1.5 bg-gray-950 text-white px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform shrink-0"
+          >
+            <Plus size={15} /> Séance
+          </button>
         </div>
 
-        <div className="flex-1 px-5 pt-6 space-y-4">
-          {/* Title row */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-black text-gray-900">Mes séances</h2>
-            <button
-              onClick={() => openWorkoutSheet(null)}
-              className="flex items-center gap-1.5 bg-gray-950 text-white px-4 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform"
-            >
-              <Plus size={15} /> Ajouter
-            </button>
-          </div>
-
-          {/* Workout list */}
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3">
           {draft.workouts.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 flex flex-col items-center gap-3">
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 flex flex-col items-center gap-3 mt-4">
               <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
                 <Dumbbell size={24} className="text-gray-300" />
               </div>
               <p className="text-sm font-bold text-gray-400">Aucune séance</p>
-              <p className="text-xs text-gray-300">Ajoute ta première séance</p>
+              <p className="text-xs text-gray-300">Ajoute ta première séance via le bouton +</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {draft.workouts.map((w, i) => (
-                <div key={i} className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 truncate">{w.name || 'Séance sans nom'}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{w.exercises.length} exercice{w.exercises.length !== 1 ? 's' : ''}</p>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        onClick={() => {
-                          setActiveWorkoutIdx(i)
-                          setView('exercise-library')
-                        }}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
-                        title="Ajouter des exercices"
-                      >
-                        <Plus size={15} className="text-gray-500" />
-                      </button>
-                      <button
-                        onClick={() => openWorkoutSheet(i)}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
-                      >
-                        <Pencil size={14} className="text-gray-400" />
-                      </button>
-                      <button
-                        onClick={() => removeWorkout(i)}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 size={14} className="text-red-400" />
-                      </button>
-                    </div>
+            draft.workouts.map((w, i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 truncate">{w.name || 'Séance sans nom'}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{w.exercises.length} exercice{w.exercises.length !== 1 ? 's' : ''}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => { setActiveWorkoutIdx(i); setView('exercise-library') }}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
+                      <Plus size={15} className="text-gray-500" />
+                    </button>
+                    <button onClick={() => openWorkoutSheet(i)}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
+                      <Pencil size={14} className="text-gray-400" />
+                    </button>
+                    <button onClick={() => removeWorkout(i)}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-50 transition-colors">
+                      <Trash2 size={14} className="text-red-400" />
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </div>
 
-        {/* Save button */}
-        <div className="px-5 pt-6">
+        {/* Footer: save button */}
+        <div className="shrink-0 px-4 pt-3 bg-[#f8f8fb] border-t border-gray-100"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' }}>
           <button
             onClick={handleSave}
             disabled={saving || !draft.name.trim()}
-            className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[56px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none"
+            className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none"
           >
-            {saving ? 'Enregistrement...' : draft.id ? 'Mettre à jour' : 'Enregistrer le programme'}
+            {saving ? 'Enregistrement...' : draft.id ? 'Mettre à jour' : 'Enregistrer'}
           </button>
         </div>
 
