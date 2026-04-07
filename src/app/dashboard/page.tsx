@@ -223,6 +223,12 @@ export default function DashboardPage() {
     if (launching) return
     const profileId = getProfileId()!
     setLaunching(true)
+    // Cancel any lingering active session for this profile
+    await supabase
+      .from('live_sessions')
+      .update({ status: 'abandoned', finished_at: new Date().toISOString() })
+      .eq('profile_id', profileId)
+      .eq('status', 'active')
     const { data, error } = await supabase
       .from('live_sessions')
       .insert({ profile_id: profileId, workout_id: workout.id, status: 'active' })

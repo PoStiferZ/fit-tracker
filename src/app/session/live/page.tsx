@@ -371,6 +371,7 @@ function LiveSessionInner() {
   const [exercises, setExercises] = useState<ExerciseWithName[]>([])
   const [sets, setSets] = useState<LiveSetState[]>([])
   const [phase, setPhase] = useState<Phase>('exercise')
+  const [abandonConfirm, setAbandonConfirm] = useState(false)
   const [currentExIdx, setCurrentExIdx] = useState(0)
   const [currentSetIdx, setCurrentSetIdx] = useState(0)
   const [currentSetType, setCurrentSetType] = useState<SetType>('warmup')
@@ -646,6 +647,15 @@ function LiveSessionInner() {
       .eq('workout_id', liveSession.workout_id)
   }
 
+  async function abandonSession() {
+    if (liveSession) {
+      await supabase.from('live_sessions')
+        .update({ status: 'abandoned', finished_at: new Date().toISOString() })
+        .eq('id', liveSession.id)
+    }
+    router.replace('/dashboard')
+  }
+
   function advanceToNext(fromFlatIdx: number) {
     const next = sets.findIndex((s, i) => i > fromFlatIdx && !s.completed)
     if (next === -1) {
@@ -724,7 +734,7 @@ function LiveSessionInner() {
         <div className="shrink-0 flex items-center justify-between px-5 bg-[#f8f8fb]"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button
-            onClick={() => router.replace('/dashboard')}
+            onClick={() => setAbandonConfirm(true)}
             className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
           >
             <ChevronLeft size={22} className="text-gray-600" />
@@ -745,6 +755,22 @@ function LiveSessionInner() {
           nextSet={nextSet}
           nextExercise={nextExercise}
         />
+      {abandonConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-1">
+              <p className="text-xl font-black text-gray-950">Abandonner la séance ?</p>
+              <p className="text-sm text-gray-400">Ta progression sera perdue et ne sera pas sauvegardée.</p>
+            </div>
+            <button onClick={abandonSession} className="w-full bg-red-500 text-white font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all">
+              Oui, abandonner
+            </button>
+            <button onClick={() => setAbandonConfirm(false)} className="w-full bg-gray-100 text-gray-700 font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all">
+              Continuer la séance
+            </button>
+          </div>
+        </div>
+      )}
       </div>
     )
   }
@@ -765,7 +791,7 @@ function LiveSessionInner() {
       <div className="shrink-0 flex items-center justify-between px-4 bg-[#f8f8fb]"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingBottom: 8 }}>
         <button
-          onClick={() => router.replace('/dashboard')}
+          onClick={() => setAbandonConfirm(true)}
           className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
         >
           <ChevronLeft size={20} className="text-gray-600" />
@@ -921,6 +947,30 @@ function LiveSessionInner() {
             onConfirm={pct => { updateSet(currentFlatIdx, 'incline', pct); setInclinePickerOpen(false) }}
           />
         </>
+      )}
+
+      {/* ── Abandon confirmation modal ── */}
+      {abandonConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-1">
+              <p className="text-xl font-black text-gray-950">Abandonner la séance ?</p>
+              <p className="text-sm text-gray-400">Ta progression sera perdue et ne sera pas sauvegardée.</p>
+            </div>
+            <button
+              onClick={abandonSession}
+              className="w-full bg-red-500 text-white font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
+            >
+              Oui, abandonner
+            </button>
+            <button
+              onClick={() => setAbandonConfirm(false)}
+              className="w-full bg-gray-100 text-gray-700 font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
+            >
+              Continuer la séance
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
