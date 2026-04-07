@@ -688,24 +688,45 @@ function LiveSessionInner() {
           </h1>
         </div>
 
-        {/* SVG circle + inline controls */}
+        {/* Controls above circle: weight */}
+        {currentSet && (
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => isCardio
+                ? updateSet(currentFlatIdx, 'durationSeconds', Math.max(0, currentSet.durationSeconds - 30))
+                : updateSet(currentFlatIdx, 'weight', Math.max(0, +(currentSet.weight - 2.5).toFixed(2)))
+              }
+              className="w-12 h-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
+            >
+              <Minus size={18} className="text-gray-700" />
+            </button>
+            <div className="text-center min-w-[90px]">
+              <p className="text-3xl font-black text-gray-950 tabular-nums">
+                {isCardio ? `${Math.round(currentSet.durationSeconds / 60)}` : currentSet.weight}
+              </p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                {isCardio ? 'min' : 'kg'}
+              </p>
+            </div>
+            <button
+              onClick={() => isCardio
+                ? updateSet(currentFlatIdx, 'durationSeconds', currentSet.durationSeconds + 30)
+                : updateSet(currentFlatIdx, 'weight', +(currentSet.weight + 2.5).toFixed(2))
+              }
+              className="w-12 h-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
+            >
+              <Plus size={18} className="text-gray-700" />
+            </button>
+          </div>
+        )}
+
+        {/* SVG circle — Terminer button fills the inside */}
         <div className="relative" style={{ width: 280, height: 280 }}>
           {/* SVG ring */}
-          <svg width={280} height={280}>
-            {/* Background ring */}
+          <svg width={280} height={280} style={{ position: 'absolute', inset: 0 }}>
+            <circle cx={140} cy={140} r={120} fill="none" stroke="#e5e7eb" strokeWidth={10} />
             <circle
-              cx={140}
-              cy={140}
-              r={120}
-              fill="none"
-              stroke="#e5e7eb"
-              strokeWidth={10}
-            />
-            {/* Animated progress ring */}
-            <circle
-              cx={140}
-              cy={140}
-              r={120}
+              cx={140} cy={140} r={120}
               fill="none"
               stroke="#111827"
               strokeWidth={10}
@@ -717,89 +738,65 @@ function LiveSessionInner() {
             />
           </svg>
 
-          {/* Overlay: controls inside the circle */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            {/* Elapsed timer */}
-            <span className="text-xs font-mono text-gray-400">
+          {/* Terminer button fills inner circle (r=115 → ~220px diameter) */}
+          <button
+            onClick={() => completeCurrentSet(false)}
+            className="absolute bg-gray-950 text-white font-black flex flex-col items-center justify-center active:scale-95 transition-transform shadow-xl"
+            style={{
+              width: 220,
+              height: 220,
+              borderRadius: '50%',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <span className="text-xs font-mono text-white/50 mb-1">
               {String(elapsedMins).padStart(2, '0')}:{String(elapsedSecs).padStart(2, '0')}
             </span>
+            <Check size={32} strokeWidth={3} className="mb-1" />
+            <span className="text-base font-black">Terminer</span>
+          </button>
+        </div>
 
-            {/* Weight / duration row */}
-            {currentSet && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => isCardio
-                    ? updateSet(currentFlatIdx, 'durationSeconds', Math.max(0, +(currentSet.durationSeconds - 30).toFixed(0)))
-                    : updateSet(currentFlatIdx, 'weight', Math.max(0, +(currentSet.weight - 2.5).toFixed(2)))
-                  }
-                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
-                >
-                  <Minus size={14} className="text-gray-600" />
-                </button>
-                <span className="text-2xl font-black text-gray-950 tabular-nums w-24 text-center">
-                  {isCardio
-                    ? `${Math.round(currentSet.durationSeconds / 60)}min`
-                    : `${currentSet.weight}kg`
-                  }
-                </span>
-                <button
-                  onClick={() => isCardio
-                    ? updateSet(currentFlatIdx, 'durationSeconds', +(currentSet.durationSeconds + 30).toFixed(0))
-                    : updateSet(currentFlatIdx, 'weight', +(currentSet.weight + 2.5).toFixed(2))
-                  }
-                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
-                >
-                  <Plus size={14} className="text-gray-600" />
-                </button>
-              </div>
-            )}
-
-            {/* Reps / speed row */}
-            {currentSet && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => isCardio
-                    ? updateSet(currentFlatIdx, 'speed', Math.max(0, +(currentSet.speed - 0.5).toFixed(1)))
-                    : updateSet(currentFlatIdx, 'reps', Math.max(0, currentSet.reps - 1))
-                  }
-                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
-                >
-                  <Minus size={14} className="text-gray-600" />
-                </button>
-                <span className="text-2xl font-black text-gray-950 tabular-nums w-24 text-center">
-                  {isCardio
-                    ? `${currentSet.speed}km/h`
-                    : `${currentSet.reps} reps`
-                  }
-                </span>
-                <button
-                  onClick={() => isCardio
-                    ? updateSet(currentFlatIdx, 'speed', +(currentSet.speed + 0.5).toFixed(1))
-                    : updateSet(currentFlatIdx, 'reps', currentSet.reps + 1)
-                  }
-                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
-                >
-                  <Plus size={14} className="text-gray-600" />
-                </button>
-              </div>
-            )}
-
-            {/* Terminer button */}
+        {/* Controls below circle: reps */}
+        {currentSet && (
+          <div className="flex items-center gap-5">
             <button
-              onClick={() => completeCurrentSet(false)}
-              className="w-[72px] h-[72px] rounded-full bg-gray-950 text-white flex items-center justify-center text-xs font-bold active:scale-95 transition-transform shadow-lg"
+              onClick={() => isCardio
+                ? updateSet(currentFlatIdx, 'speed', Math.max(0, +(currentSet.speed - 0.5).toFixed(1)))
+                : updateSet(currentFlatIdx, 'reps', Math.max(0, currentSet.reps - 1))
+              }
+              className="w-12 h-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
             >
-              Terminer
+              <Minus size={18} className="text-gray-700" />
+            </button>
+            <div className="text-center min-w-[90px]">
+              <p className="text-3xl font-black text-gray-950 tabular-nums">
+                {isCardio ? currentSet.speed : currentSet.reps}
+              </p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                {isCardio ? 'km/h' : 'reps'}
+              </p>
+            </div>
+            <button
+              onClick={() => isCardio
+                ? updateSet(currentFlatIdx, 'speed', +(currentSet.speed + 0.5).toFixed(1))
+                : updateSet(currentFlatIdx, 'reps', currentSet.reps + 1)
+              }
+              className="w-12 h-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center active:scale-90 transition-transform"
+            >
+              <Plus size={18} className="text-gray-700" />
             </button>
           </div>
-        </div>
+        )}
 
         {/* Skip button */}
         <button
           onClick={() => completeCurrentSet(true)}
           className="text-gray-400 text-sm font-semibold"
         >
-          Passer
+          Passer la série
         </button>
 
       </div>
