@@ -634,7 +634,24 @@ function LiveSessionInner() {
     )
   }
 
-  // Phase: exercise
+  // Phase: exercise — circular progress UI
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [cycleSeconds, setCycleSeconds] = useState(0)
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    setCycleSeconds(0)
+    const iv = setInterval(() => {
+      setCycleSeconds(prev => (prev + 1) % 60)
+    }, 1000)
+    return () => clearInterval(iv)
+  // Reset when set changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFlatIdx])
+
+  const circumference = 2 * Math.PI * 120 // ≈ 754
+  const currentSet = sets[currentFlatIdx]
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f8fb]">
       {/* Top bar */}
@@ -654,168 +671,142 @@ function LiveSessionInner() {
         <div className="w-10" />
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1.5 bg-gray-200 mx-5 rounded-full shrink-0">
-        <div
-          className="h-full bg-indigo-500 rounded-full transition-all"
-          style={{ width: `${totalEx > 0 ? (uniqueExDone / totalEx) * 100 : 0}%` }}
-        />
-      </div>
+      {/* Centered content */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-5 pb-[env(safe-area-inset-bottom,20px)]">
 
-      {/* Exercise name + muscles */}
-      <div className="px-5 pt-5 shrink-0">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <h1 className="text-2xl font-black text-gray-950 leading-tight">{currentEx?.name}</h1>
-            {currentEx && (currentEx.muscles_primary.length > 0 || currentEx.muscles_secondary.length > 0) && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {currentEx.muscles_primary.slice(0, 3).map(m => (
-                  <span key={m} className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {m}
-                  </span>
-                ))}
-                {currentEx.muscles_secondary.slice(0, 2).map(m => (
-                  <span key={m} className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {m}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          {/* Current set badge */}
-          {sets[currentFlatIdx] && (
+        {/* Set badge + exercise name */}
+        <div className="flex flex-col items-center gap-2">
+          {currentSet && (
             <span className={cn(
-              'shrink-0 text-xs font-black px-3 py-1.5 rounded-full',
+              'text-sm font-bold px-3 py-1 rounded-full',
               currentSetType === 'warmup'
                 ? 'bg-amber-100 text-amber-700'
                 : currentSetType === 'cardio'
                   ? 'bg-green-100 text-green-700'
                   : 'bg-indigo-100 text-indigo-700'
             )}>
-              {getSetLabel(sets[currentFlatIdx])}
+              {getSetLabel(currentSet)}
             </span>
           )}
+          <h1 className="text-2xl font-black text-gray-950 text-center leading-tight">
+            {currentEx?.name}
+          </h1>
         </div>
-      </div>
 
-      {/* Sets table */}
-      <div className="flex-1 overflow-y-auto px-5 pt-4 pb-2">
-        <div className="space-y-2">
-          {currentExSets.map((s, i) => {
-            const flatIdx = sets.findIndex(
-              ss => ss.exerciseIndex === s.exerciseIndex && ss.setIndex === s.setIndex && ss.setType === s.setType
-            )
-            const isCurrent = flatIdx === currentFlatIdx
-            const isPast = s.completed
+        {/* SVG circle + inline controls */}
+        <div className="relative" style={{ width: 280, height: 280 }}>
+          {/* SVG ring */}
+          <svg width={280} height={280}>
+            {/* Background ring */}
+            <circle
+              cx={140}
+              cy={140}
+              r={120}
+              fill="none"
+              stroke="#e5e7eb"
+              strokeWidth={10}
+            />
+            {/* Animated progress ring */}
+            <circle
+              cx={140}
+              cy={140}
+              r={120}
+              fill="none"
+              stroke="#111827"
+              strokeWidth={10}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - cycleSeconds / 60)}
+              transform="rotate(-90 140 140)"
+              style={{ transition: 'stroke-dashoffset 0.9s linear' }}
+            />
+          </svg>
 
-            return (
-              <div
-                key={`${s.setType}-${s.setIndex}`}
-                className={cn(
-                  'rounded-2xl px-4 py-3 transition-all',
-                  isCurrent
-                    ? 'bg-indigo-50 border-2 border-indigo-300 shadow-sm'
-                    : isPast
-                      ? 'bg-gray-50 border border-gray-100 opacity-60'
-                      : 'bg-white border border-gray-100'
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Set label */}
-                  <div className="w-16 shrink-0">
-                    <span className={cn(
-                      'text-[10px] font-black uppercase tracking-wider',
-                      isCurrent ? 'text-indigo-600' : 'text-gray-400'
-                    )}>
-                      {s.setType === 'warmup' ? `Éch.${s.setIndex + 1}` : s.setType === 'cardio' ? `C.${s.setIndex + 1}` : `S.${s.setIndex + 1}`}
-                    </span>
-                    {isPast && !isCurrent && (
-                      <div className="mt-0.5">
-                        <Check size={12} className="text-green-500" />
-                      </div>
-                    )}
-                  </div>
+          {/* Overlay: controls inside the circle */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            {/* Elapsed timer */}
+            <span className="text-xs font-mono text-gray-400">
+              {String(elapsedMins).padStart(2, '0')}:{String(elapsedSecs).padStart(2, '0')}
+            </span>
 
-                  {/* Inputs */}
-                  {isCardio || s.setType === 'cardio' ? (
-                    <div className="flex-1 flex items-center gap-4 justify-center flex-wrap">
-                      <Stepper
-                        value={s.durationSeconds}
-                        onChange={v => updateSet(flatIdx, 'durationSeconds', v)}
-                        step={30}
-                        label="Durée(s)"
-                        unit="s"
-                        small={!isCurrent}
-                      />
-                      <Stepper
-                        value={s.speed}
-                        onChange={v => updateSet(flatIdx, 'speed', v)}
-                        step={0.5}
-                        label="Vit(km/h)"
-                        unit=""
-                        small={!isCurrent}
-                      />
-                      <Stepper
-                        value={s.incline}
-                        onChange={v => updateSet(flatIdx, 'incline', v)}
-                        step={0.5}
-                        label="Inc(%)"
-                        unit="%"
-                        small={!isCurrent}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center gap-4 justify-center">
-                      <Stepper
-                        value={s.reps}
-                        onChange={v => updateSet(flatIdx, 'reps', v)}
-                        step={1}
-                        min={0}
-                        label="Reps"
-                        small={!isCurrent}
-                      />
-                      <Stepper
-                        value={s.weight}
-                        onChange={v => updateSet(flatIdx, 'weight', v)}
-                        step={2.5}
-                        min={0}
-                        label="Kg"
-                        unit="kg"
-                        small={!isCurrent}
-                      />
-                      <Stepper
-                        value={s.restSeconds}
-                        onChange={v => updateSet(flatIdx, 'restSeconds', v)}
-                        step={15}
-                        min={0}
-                        label="Repos(s)"
-                        unit="s"
-                        small={!isCurrent}
-                      />
-                    </div>
-                  )}
-                </div>
+            {/* Weight / duration row */}
+            {currentSet && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => isCardio
+                    ? updateSet(currentFlatIdx, 'durationSeconds', Math.max(0, +(currentSet.durationSeconds - 30).toFixed(0)))
+                    : updateSet(currentFlatIdx, 'weight', Math.max(0, +(currentSet.weight - 2.5).toFixed(2)))
+                  }
+                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
+                >
+                  <Minus size={14} className="text-gray-600" />
+                </button>
+                <span className="text-2xl font-black text-gray-950 tabular-nums w-24 text-center">
+                  {isCardio
+                    ? `${Math.round(currentSet.durationSeconds / 60)}min`
+                    : `${currentSet.weight}kg`
+                  }
+                </span>
+                <button
+                  onClick={() => isCardio
+                    ? updateSet(currentFlatIdx, 'durationSeconds', +(currentSet.durationSeconds + 30).toFixed(0))
+                    : updateSet(currentFlatIdx, 'weight', +(currentSet.weight + 2.5).toFixed(2))
+                  }
+                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
+                >
+                  <Plus size={14} className="text-gray-600" />
+                </button>
               </div>
-            )
-          })}
-        </div>
-      </div>
+            )}
 
-      {/* Bottom actions */}
-      <div className="shrink-0 px-5 pb-[env(safe-area-inset-bottom,20px)] pt-3 space-y-2">
+            {/* Reps / speed row */}
+            {currentSet && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => isCardio
+                    ? updateSet(currentFlatIdx, 'speed', Math.max(0, +(currentSet.speed - 0.5).toFixed(1)))
+                    : updateSet(currentFlatIdx, 'reps', Math.max(0, currentSet.reps - 1))
+                  }
+                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
+                >
+                  <Minus size={14} className="text-gray-600" />
+                </button>
+                <span className="text-2xl font-black text-gray-950 tabular-nums w-24 text-center">
+                  {isCardio
+                    ? `${currentSet.speed}km/h`
+                    : `${currentSet.reps} reps`
+                  }
+                </span>
+                <button
+                  onClick={() => isCardio
+                    ? updateSet(currentFlatIdx, 'speed', +(currentSet.speed + 0.5).toFixed(1))
+                    : updateSet(currentFlatIdx, 'reps', currentSet.reps + 1)
+                  }
+                  className="w-9 h-9 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center"
+                >
+                  <Plus size={14} className="text-gray-600" />
+                </button>
+              </div>
+            )}
+
+            {/* Terminer button */}
+            <button
+              onClick={() => completeCurrentSet(false)}
+              className="w-[72px] h-[72px] rounded-full bg-gray-950 text-white flex items-center justify-center text-xs font-bold active:scale-95 transition-transform shadow-lg"
+            >
+              Terminer
+            </button>
+          </div>
+        </div>
+
+        {/* Skip button */}
         <button
           onClick={() => completeCurrentSet(true)}
-          className="w-full text-center text-sm text-gray-400 font-semibold py-1 hover:text-gray-600 transition-colors"
+          className="text-gray-400 text-sm font-semibold"
         >
           Passer
         </button>
-        <button
-          onClick={() => completeCurrentSet(false)}
-          className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[64px] flex items-center justify-center gap-2 text-base active:scale-[0.98] transition-transform shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
-        >
-          <Check size={20} strokeWidth={3} />
-          Terminer la série
-        </button>
+
       </div>
     </div>
   )
