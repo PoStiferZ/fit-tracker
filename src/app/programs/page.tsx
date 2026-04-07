@@ -6,7 +6,7 @@ import type { AnyExercise, MuscleGroup, Program, Workout, WorkoutExercise } from
 import Navbar from '@/components/Navbar'
 import BottomSheet from '@/components/BottomSheet'
 import ExerciseLibrary from '@/components/ExerciseLibrary'
-import { Plus, ClipboardList, Trash2, Pencil, ChevronLeft, ChevronDown, ChevronRight, Dumbbell } from 'lucide-react'
+import { Plus, ClipboardList, Trash2, Pencil, ChevronLeft, ChevronDown, ChevronRight, Dumbbell, GripVertical, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -68,6 +68,9 @@ export default function ProgramsPage() {
 
   // Expanded workouts in detail view
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set())
+
+  // Add exercises to a workout in detail view (without going through full editor)
+  const [detailAddWorkoutId, setDetailAddWorkoutId] = useState<string | null>(null)
 
   // Exercise edit sheet (in detail view)
   const [editExSheet, setEditExSheet] = useState<{
@@ -231,6 +234,96 @@ export default function ProgramsPage() {
     }))
   }
 
+  // Add exercises directly from detail view
+  async function addExercisesToDetailWorkout(
+    exercises: Omit<WorkoutExercise, 'id' | 'workout_id' | 'created_at' | 'updated_at'>[]
+  ) {
+    if (!detailAddWorkoutId || !selectedProgram) return
+    const profileId = getProfileId()!
+    const workout = selectedProgram.workouts.find(w => w.id === detailAddWorkoutId)
+    if (!workout) return
+
+    const startIdx = workout.workout_exercises.length
+    const rows = exercises.map((e, i) => ({ ...e, workout_id: detailAddWorkoutId, order_index: startIdx + i }))
+    const { data: inserted } = await supabase.from('workout_exercises').insert(rows).select()
+    if (!inserted) return
+
+    // Reload exercise info
+    const [libRes, customRes] = await Promise.all([
+      supabase.from('exercise_library').select('*'),
+      supabase.from('custom_exercises').select('*').eq('profile_id', profileId),
+    ])
+    const allExercises: AnyExercise[] = [
+      ...((libRes.data || []).map((e: AnyExercise) => ({ ...e, source: 'library' as const }))),
+      ...((customRes.data || []).map((e: AnyExercise) => ({ ...e, source: 'custom' as const }))),
+    ]
+
+    const newEnriched: EnrichedExercise[] = (inserted as WorkoutExercise[]).map(we => ({
+      workoutExercise: we,
+      info: allExercises.find(e =>
+        we.source === 'library' ? e.id === we.library_exercise_id : e.id === we.custom_exercise_id
+      ) ?? null,
+    }))
+
+    const updateWorkout = (w: WorkoutWithEnrichedExercises) => {
+      if (w.id !== detailAddWorkoutId) return w
+      return {
+        ...w,
+        workout_exercises: [...w.workout_exercises, ...(inserted as WorkoutExercise[])],
+        enriched: [...w.enriched, ...newEnriched],
+      }
+    }
+
+    setSelectedProgram(p => p ? { ...p, workouts: p.workouts.map(updateWorkout) } : p)
+    setPrograms(ps => ps.map(p =>
+      p.id !== selectedProgram.id ? p : { ...p, workouts: p.workouts.map(updateWorkout) }
+    ))
+    setDetailAddWorkoutId(null)
+    setExpandedWorkouts(prev => new Set([...prev, detailAddWorkoutId]))
+  }
+
+  // Move exercise up or down within a workout
+  async function reorderExercise(workoutId: string, exerciseId: string, direction: 'up' | 'down') {
+    if (!selectedProgram) return
+    const workout = selectedProgram.workouts.find(w => w.id === workoutId)
+    if (!workout) return
+
+    const enriched = [...workout.enriched]
+    const idx = enriched.findIndex(e => e.workoutExercise.id === exerciseId)
+    if (idx === -1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= enriched.length) return
+
+    // Swap
+    const tmp = enriched[idx]
+    enriched[idx] = enriched[swapIdx]
+    enriched[swapIdx] = tmp
+
+    // Reassign order_index
+    const updated = enriched.map((e, i) => ({
+      ...e,
+      workoutExercise: { ...e.workoutExercise, order_index: i },
+    }))
+
+    // Optimistic update
+    const updateWorkout = (w: WorkoutWithEnrichedExercises) => {
+      if (w.id !== workoutId) return w
+      return {
+        ...w,
+        enriched: updated,
+        workout_exercises: updated.map(e => e.workoutExercise),
+      }
+    }
+    setSelectedProgram(p => p ? { ...p, workouts: p.workouts.map(updateWorkout) } : p)
+
+    // Persist to DB
+    await Promise.all(updated.map(e =>
+      supabase.from('workout_exercises')
+        .update({ order_index: e.workoutExercise.order_index })
+        .eq('id', e.workoutExercise.id)
+    ))
+  }
+
   async function saveExerciseEdit() {
     if (!editExSheet) return
     const { workoutId, exerciseId, workRepsPerSet, workLoadsPerSet, warmupRepsPerSet, warmupLoadsPerSet } = editExSheet
@@ -315,12 +408,20 @@ export default function ProgramsPage() {
   // VIEW: exercise-library
   // ────────────────────────────────────────────────────────────────────────────
   if (view === 'exercise-library') {
+    // Coming from detail view (detailAddWorkoutId set) vs editor view
+    const isFromDetail = detailAddWorkoutId !== null
     return (
       <ExerciseLibrary
         fullPage
         isOpen={true}
-        onClose={() => setView('workouts')}
-        onConfirm={addExercisesToWorkout}
+        onClose={() => {
+          if (isFromDetail) { setDetailAddWorkoutId(null); setView('program-detail') }
+          else setView('workouts')
+        }}
+        onConfirm={(exercises) => {
+          if (isFromDetail) addExercisesToDetailWorkout(exercises)
+          else addExercisesToWorkout(exercises)
+        }}
       />
     )
   }
@@ -506,45 +607,75 @@ export default function ProgramsPage() {
             const expanded = expandedWorkouts.has(w.id)
             return (
               <div key={w.id} className="bg-white rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
-                {/* Workout header — click to expand */}
-                <button
-                  onClick={() => toggleWorkout(w.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 text-sm">{w.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-xs text-gray-400">
-                        {w.workout_exercises.length} exercice{w.workout_exercises.length !== 1 ? 's' : ''}
-                      </span>
-                      {calcRestTime(w.workout_exercises) !== '' && (
-                        <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">
-                          ⏱ {calcRestTime(w.workout_exercises)}
+                {/* Workout header */}
+                <div className="flex items-center gap-2 px-4 py-3.5">
+                  {/* Expand toggle — takes most space */}
+                  <button onClick={() => toggleWorkout(w.id)} className="flex-1 flex items-center gap-2 text-left min-w-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 text-sm">{w.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-gray-400">
+                          {w.workout_exercises.length} exercice{w.workout_exercises.length !== 1 ? 's' : ''}
                         </span>
+                        {calcRestTime(w.workout_exercises) !== '' && (
+                          <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">
+                            ⏱ {calcRestTime(w.workout_exercises)}
+                          </span>
+                        )}
+                      </div>
+                      {w.enriched.length > 0 && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {[...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 3)
+                            .map(m => MUSCLE_LABELS[m]).join(', ')}
+                        </p>
                       )}
                     </div>
-                    {w.enriched.length > 0 && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {[...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 3)
-                          .map(m => MUSCLE_LABELS[m]).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                  <ChevronDown
-                    size={18}
-                    className={cn('text-gray-400 transition-transform shrink-0', expanded && 'rotate-180')}
-                  />
-                </button>
+                    <ChevronDown size={18} className={cn('text-gray-400 transition-transform shrink-0', expanded && 'rotate-180')} />
+                  </button>
+                  {/* Add exercise button — always visible */}
+                  <button
+                    onClick={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
+                    className="flex items-center gap-1 bg-gray-950 text-white px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition-transform shrink-0 ml-1"
+                  >
+                    <Plus size={13} /> Ajouter
+                  </button>
+                </div>
 
                 {/* Expanded: exercises */}
                 {expanded && (
                   <div className="border-t border-gray-100 divide-y divide-gray-50">
                     {w.enriched.length === 0 ? (
-                      <p className="px-4 py-3 text-xs text-gray-400 italic">Aucun exercice</p>
-                    ) : w.enriched.map(({ workoutExercise: we, info }) => (
+                      <div className="px-4 py-4 flex flex-col items-center gap-2">
+                        <p className="text-xs text-gray-400 italic">Aucun exercice</p>
+                        <button
+                          onClick={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
+                          className="flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform"
+                        >
+                          <Plus size={13} /> Ajouter un exercice
+                        </button>
+                      </div>
+                    ) : w.enriched.map(({ workoutExercise: we, info }, exIdx) => (
                       <div key={we.id} className="px-4 py-3 space-y-2">
                         {/* Exercise title row */}
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {/* Reorder buttons */}
+                          <div className="flex flex-col gap-0.5 shrink-0">
+                            <button
+                              onClick={() => reorderExercise(w.id, we.id, 'up')}
+                              disabled={exIdx === 0}
+                              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
+                            >
+                              <ArrowUp size={11} className="text-gray-400" />
+                            </button>
+                            <button
+                              onClick={() => reorderExercise(w.id, we.id, 'down')}
+                              disabled={exIdx === w.enriched.length - 1}
+                              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
+                            >
+                              <ArrowDown size={11} className="text-gray-400" />
+                            </button>
+                          </div>
+
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-gray-900 truncate">
                               {info?.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
