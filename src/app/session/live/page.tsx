@@ -434,7 +434,7 @@ function LiveSessionInner() {
 
     const builtSets = buildSets(enriched)
 
-    // Mark already completed sets
+    // Mark already completed sets (resume session)
     if (existingSets && existingSets.length > 0) {
       existingSets.forEach((ls: LiveSessionSet) => {
         const exIdx = enriched.findIndex(e => e.id === ls.workout_exercise_id)
@@ -449,16 +449,16 @@ function LiveSessionInner() {
           if (ls.weight_kg !== null) builtSets[sIdx].weight = ls.weight_kg
         }
       })
+    }
 
-      // Find current position (first uncompleted set)
-      const firstUncompleted = builtSets.findIndex(s => !s.completed)
-      if (firstUncompleted !== -1) {
-        setCurrentExIdx(builtSets[firstUncompleted].exerciseIndex)
-        setCurrentSetIdx(builtSets[firstUncompleted].setIndex)
-        setCurrentSetType(builtSets[firstUncompleted].setType)
-      } else {
-        setPhase('finished')
-      }
+    // Always position on the first uncompleted set (covers new sessions too)
+    const firstUncompleted = builtSets.findIndex(s => !s.completed)
+    if (firstUncompleted !== -1) {
+      setCurrentExIdx(builtSets[firstUncompleted].exerciseIndex)
+      setCurrentSetIdx(builtSets[firstUncompleted].setIndex)
+      setCurrentSetType(builtSets[firstUncompleted].setType)
+    } else {
+      setPhase('finished')
     }
 
     setSets(builtSets)
