@@ -2,13 +2,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getProfileId, setProfileId, clearProfileId } from '@/lib/cookies'
+import { getProfileId, clearProfileId } from '@/lib/cookies'
 import { calculateAge, formatDateISO } from '@/lib/utils'
 import type { Profile, BodyWeightEntry } from '@/types'
 import Navbar from '@/components/Navbar'
 import ProfileAvatar from '@/components/ProfileAvatar'
 import BottomSheet from '@/components/BottomSheet'
-import { Scale, Plus, Check, ChevronRight, LogOut, Users, Pencil } from 'lucide-react'
+import { Scale, Plus, Check, LogOut, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const inputField = 'w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-base placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:bg-white transition-all'
@@ -28,7 +28,6 @@ const HISTORY_COUNT = 30
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([])
   const [weights, setWeights] = useState<BodyWeightEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -42,17 +41,13 @@ export default function ProfilePage() {
   const [editForm, setEditForm] = useState({ height_cm: 0, weight_kg: 0 })
   const [savingProfile, setSavingProfile] = useState(false)
 
-  // Switch profile sheet
-  const [switchSheet, setSwitchSheet] = useState(false)
-
   const today = formatDateISO(new Date())
 
   const load = useCallback(async () => {
     const profileId = getProfileId()
     if (!profileId) { router.replace('/'); return }
-    const [pRes, allRes, wRes] = await Promise.all([
+    const [pRes, wRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', profileId).single(),
-      supabase.from('profiles').select('*').order('first_name'),
       supabase.from('body_weight_log').select('*')
         .eq('profile_id', profileId)
         .order('date', { ascending: false })
@@ -60,7 +55,6 @@ export default function ProfilePage() {
     ])
     if (!pRes.data) { router.replace('/'); return }
     setProfile(pRes.data)
-    setAllProfiles(allRes.data || [])
     setWeights((wRes.data || []).slice().reverse()) // ascending for chart
     setLoading(false)
   }, [router])
@@ -99,13 +93,6 @@ export default function ProfilePage() {
     if (data) setProfile(data)
     setSavingProfile(false)
     setEditSheet(false)
-  }
-
-  function switchProfile(p: Profile) {
-    setProfileId(p.id)
-    setSwitchSheet(false)
-    setLoading(true)
-    load()
   }
 
   // SVG chart
@@ -277,30 +264,8 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Quick links */}
-        <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 divide-y divide-gray-50 overflow-hidden">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gérer</p>
-          {[
-            { href: '/exercises', label: 'Exercices', icon: '🏋️' },
-            { href: '/programs', label: 'Programmes', icon: '📋' },
-            { href: '/supplements', label: 'Compléments', icon: '💊' },
-          ].map(({ href, label, icon }) => (
-            <a key={href} href={href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors">
-              <span className="text-xl w-8 text-center">{icon}</span>
-              <span className="flex-1 text-sm font-semibold text-gray-900">{label}</span>
-              <ChevronRight size={15} className="text-gray-300" />
-            </a>
-          ))}
-        </div>
-
         {/* Profile actions */}
-        <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 divide-y divide-gray-50 overflow-hidden">
-          <button onClick={() => setSwitchSheet(true)}
-            className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors">
-            <span className="w-8 text-center"><Users size={18} className="text-gray-500 mx-auto" /></span>
-            <span className="flex-1 text-left text-sm font-semibold text-gray-900">Changer de profil</span>
-            <ChevronRight size={15} className="text-gray-300" />
-          </button>
+        <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 overflow-hidden">
           <button onClick={() => { clearProfileId(); router.replace('/') }}
             className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 transition-colors">
             <span className="w-8 text-center"><LogOut size={18} className="text-red-400 mx-auto" /></span>
@@ -333,29 +298,7 @@ export default function ProfilePage() {
         </div>
       </BottomSheet>
 
-      {/* Switch profile sheet */}
-      <BottomSheet isOpen={switchSheet} onClose={() => setSwitchSheet(false)} title="Changer de profil">
-        <div className="space-y-2.5 pb-2">
-          {allProfiles.map(p => (
-            <button key={p.id} onClick={() => switchProfile(p)}
-              className={cn(
-                'w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 transition-all min-h-[60px]',
-                p.id === profile?.id ? 'border-gray-950 bg-gray-950/5' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'
-              )}>
-              <ProfileAvatar name={p.first_name} size="sm" />
-              <div className="flex-1 text-left">
-                <p className="font-bold text-gray-900 text-sm">{p.first_name}</p>
-                <p className="text-xs text-gray-400">{calculateAge(p.birth_date)} ans · {p.weight_kg} kg</p>
-              </div>
-              {p.id === profile?.id && <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">Actif</span>}
-            </button>
-          ))}
-          <button onClick={() => { setSwitchSheet(false); router.push('/') }}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 border-2 border-dashed border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-all text-sm font-semibold">
-            <Plus size={16} /> Nouveau profil
-          </button>
-        </div>
-      </BottomSheet>
+
     </div>
   )
 }
