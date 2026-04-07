@@ -340,6 +340,7 @@ export default function DashboardPage() {
                     completed={entry?.completed || false}
                     isToday={isToday}
                     isOverride={entry?.is_override || false}
+                    isRestDay={!!(entry && !entry.workout_id)}
                     readonly={isPastWeek}
                     onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
                     onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}

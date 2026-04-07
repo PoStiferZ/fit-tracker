@@ -11,6 +11,7 @@ interface DayCardProps {
   completed: boolean
   isToday?: boolean
   isOverride?: boolean
+  isRestDay?: boolean      // explicitly set to rest (entry exists, no workout)
   readonly?: boolean
   onEdit?: () => void      // opens assign modal — triggered by clicking the whole card
   onToggle?: () => void
@@ -25,6 +26,7 @@ export default function DayCard({
   completed,
   isToday,
   isOverride,
+  isRestDay,
   readonly,
   onEdit,
   onToggle,
@@ -81,9 +83,13 @@ export default function DayCard({
               </p>
             )}
           </div>
+        ) : isRestDay ? (
+          <p className={cn('text-sm font-medium', isToday ? 'text-white/50' : 'text-gray-400')}>
+            🧘 Repos
+          </p>
         ) : (
-          <p className={cn('text-sm italic', isToday ? 'text-white/40' : 'text-gray-300')}>
-            {readonly ? 'Repos' : 'Appuyer pour planifier'}
+          <p className={cn('text-sm italic', isToday ? 'text-white/30' : 'text-gray-300')}>
+            {readonly ? '—' : 'Appuyer pour planifier'}
           </p>
         )}
       </div>
