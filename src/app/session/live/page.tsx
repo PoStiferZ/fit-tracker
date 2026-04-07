@@ -302,6 +302,7 @@ function LiveSessionInner() {
   const [loading, setLoading] = useState(true)
   const [profileWeight, setProfileWeight] = useState(75)
   const [restDuration, setRestDuration] = useState(60)
+  const [cycleSeconds, setCycleSeconds] = useState(0)
 
   // Timer total
   const startTimeRef = useRef<number>(Date.now())
@@ -634,11 +635,7 @@ function LiveSessionInner() {
     )
   }
 
-  // Phase: exercise — circular progress UI
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const [cycleSeconds, setCycleSeconds] = useState(0)
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // Phase: exercise — cycle animation
   useEffect(() => {
     setCycleSeconds(0)
     const iv = setInterval(() => {
