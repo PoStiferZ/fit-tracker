@@ -6,7 +6,7 @@ import { getProfileId } from '@/lib/cookies'
 import { cn } from '@/lib/utils'
 import type { WorkoutExercise, LiveSession, LiveSessionSet } from '@/types'
 import { ChevronLeft, Check, SkipForward, Plus, Minus } from 'lucide-react'
-import { WeightPickerSheet, RepsPickerSheet } from '@/components/Pickers'
+import { WeightPickerSheet, RepsPickerSheet, DurationPickerSheet, SpeedPickerSheet, InclinePickerSheet } from '@/components/Pickers'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -383,9 +383,13 @@ function LiveSessionInner() {
   const [exElapsed, setExElapsed] = useState(0)
   const exStartRef = useRef<number>(Date.now())
 
-  // Pickers open state
+  // Pickers open state — strength
   const [weightPickerOpen, setWeightPickerOpen] = useState(false)
   const [repsPickerOpen, setRepsPickerOpen] = useState(false)
+  // Pickers open state — cardio
+  const [durationPickerOpen, setDurationPickerOpen] = useState(false)
+  const [speedPickerOpen, setSpeedPickerOpen] = useState(false)
+  const [inclinePickerOpen, setInclinePickerOpen] = useState(false)
 
   // Timer total
   const startTimeRef = useRef<number>(Date.now())
@@ -831,73 +835,90 @@ function LiveSessionInner() {
         <div className="shrink-0 px-4 space-y-2"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
 
-          {/* Poids + Reps */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setWeightPickerOpen(true)}
-              className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform"
-            >
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                {isCardio ? 'Durée' : 'Poids'}
-              </span>
-              <span className="text-2xl font-black text-gray-950 tabular-nums leading-none">
-                {isCardio ? Math.round(currentSet.durationSeconds / 60) : currentSet.weight}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400">
-                {isCardio ? 'min' : 'kg'}
-              </span>
-            </button>
-            <button
-              onClick={() => setRepsPickerOpen(true)}
-              className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform"
-            >
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                {isCardio ? 'Vitesse' : 'Reps'}
-              </span>
-              <span className="text-2xl font-black text-gray-950 tabular-nums leading-none">
-                {isCardio ? currentSet.speed : currentSet.reps}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400">
-                {isCardio ? 'km/h' : 'répétitions'}
-              </span>
-            </button>
-          </div>
+          {!isCardio ? (
+            /* ── Strength: poids + reps ── */
+            <div className="flex gap-3">
+              <button onClick={() => setWeightPickerOpen(true)}
+                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Poids</span>
+                <span className="text-2xl font-black text-gray-950 tabular-nums leading-none">{currentSet.weight}</span>
+                <span className="text-[10px] font-bold text-gray-400">kg</span>
+              </button>
+              <button onClick={() => setRepsPickerOpen(true)}
+                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Reps</span>
+                <span className="text-2xl font-black text-gray-950 tabular-nums leading-none">{currentSet.reps}</span>
+                <span className="text-[10px] font-bold text-gray-400">répétitions</span>
+              </button>
+            </div>
+          ) : (
+            /* ── Cardio: durée + vitesse + pente (3 cards) ── */
+            <div className="flex gap-2">
+              <button onClick={() => setDurationPickerOpen(true)}
+                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Durée</span>
+                <span className="text-xl font-black text-gray-950 tabular-nums leading-none font-mono">
+                  {String(Math.floor(currentSet.durationSeconds / 60)).padStart(2, '0')}:{String(currentSet.durationSeconds % 60).padStart(2, '0')}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400">min:sec</span>
+              </button>
+              <button onClick={() => setSpeedPickerOpen(true)}
+                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Vitesse</span>
+                <span className="text-xl font-black text-gray-950 tabular-nums leading-none">{currentSet.speed}</span>
+                <span className="text-[10px] font-bold text-gray-400">km/h</span>
+              </button>
+              <button onClick={() => setInclinePickerOpen(true)}
+                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Pente</span>
+                <span className="text-xl font-black text-gray-950 tabular-nums leading-none">{currentSet.incline}</span>
+                <span className="text-[10px] font-bold text-gray-400">%</span>
+              </button>
+            </div>
+          )}
 
           {/* Passer la série */}
-          <button
-            onClick={() => completeCurrentSet(true)}
-            className="w-full bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[44px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm"
-          >
+          <button onClick={() => completeCurrentSet(true)}
+            className="w-full bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[44px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm">
             <SkipForward size={14} />
             Passer la série
           </button>
         </div>
       )}
 
-      {/* ── Pickers ── */}
-      {currentSet && (
+      {/* ── Pickers strength ── */}
+      {currentSet && !isCardio && (
         <>
           <WeightPickerSheet
-            isOpen={weightPickerOpen}
-            value={isCardio ? currentSet.durationSeconds / 60 : currentSet.weight}
+            isOpen={weightPickerOpen} value={currentSet.weight}
             onClose={() => setWeightPickerOpen(false)}
-            onConfirm={v => {
-              isCardio
-                ? updateSet(currentFlatIdx, 'durationSeconds', Math.round(v * 60))
-                : updateSet(currentFlatIdx, 'weight', v)
-              setWeightPickerOpen(false)
-            }}
+            onConfirm={kg => { updateSet(currentFlatIdx, 'weight', kg); setWeightPickerOpen(false) }}
           />
           <RepsPickerSheet
-            isOpen={repsPickerOpen}
-            value={isCardio ? currentSet.speed : currentSet.reps}
+            isOpen={repsPickerOpen} value={currentSet.reps}
             onClose={() => setRepsPickerOpen(false)}
-            onConfirm={v => {
-              isCardio
-                ? updateSet(currentFlatIdx, 'speed', v)
-                : updateSet(currentFlatIdx, 'reps', v)
-              setRepsPickerOpen(false)
-            }}
+            onConfirm={reps => { updateSet(currentFlatIdx, 'reps', reps); setRepsPickerOpen(false) }}
+          />
+        </>
+      )}
+
+      {/* ── Pickers cardio ── */}
+      {currentSet && isCardio && (
+        <>
+          <DurationPickerSheet
+            isOpen={durationPickerOpen} value={currentSet.durationSeconds}
+            onClose={() => setDurationPickerOpen(false)}
+            onConfirm={s => { updateSet(currentFlatIdx, 'durationSeconds', s); setDurationPickerOpen(false) }}
+          />
+          <SpeedPickerSheet
+            isOpen={speedPickerOpen} value={currentSet.speed}
+            onClose={() => setSpeedPickerOpen(false)}
+            onConfirm={kmh => { updateSet(currentFlatIdx, 'speed', kmh); setSpeedPickerOpen(false) }}
+          />
+          <InclinePickerSheet
+            isOpen={inclinePickerOpen} value={currentSet.incline}
+            onClose={() => setInclinePickerOpen(false)}
+            onConfirm={pct => { updateSet(currentFlatIdx, 'incline', pct); setInclinePickerOpen(false) }}
           />
         </>
       )}

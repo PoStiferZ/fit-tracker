@@ -159,3 +159,136 @@ export function RepsPickerSheet({
     </BottomSheet>
   )
 }
+
+// ─── DurationPickerSheet — mm:ss drum roll ────────────────────────────────────
+export function DurationPickerSheet({
+  isOpen, value, onClose, onConfirm,
+}: {
+  isOpen: boolean
+  /** value in seconds */
+  value: number
+  onClose: () => void
+  onConfirm: (seconds: number) => void
+}) {
+  const mins = Array.from({ length: 121 }, (_, i) => i)        // 0–120 min
+  const secs = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55] // steps of 5s
+
+  const [mIdx, setMIdx] = useState(Math.floor(value / 60))
+  const [sIdx, setSIdx] = useState(Math.max(0, secs.indexOf(Math.round((value % 60) / 5) * 5)))
+
+  useEffect(() => {
+    if (!isOpen) return
+    setMIdx(Math.min(120, Math.floor(value / 60)))
+    const nearestSec = Math.round((value % 60) / 5) * 5
+    const si = secs.indexOf(nearestSec)
+    setSIdx(si >= 0 ? si : 0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, value])
+
+  const totalSecs = mins[mIdx] * 60 + secs[sIdx]
+  const preview = `${String(mins[mIdx]).padStart(2, '0')}:${String(secs[sIdx]).padStart(2, '0')}`
+
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="Durée">
+      <div className="pb-4 space-y-5">
+        <div className="text-center">
+          <span className="text-4xl font-black text-gray-950 tabular-nums font-mono">{preview}</span>
+          <span className="text-lg font-bold text-gray-400 ml-2">min</span>
+        </div>
+        <div className="flex items-center justify-center gap-3">
+          <DrumRoll items={mins} selectedIndex={mIdx} onSelect={setMIdx} width={72} />
+          <span className="text-2xl font-black text-gray-300">:</span>
+          <DrumRoll
+            items={secs.map(s => String(s).padStart(2, '0'))}
+            selectedIndex={sIdx} onSelect={setSIdx} width={72}
+          />
+          <span className="text-sm font-bold text-gray-400">min : sec</span>
+        </div>
+        <button onClick={() => onConfirm(totalSecs)}
+          className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
+          Valider
+        </button>
+      </div>
+    </BottomSheet>
+  )
+}
+
+// ─── SpeedPickerSheet — 0.0 to 30.0 km/h ─────────────────────────────────────
+export function SpeedPickerSheet({
+  isOpen, value, onClose, onConfirm,
+}: {
+  isOpen: boolean; value: number; onClose: () => void; onConfirm: (kmh: number) => void
+}) {
+  // integer part 0–30, decimal 0 or 5
+  const ints = Array.from({ length: 31 }, (_, i) => i)
+  const decs = [0, 5]
+
+  const [intIdx, setIntIdx] = useState(Math.floor(value))
+  const [decIdx, setDecIdx] = useState(Math.round((value % 1) * 10) === 5 ? 1 : 0)
+
+  useEffect(() => {
+    if (!isOpen) return
+    setIntIdx(Math.min(30, Math.floor(value)))
+    setDecIdx(Math.round((value % 1) * 10) === 5 ? 1 : 0)
+  }, [isOpen, value])
+
+  const combined = +(intIdx + decs[decIdx] / 10).toFixed(1)
+
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="Vitesse">
+      <div className="pb-4 space-y-5">
+        <div className="text-center">
+          <span className="text-4xl font-black text-gray-950 tabular-nums">{combined}</span>
+          <span className="text-lg font-bold text-gray-400 ml-1">km/h</span>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <DrumRoll items={ints} selectedIndex={intIdx} onSelect={setIntIdx} width={72} />
+          <span className="text-2xl font-black text-gray-300">.</span>
+          <DrumRoll
+            items={decs.map(d => String(d))}
+            selectedIndex={decIdx} onSelect={setDecIdx} width={48}
+          />
+          <span className="text-sm font-bold text-gray-400">km/h</span>
+        </div>
+        <button onClick={() => onConfirm(combined)}
+          className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
+          Valider
+        </button>
+      </div>
+    </BottomSheet>
+  )
+}
+
+// ─── InclinePickerSheet — 0 to 20% par 0.5 ───────────────────────────────────
+export function InclinePickerSheet({
+  isOpen, value, onClose, onConfirm,
+}: {
+  isOpen: boolean; value: number; onClose: () => void; onConfirm: (pct: number) => void
+}) {
+  // 0, 0.5, 1, 1.5 … 20
+  const items = Array.from({ length: 41 }, (_, i) => +(i * 0.5).toFixed(1))
+  const [idx, setIdx] = useState(Math.round(value / 0.5))
+
+  useEffect(() => {
+    if (isOpen) setIdx(Math.min(40, Math.round(value / 0.5)))
+  }, [isOpen, value])
+
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="Pente / Résistance">
+      <div className="pb-4 space-y-5">
+        <div className="text-center">
+          <span className="text-4xl font-black text-gray-950 tabular-nums">{items[idx]}</span>
+          <span className="text-lg font-bold text-gray-400 ml-1">%</span>
+        </div>
+        <div className="flex justify-center">
+          <DrumRoll items={items} selectedIndex={idx} onSelect={setIdx} width={80} />
+          <span className="self-center ml-2 text-sm font-bold text-gray-400">%</span>
+        </div>
+        <button onClick={() => onConfirm(items[idx])}
+          className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
+          Valider
+        </button>
+      </div>
+    </BottomSheet>
+  )
+}
