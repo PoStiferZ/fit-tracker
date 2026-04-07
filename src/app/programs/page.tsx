@@ -453,6 +453,21 @@ export default function ProgramsPage() {
   if (view === 'program-detail' && selectedProgram) {
     const prog = selectedProgram
 
+    function calcRestTime(exercises: WorkoutExercise[]): string {
+      const total = exercises.reduce((acc, we) => {
+        const workRest = we.work_rest_seconds.reduce((s, v) => s + (v || 0), 0)
+        const warmupRest = we.warmup_rest_seconds.reduce((s, v) => s + (v || 0), 0)
+        const cardioRest = we.cardio_rest_seconds.reduce((s, v) => s + (v || 0), 0)
+        return acc + workRest + warmupRest + cardioRest
+      }, 0)
+      if (total === 0) return ''
+      const m = Math.floor(total / 60)
+      const s = total % 60
+      if (m === 0) return `${s}s de repos`
+      if (s === 0) return `~${m}min de repos`
+      return `~${m}min${s}s de repos`
+    }
+
     function toggleWorkout(id: string) {
       setExpandedWorkouts(prev => {
         const next = new Set(prev)
@@ -498,15 +513,22 @@ export default function ProgramsPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm">{w.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {w.workout_exercises.length} exercice{w.workout_exercises.length !== 1 ? 's' : ''}
-                      {w.enriched.length > 0 && (
-                        <span className="ml-2">
-                          {[...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 3)
-                            .map(m => MUSCLE_LABELS[m]).join(', ')}
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-xs text-gray-400">
+                        {w.workout_exercises.length} exercice{w.workout_exercises.length !== 1 ? 's' : ''}
+                      </span>
+                      {calcRestTime(w.workout_exercises) !== '' && (
+                        <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">
+                          ⏱ {calcRestTime(w.workout_exercises)}
                         </span>
                       )}
-                    </p>
+                    </div>
+                    {w.enriched.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {[...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 3)
+                          .map(m => MUSCLE_LABELS[m]).join(', ')}
+                      </p>
+                    )}
                   </div>
                   <ChevronDown
                     size={18}
