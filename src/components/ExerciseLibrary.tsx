@@ -17,6 +17,53 @@ function formatRest(s: number): string {
   return `${m}min${sec}s`
 }
 
+// ─── NumberPickerSheet ────────────────────────────────────────────────────────
+// Generic picker for a single number (reps, kg, etc.)
+function NumberPickerSheet({
+  isOpen,
+  title,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  onClose,
+  onConfirm,
+}: {
+  isOpen: boolean
+  title: string
+  value: number
+  min: number
+  max: number
+  step: number
+  unit?: string
+  onClose: () => void
+  onConfirm: (v: number) => void
+}) {
+  const [val, setVal] = useState(value)
+  useEffect(() => { setVal(value) }, [value, isOpen])
+  const dec = () => setVal(v => Math.max(min, +(v - step).toFixed(2)))
+  const inc = () => setVal(v => Math.min(max, +(v + step).toFixed(2)))
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={title}>
+      <div className="space-y-6 pb-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-5">
+            <button onClick={dec} className="w-14 h-14 rounded-2xl bg-gray-100 text-gray-700 font-bold text-2xl flex items-center justify-center active:bg-gray-200">−</button>
+            <span className="w-24 text-center text-4xl font-black text-gray-900 tabular-nums">{val}</span>
+            <button onClick={inc} className="w-14 h-14 rounded-2xl bg-gray-100 text-gray-700 font-bold text-2xl flex items-center justify-center active:bg-gray-200">+</button>
+          </div>
+          {unit && <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">{unit}</span>}
+        </div>
+        <button
+          onClick={() => onConfirm(val)}
+          className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]"
+        >Valider</button>
+      </div>
+    </BottomSheet>
+  )
+}
+
 // ─── RestPickerSheet ──────────────────────────────────────────────────────────
 function RestPickerSheet({
   isOpen,
@@ -32,7 +79,6 @@ function RestPickerSheet({
   const [mins, setMins] = useState(Math.floor(value / 60))
   const [secs, setSecs] = useState(value % 60)
 
-  // Sync when value changes (e.g. opening for a different set)
   useEffect(() => {
     setMins(Math.floor(value / 60))
     setSecs(value % 60)
@@ -42,53 +88,29 @@ function RestPickerSheet({
     <BottomSheet isOpen={isOpen} onClose={onClose} title="Temps de repos">
       <div className="space-y-6 pb-4">
         <div className="flex gap-6 justify-center">
-          {/* Minutes */}
           <div className="flex flex-col items-center gap-3">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Minutes</span>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setMins(m => Math.max(0, m - 1))}
-                className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200"
-              >−</button>
+              <button onClick={() => setMins(m => Math.max(0, m - 1))} className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">−</button>
               <span className="w-10 text-center text-2xl font-black text-gray-900">{mins}</span>
-              <button
-                onClick={() => setMins(m => Math.min(60, m + 1))}
-                className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200"
-              >+</button>
+              <button onClick={() => setMins(m => Math.min(60, m + 1))} className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">+</button>
             </div>
           </div>
-
-          <div className="flex items-center pt-6">
-            <span className="text-2xl font-black text-gray-300">:</span>
-          </div>
-
-          {/* Secondes */}
+          <div className="flex items-center pt-6"><span className="text-2xl font-black text-gray-300">:</span></div>
           <div className="flex flex-col items-center gap-3">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Secondes</span>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSecs(s => Math.max(0, s - 5))}
-                className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200"
-              >−</button>
+              <button onClick={() => setSecs(s => Math.max(0, s - 5))} className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">−</button>
               <span className="w-10 text-center text-2xl font-black text-gray-900">{String(secs).padStart(2, '0')}</span>
-              <button
-                onClick={() => setSecs(s => Math.min(59, s + 5))}
-                className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200"
-              >+</button>
+              <button onClick={() => setSecs(s => Math.min(59, s + 5))} className="w-10 h-10 rounded-xl bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">+</button>
             </div>
           </div>
         </div>
-
-        <div className="text-center text-sm text-gray-400 font-medium">
-          {formatRest(mins * 60 + secs)}
-        </div>
-
+        <div className="text-center text-sm text-gray-400 font-medium">{formatRest(mins * 60 + secs)}</div>
         <button
           onClick={() => onConfirm(mins * 60 + secs)}
           className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]"
-        >
-          Valider
-        </button>
+        >Valider</button>
       </div>
     </BottomSheet>
   )
@@ -324,6 +346,12 @@ function ExerciseConfigForm({
 }) {
   const isCardio = cfg.exercise.exercise_type === 'cardio'
   const [restPickerOpen, setRestPickerOpen] = useState<{ setType: 'work' | 'warmup' | 'cardio'; index: number } | null>(null)
+  const [numPickerOpen, setNumPickerOpen] = useState<{ setType: 'work' | 'warmup'; field: 'reps' | 'kg'; index: number } | null>(null)
+
+  // ── Propagation helper: update index i and cascade to i+1, i+2...
+  function propagate<T>(arr: T[], index: number, value: T): T[] {
+    return arr.map((v, j) => j >= index ? value : v)
+  }
 
   function setWorkSets(n: number) {
     const sets = Math.max(1, n)
@@ -359,24 +387,48 @@ function ExerciseConfigForm({
     })
   }
 
-  // Get current rest value for the open picker
+  // Rest confirm — propagates from index downward
+  function handleRestConfirm(seconds: number) {
+    if (!restPickerOpen) return
+    const { setType, index } = restPickerOpen
+    if (setType === 'work') {
+      onChange({ ...cfg, workRestSeconds: propagate(cfg.workRestSeconds, index, seconds) })
+    } else if (setType === 'warmup') {
+      onChange({ ...cfg, warmupRestSeconds: propagate(cfg.warmupRestSeconds, index, seconds) })
+    } else {
+      onChange({ ...cfg, cardioRestSeconds: propagate(cfg.cardioRestSeconds, index, seconds) })
+    }
+    setRestPickerOpen(null)
+  }
+
   const currentRestValue = restPickerOpen === null ? 0
     : restPickerOpen.setType === 'work' ? (cfg.workRestSeconds[restPickerOpen.index] ?? 90)
     : restPickerOpen.setType === 'warmup' ? (cfg.warmupRestSeconds[restPickerOpen.index] ?? 60)
     : (cfg.cardioRestSeconds[restPickerOpen.index] ?? 60)
 
-  function handleRestConfirm(seconds: number) {
-    if (!restPickerOpen) return
-    const { setType, index } = restPickerOpen
+  // Number (reps/kg) confirm — propagates from index downward
+  function handleNumConfirm(value: number) {
+    if (!numPickerOpen) return
+    const { setType, field, index } = numPickerOpen
     if (setType === 'work') {
-      const r = [...cfg.workRestSeconds]; r[index] = seconds; onChange({ ...cfg, workRestSeconds: r })
-    } else if (setType === 'warmup') {
-      const r = [...cfg.warmupRestSeconds]; r[index] = seconds; onChange({ ...cfg, warmupRestSeconds: r })
+      if (field === 'reps') onChange({ ...cfg, workRepsPerSet: propagate(cfg.workRepsPerSet, index, value) })
+      else onChange({ ...cfg, workLoadsPerSet: propagate(cfg.workLoadsPerSet, index, value) })
     } else {
-      const r = [...cfg.cardioRestSeconds]; r[index] = seconds; onChange({ ...cfg, cardioRestSeconds: r })
+      if (field === 'reps') onChange({ ...cfg, warmupRepsPerSet: propagate(cfg.warmupRepsPerSet, index, value) })
+      else onChange({ ...cfg, warmupLoadsPerSet: propagate(cfg.warmupLoadsPerSet, index, value) })
     }
-    setRestPickerOpen(null)
+    setNumPickerOpen(null)
   }
+
+  const currentNumValue = numPickerOpen === null ? 0
+    : numPickerOpen.setType === 'work'
+      ? (numPickerOpen.field === 'reps' ? (cfg.workRepsPerSet[numPickerOpen.index] ?? 10) : (cfg.workLoadsPerSet[numPickerOpen.index] ?? 0))
+      : (numPickerOpen.field === 'reps' ? (cfg.warmupRepsPerSet[numPickerOpen.index] ?? 10) : (cfg.warmupLoadsPerSet[numPickerOpen.index] ?? 0))
+
+  const numPickerConfig = numPickerOpen === null ? null
+    : numPickerOpen.field === 'reps'
+      ? { title: 'Répétitions', min: 1, max: 100, step: 1, unit: 'reps' }
+      : { title: 'Charge', min: 0, max: 500, step: 0.5, unit: 'kg' }
 
   return (
     <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
@@ -455,24 +507,18 @@ function ExerciseConfigForm({
           {Array(cfg.workSets).fill(0).map((_, i) => (
             <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5">
               <span className="text-xs font-black text-gray-400 w-6">S{i + 1}</span>
-              <input
-                type="number" min={1} value={cfg.workRepsPerSet[i] ?? 10}
-                onChange={e => { const r = [...cfg.workRepsPerSet]; r[i] = parseInt(e.target.value) || 0; onChange({ ...cfg, workRepsPerSet: r }) }}
-                className="w-14 bg-orange-50 border border-orange-200 rounded-xl px-1 py-1.5 text-gray-900 text-xs font-bold text-center focus:outline-none"
-                placeholder="Reps"
-              />
-              <input
-                type="number" min={0} step={0.5} value={cfg.workLoadsPerSet[i] ?? 0}
-                onChange={e => { const r = [...cfg.workLoadsPerSet]; r[i] = parseFloat(e.target.value) || 0; onChange({ ...cfg, workLoadsPerSet: r }) }}
-                className="w-14 bg-orange-50 border border-orange-200 rounded-xl px-1 py-1.5 text-gray-900 text-xs font-bold text-center focus:outline-none"
-                placeholder="kg"
-              />
+              <button
+                onClick={() => setNumPickerOpen({ setType: 'work', field: 'reps', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[42px] text-center"
+              >{cfg.workRepsPerSet[i] ?? 10}r</button>
+              <button
+                onClick={() => setNumPickerOpen({ setType: 'work', field: 'kg', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[46px] text-center"
+              >{cfg.workLoadsPerSet[i] ?? 0}kg</button>
               <button
                 onClick={() => setRestPickerOpen({ setType: 'work', index: i })}
-                className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap"
-              >
-                {formatRest(cfg.workRestSeconds[i] ?? 90)}
-              </button>
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap flex-1 text-center"
+              >{formatRest(cfg.workRestSeconds[i] ?? 90)}</button>
             </div>
           ))}
 
@@ -506,18 +552,14 @@ function ExerciseConfigForm({
               {Array(cfg.warmupSets).fill(0).map((_, i) => (
                 <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5">
                   <span className="text-xs font-black text-gray-400 w-6">É{i + 1}</span>
-                  <input
-                    type="number" min={1} value={cfg.warmupRepsPerSet[i] ?? 10}
-                    onChange={e => { const r = [...cfg.warmupRepsPerSet]; r[i] = parseInt(e.target.value) || 0; onChange({ ...cfg, warmupRepsPerSet: r }) }}
-                    className="w-14 bg-orange-50 border border-orange-200 rounded-xl px-1 py-1.5 text-gray-900 text-xs font-bold text-center focus:outline-none"
-                    placeholder="Reps"
-                  />
-                  <input
-                    type="number" min={0} step={0.5} value={cfg.warmupLoadsPerSet[i] ?? 0}
-                    onChange={e => { const r = [...cfg.warmupLoadsPerSet]; r[i] = parseFloat(e.target.value) || 0; onChange({ ...cfg, warmupLoadsPerSet: r }) }}
-                    className="w-14 bg-orange-50 border border-orange-200 rounded-xl px-1 py-1.5 text-gray-900 text-xs font-bold text-center focus:outline-none"
-                    placeholder="kg"
-                  />
+                  <button
+                    onClick={() => setNumPickerOpen({ setType: 'warmup', field: 'reps', index: i })}
+                    className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[42px] text-center"
+                  >{cfg.warmupRepsPerSet[i] ?? 10}r</button>
+                  <button
+                    onClick={() => setNumPickerOpen({ setType: 'warmup', field: 'kg', index: i })}
+                    className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[46px] text-center"
+                  >{cfg.warmupLoadsPerSet[i] ?? 0}kg</button>
                   <button
                     onClick={() => setRestPickerOpen({ setType: 'warmup', index: i })}
                     className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap"
@@ -531,6 +573,19 @@ function ExerciseConfigForm({
         </div>
       )}
 
+      {numPickerOpen !== null && numPickerConfig !== null && (
+        <NumberPickerSheet
+          isOpen={true}
+          title={numPickerConfig.title}
+          value={currentNumValue}
+          min={numPickerConfig.min}
+          max={numPickerConfig.max}
+          step={numPickerConfig.step}
+          unit={numPickerConfig.unit}
+          onClose={() => setNumPickerOpen(null)}
+          onConfirm={handleNumConfirm}
+        />
+      )}
       {restPickerOpen !== null && (
         <RestPickerSheet
           isOpen={true}
