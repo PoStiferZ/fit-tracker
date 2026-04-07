@@ -6,7 +6,7 @@ import { MOMENTS } from '@/lib/constants'
 import type { Supplement, SupplementLog, SupplementLibraryItem } from '@/types'
 import Navbar from '@/components/Navbar'
 import BottomSheet from '@/components/BottomSheet'
-import { Search, ArrowLeft, Check, Pencil, Trash2 } from 'lucide-react'
+import { Search, ArrowLeft, Check, Pencil, Trash2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -86,6 +86,38 @@ export default function SupplementsPage() {
 
   // ── Delete confirm ─────────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+
+  // ── Create custom supplement ────────────────────────────────────
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createForm, setCreateForm] = useState<ConfigForm & { name: string }>({
+    name: '', dosage_type: 'gelule', dosage_amount: 1, moments: [],
+  })
+  const [createSaving, setCreateSaving] = useState(false)
+
+  function toggleCreateMoment(key: string) {
+    setCreateForm(f => ({
+      ...f,
+      moments: f.moments.includes(key) ? f.moments.filter(m => m !== key) : [...f.moments, key],
+    }))
+  }
+
+  async function handleCreateCustom() {
+    if (!createForm.name.trim() || createForm.moments.length === 0) return
+    const profileId = getProfileId()!
+    setCreateSaving(true)
+    const { data } = await supabase.from('supplements').insert({
+      name: createForm.name.trim(),
+      dosage_type: createForm.dosage_type,
+      dosage_amount: createForm.dosage_amount,
+      moments: createForm.moments,
+      profile_id: profileId,
+      source: 'custom',
+    }).select().single()
+    if (data) setSupplements(prev => [...prev, data as Supplement])
+    setCreateSaving(false)
+    setCreateOpen(false)
+    setCreateForm({ name: '', dosage_type: 'gelule', dosage_amount: 1, moments: [] })
+  }
 
   // ─── Load data ────────────────────────────────────────────────
   const loadUserData = useCallback(async () => {
@@ -378,19 +410,35 @@ export default function SupplementsPage() {
               <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : activeMoments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-5xl mb-4">💊</div>
               <p className="font-bold text-gray-700 text-lg">Aucun complément</p>
-              <p className="text-gray-400 text-sm mt-1 mb-6">Explore la bibliothèque pour en ajouter</p>
-              <button
-                onClick={() => setActiveTab('library')}
-                className="bg-gray-950 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-[0_4px_14px_rgba(0,0,0,0.2)] active:scale-95 transition-transform"
-              >
-                Voir la bibliothèque
-              </button>
+              <p className="text-gray-400 text-sm mt-1 mb-6">Crée un complément personnalisé ou explore la bibliothèque</p>
+              <div className="flex flex-col gap-3 w-full max-w-xs">
+                <button
+                  onClick={() => { setCreateForm({ name: '', dosage_type: 'gelule', dosage_amount: 1, moments: [] }); setCreateOpen(true) }}
+                  className="bg-gray-950 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-[0_4px_14px_rgba(0,0,0,0.2)] active:scale-95 transition-transform flex items-center justify-center gap-2"
+                >
+                  <Plus size={15} /> Créer un complément
+                </button>
+                <button
+                  onClick={() => setActiveTab('library')}
+                  className="bg-white text-gray-700 px-6 py-3 rounded-2xl text-sm font-bold border border-gray-200 active:scale-95 transition-transform"
+                >
+                  Voir la bibliothèque
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Create custom button */}
+              <button
+                onClick={() => { setCreateForm({ name: '', dosage_type: 'gelule', dosage_amount: 1, moments: [] }); setCreateOpen(true) }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-bold text-gray-400 hover:border-gray-950 hover:text-gray-950 transition-all"
+              >
+                <Plus size={15} /> Créer un complément personnalisé
+              </button>
+
               {activeMoments.map(moment => {
                 const momentSupps = supplements.filter(s => s.moments.includes(moment.key))
                 return (
@@ -748,6 +796,90 @@ export default function SupplementsPage() {
             )}
           </div>
         )}
+      </BottomSheet>
+
+      {/* ── BottomSheet: Créer complément custom ─── */}
+      <BottomSheet isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau complément">
+        <div className="space-y-5 pb-4">
+          {/* Nom */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nom</label>
+            <input
+              type="text"
+              value={createForm.name}
+              onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Ex: Magnésium, Collagène..."
+              autoFocus
+              className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3.5 text-gray-900 font-semibold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
+            />
+          </div>
+
+          {/* Format */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Format</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['gelule', 'poudre'] as const).map(t => (
+                <button key={t} type="button"
+                  onClick={() => setCreateForm(f => ({ ...f, dosage_type: t, dosage_amount: t === 'gelule' ? 1 : 10 }))}
+                  className={cn(
+                    'py-3.5 rounded-2xl text-sm font-bold border-2 transition-all active:scale-95',
+                    createForm.dosage_type === t ? 'bg-gray-950 text-white border-gray-950' : 'bg-gray-50 text-gray-500 border-gray-100'
+                  )}>
+                  {t === 'gelule' ? '💊 Gélule' : '🥄 Poudre'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dosage */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+              Dosage {createForm.dosage_type === 'gelule' ? '(nb de gélules)' : '(grammes)'}
+            </label>
+            <div className="flex items-center gap-3">
+              <button type="button"
+                onClick={() => setCreateForm(f => ({ ...f, dosage_amount: Math.max(0.5, f.dosage_amount - (f.dosage_type === 'gelule' ? 1 : 0.5)) }))}
+                className="w-12 h-12 rounded-2xl bg-gray-100 text-xl font-bold flex items-center justify-center active:scale-90 transition-all">−</button>
+              <div className="flex-1 text-center">
+                <span className="text-3xl font-black text-gray-950">{createForm.dosage_amount}</span>
+                <span className="text-gray-400 text-sm ml-1">{createForm.dosage_type === 'gelule' ? 'gél.' : 'g'}</span>
+              </div>
+              <button type="button"
+                onClick={() => setCreateForm(f => ({ ...f, dosage_amount: f.dosage_amount + (f.dosage_type === 'gelule' ? 1 : 0.5) }))}
+                className="w-12 h-12 rounded-2xl bg-gray-950 text-white text-xl font-bold flex items-center justify-center active:scale-90 transition-all shadow-[0_4px_10px_rgba(0,0,0,0.2)]">+</button>
+            </div>
+          </div>
+
+          {/* Moments */}
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+              Quand prendre{createForm.moments.length > 0 && <span className="text-gray-950 normal-case ml-1">({createForm.moments.length})</span>}
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {MOMENTS.map(m => (
+                <button key={m.key} type="button"
+                  onClick={() => toggleCreateMoment(m.key)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-3 rounded-2xl border-2 text-sm font-semibold transition-all active:scale-95',
+                    createForm.moments.includes(m.key) ? 'bg-gray-950 text-white border-gray-950' : 'bg-gray-50 text-gray-500 border-gray-100'
+                  )}>
+                  <span>{m.emoji}</span>
+                  <span className="text-xs leading-tight">{m.label}</span>
+                  {createForm.moments.includes(m.key) && <Check size={13} className="ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={handleCreateCustom}
+            disabled={createSaving || !createForm.name.trim() || createForm.moments.length === 0}
+            className={btnPrimary}>
+            {createSaving ? 'Création...' : 'Créer le complément'}
+          </button>
+          {createForm.moments.length === 0 && createForm.name.trim() && (
+            <p className="text-center text-xs text-gray-400">Sélectionne au moins un moment</p>
+          )}
+        </div>
       </BottomSheet>
 
       {/* ── BottomSheet: Confirmer suppression ─── */}
