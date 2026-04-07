@@ -745,46 +745,46 @@ function LiveSessionInner() {
     )
   }
 
-  const RING_R = 120
-  const RING_STROKE = 10
-  const RING_SIZE = RING_R * 2 + RING_STROKE * 2 + 8
-  const circumference = 2 * Math.PI * RING_R
   const currentSet = sets[currentFlatIdx]
+  const RING_R = 100
+  const RING_STROKE = 9
+  const RING_SIZE = RING_R * 2 + RING_STROKE * 2 + 4
+  const circumference = 2 * Math.PI * RING_R
 
   const exMins = Math.floor(exElapsed / 60)
   const exSecs = exElapsed % 60
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-[#f8f8fb]">
+    <div className="h-[100dvh] flex flex-col bg-[#f8f8fb] overflow-hidden">
 
       {/* ── Top bar ── */}
-      <div className="shrink-0 flex items-center justify-between px-5 bg-[#f8f8fb]"
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 10 }}>
+      <div className="shrink-0 flex items-center justify-between px-4 bg-[#f8f8fb]"
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingBottom: 8 }}>
         <button
           onClick={() => router.replace('/dashboard')}
-          className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
         >
-          <ChevronLeft size={22} className="text-gray-600" />
+          <ChevronLeft size={20} className="text-gray-600" />
         </button>
-        {/* Total session time — prominent */}
+        {/* Total session time */}
         <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Séance</span>
-          <span className="font-mono text-lg font-black text-gray-950 tabular-nums leading-none">
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Séance totale</span>
+          <span className="font-mono text-base font-black text-gray-950 tabular-nums leading-none">
             {String(elapsedMins).padStart(2, '0')}:{String(elapsedSecs).padStart(2, '0')}
           </span>
         </div>
         {/* Exercise progress */}
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Exercice</span>
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Exercice</span>
           <span className="text-sm font-black text-gray-700">{currentExIdx + 1}/{totalEx}</span>
         </div>
       </div>
 
       {/* ── Set badge + exercise name ── */}
-      <div className="shrink-0 flex flex-col items-center gap-1.5 px-5 pb-2">
+      <div className="shrink-0 flex flex-col items-center gap-1 px-5 pb-1">
         {currentSet && (
           <span className={cn(
-            'text-xs font-bold px-3 py-1 rounded-full',
+            'text-[11px] font-bold px-3 py-0.5 rounded-full',
             currentSetType === 'warmup' ? 'bg-amber-100 text-amber-700' :
             currentSetType === 'cardio' ? 'bg-green-100 text-green-700' :
             'bg-indigo-100 text-indigo-700'
@@ -792,13 +792,13 @@ function LiveSessionInner() {
             {getSetLabel(currentSet)}
           </span>
         )}
-        <h1 className="text-xl font-black text-gray-950 text-center leading-tight">
+        <h1 className="text-lg font-black text-gray-950 text-center leading-tight line-clamp-1">
           {currentEx?.name}
         </h1>
       </div>
 
-      {/* ── Main circle ── */}
-      <div className="flex-1 flex items-center justify-center">
+      {/* ── Main circle — flex-1 but capped ── */}
+      <div className="flex-1 flex items-center justify-center min-h-0 py-2">
         <div className="relative" style={{ width: RING_SIZE, height: RING_SIZE }}>
           <svg width={RING_SIZE} height={RING_SIZE} className="-rotate-90" viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
             <circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R} fill="none" stroke="#e5e7eb" strokeWidth={RING_STROKE} />
@@ -811,94 +811,93 @@ function LiveSessionInner() {
               style={{ transition: 'stroke-dashoffset 0.9s linear' }}
             />
           </svg>
-          {/* Inner button — shows per-exercise time */}
           <button
             onClick={() => completeCurrentSet(false)}
             className="absolute bg-gray-950 text-white font-black flex flex-col items-center justify-center active:scale-95 transition-transform shadow-xl"
-            style={{ width: RING_R * 2 - 8, height: RING_R * 2 - 8, borderRadius: '50%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+            style={{ width: RING_R * 2 - 10, height: RING_R * 2 - 10, borderRadius: '50%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
           >
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-0.5">exercice</span>
-            <span className="font-mono text-3xl font-black text-white tabular-nums leading-none">
+            <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">exercice</span>
+            <span className="font-mono text-2xl font-black text-white tabular-nums leading-none">
               {String(exMins).padStart(2, '0')}:{String(exSecs).padStart(2, '0')}
             </span>
-            <Check size={20} strokeWidth={3} className="mt-2 mb-0.5" />
-            <span className="text-sm font-black">Terminer</span>
+            <Check size={18} strokeWidth={3} className="mt-1.5" />
+            <span className="text-xs font-black mt-0.5">Terminer</span>
           </button>
         </div>
       </div>
 
-      {/* ── Bottom controls: poids + reps côte à côte ── */}
+      {/* ── Bottom controls ── */}
       {currentSet && (
-        <div className="shrink-0 px-5 pb-3 space-y-3">
-          {/* Poids + Reps */}
-          {!isCardio ? (
-            <div className="flex gap-3">
-              {/* Poids */}
-              <button
-                onClick={() => setWeightPickerOpen(true)}
-                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-4 flex flex-col items-center gap-1 active:scale-[0.97] transition-transform"
-              >
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Poids</span>
-                <span className="text-3xl font-black text-gray-950 tabular-nums">{currentSet.weight}</span>
-                <span className="text-xs font-bold text-gray-400">kg</span>
-              </button>
-              {/* Reps */}
-              <button
-                onClick={() => setRepsPickerOpen(true)}
-                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-4 flex flex-col items-center gap-1 active:scale-[0.97] transition-transform"
-              >
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reps</span>
-                <span className="text-3xl font-black text-gray-950 tabular-nums">{currentSet.reps}</span>
-                <span className="text-xs font-bold text-gray-400">répétitions</span>
-              </button>
-            </div>
-          ) : (
-            /* Cardio: durée + vitesse */
-            <div className="flex gap-3">
-              <button
-                onClick={() => setWeightPickerOpen(true)}
-                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-4 flex flex-col items-center gap-1 active:scale-[0.97] transition-transform"
-              >
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Durée</span>
-                <span className="text-3xl font-black text-gray-950 tabular-nums">{Math.round(currentSet.durationSeconds / 60)}</span>
-                <span className="text-xs font-bold text-gray-400">min</span>
-              </button>
-              <button
-                onClick={() => setRepsPickerOpen(true)}
-                className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-4 flex flex-col items-center gap-1 active:scale-[0.97] transition-transform"
-              >
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vitesse</span>
-                <span className="text-3xl font-black text-gray-950 tabular-nums">{currentSet.speed}</span>
-                <span className="text-xs font-bold text-gray-400">km/h</span>
-              </button>
-            </div>
-          )}
+        <div className="shrink-0 px-4 space-y-2"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
 
-          {/* Passer la série — rouge, bien visible */}
+          {/* Poids + Reps */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setWeightPickerOpen(true)}
+              className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform"
+            >
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                {isCardio ? 'Durée' : 'Poids'}
+              </span>
+              <span className="text-2xl font-black text-gray-950 tabular-nums leading-none">
+                {isCardio ? Math.round(currentSet.durationSeconds / 60) : currentSet.weight}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400">
+                {isCardio ? 'min' : 'kg'}
+              </span>
+            </button>
+            <button
+              onClick={() => setRepsPickerOpen(true)}
+              className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] py-3 flex flex-col items-center gap-0.5 active:scale-[0.97] transition-transform"
+            >
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                {isCardio ? 'Vitesse' : 'Reps'}
+              </span>
+              <span className="text-2xl font-black text-gray-950 tabular-nums leading-none">
+                {isCardio ? currentSet.speed : currentSet.reps}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400">
+                {isCardio ? 'km/h' : 'répétitions'}
+              </span>
+            </button>
+          </div>
+
+          {/* Passer la série */}
           <button
             onClick={() => completeCurrentSet(true)}
-            className="w-full bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[48px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm"
+            className="w-full bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[44px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm"
           >
-            <SkipForward size={15} />
+            <SkipForward size={14} />
             Passer la série
           </button>
         </div>
       )}
 
       {/* ── Pickers ── */}
-      {currentSet && !isCardio && (
+      {currentSet && (
         <>
           <WeightPickerSheet
             isOpen={weightPickerOpen}
-            value={currentSet.weight}
+            value={isCardio ? currentSet.durationSeconds / 60 : currentSet.weight}
             onClose={() => setWeightPickerOpen(false)}
-            onConfirm={kg => { updateSet(currentFlatIdx, 'weight', kg); setWeightPickerOpen(false) }}
+            onConfirm={v => {
+              isCardio
+                ? updateSet(currentFlatIdx, 'durationSeconds', Math.round(v * 60))
+                : updateSet(currentFlatIdx, 'weight', v)
+              setWeightPickerOpen(false)
+            }}
           />
           <RepsPickerSheet
             isOpen={repsPickerOpen}
-            value={currentSet.reps}
+            value={isCardio ? currentSet.speed : currentSet.reps}
             onClose={() => setRepsPickerOpen(false)}
-            onConfirm={reps => { updateSet(currentFlatIdx, 'reps', reps); setRepsPickerOpen(false) }}
+            onConfirm={v => {
+              isCardio
+                ? updateSet(currentFlatIdx, 'speed', v)
+                : updateSet(currentFlatIdx, 'reps', v)
+              setRepsPickerOpen(false)
+            }}
           />
         </>
       )}
