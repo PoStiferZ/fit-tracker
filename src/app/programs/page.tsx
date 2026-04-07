@@ -2,15 +2,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
-import type { Program, Workout, WorkoutExercise } from '@/types'
+import type { AnyExercise, MuscleGroup, Program, Workout, WorkoutExercise } from '@/types'
 import Navbar from '@/components/Navbar'
 import BottomSheet from '@/components/BottomSheet'
 import ExerciseLibrary from '@/components/ExerciseLibrary'
-import { Plus, ClipboardList, Trash2, Pencil, ChevronLeft, Dumbbell } from 'lucide-react'
+import { Plus, ClipboardList, Trash2, Pencil, ChevronLeft, ChevronDown, ChevronRight, Dumbbell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type View = 'list' | 'program-name' | 'workouts' | 'exercise-library'
+type View = 'list' | 'program-detail' | 'program-name' | 'workouts' | 'exercise-library'
 
 interface WorkoutDraft {
   id: string | null
@@ -25,11 +25,25 @@ interface ProgramDraft {
   workouts: WorkoutDraft[]
 }
 
-interface ProgramWithWorkouts extends Program {
-  workouts: WorkoutWithExercises[]
+interface EnrichedExercise {
+  workoutExercise: WorkoutExercise
+  info: AnyExercise | null
 }
-interface WorkoutWithExercises extends Workout {
+
+interface WorkoutWithEnrichedExercises extends Workout {
   workout_exercises: WorkoutExercise[]
+  enriched: EnrichedExercise[]
+}
+
+interface ProgramWithWorkouts extends Program {
+  workouts: WorkoutWithEnrichedExercises[]
+}
+
+const MUSCLE_LABELS: Record<MuscleGroup, string> = {
+  chest: 'Chest', back: 'Back', shoulders: 'Épaules', rear_delts: 'Arrière delts',
+  biceps: 'Biceps', triceps: 'Triceps', forearms: 'Avant-bras', traps: 'Trapèzes',
+  core: 'Abdos', quads: 'Quadriceps', hamstrings: 'Ischio', glutes: 'Fessiers',
+  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio',
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -38,12 +52,13 @@ export default function ProgramsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // View state machine
+  // View machine
   const [view, setView] = useState<View>('list')
+  const [selectedProgram, setSelectedProgram] = useState<ProgramWithWorkouts | null>(null)
   const [draft, setDraft] = useState<ProgramDraft>({ id: null, name: '', workouts: [] })
   const [activeWorkoutIdx, setActiveWorkoutIdx] = useState<number | null>(null)
 
-  // Workout name bottom sheet
+  // Workout name sheet
   const [workoutSheet, setWorkoutSheet] = useState<{ open: boolean; name: string; idx: number | null }>({
     open: false, name: '', idx: null,
   })
@@ -51,27 +66,68 @@ export default function ProgramsPage() {
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
+  // Expanded workouts in detail view
+  const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set())
+
+  // Exercise edit sheet (in detail view)
+  const [editExSheet, setEditExSheet] = useState<{
+    open: boolean
+    workoutId: string
+    exerciseId: string
+    workRepsPerSet: number[]
+    workLoadsPerSet: number[]
+    warmupRepsPerSet: number[]
+    warmupLoadsPerSet: number[]
+  } | null>(null)
+
   useEffect(() => { loadPrograms() }, [])
 
   async function loadPrograms() {
     const profileId = getProfileId()
     if (!profileId) return
     setLoading(true)
+
     const { data: progs } = await supabase.from('programs').select('*').eq('profile_id', profileId).order('created_at')
     if (!progs) { setLoading(false); return }
+
+    // Load exercises info from library + custom
+    const [libRes, customRes] = await Promise.all([
+      supabase.from('exercise_library').select('*'),
+      supabase.from('custom_exercises').select('*').eq('profile_id', profileId),
+    ])
+    const allExercises: AnyExercise[] = [
+      ...((libRes.data || []).map((e: AnyExercise) => ({ ...e, source: 'library' as const }))),
+      ...((customRes.data || []).map((e: AnyExercise) => ({ ...e, source: 'custom' as const }))),
+    ]
+
     const withWorkouts: ProgramWithWorkouts[] = await Promise.all(
       progs.map(async (p: Program) => {
         const { data: wks } = await supabase
           .from('workouts').select('*, workout_exercises(*)')
           .eq('program_id', p.id).order('order_index')
-        return { ...p, workouts: (wks || []) as WorkoutWithExercises[] }
+        const workouts: WorkoutWithEnrichedExercises[] = (wks || []).map((w: Workout & { workout_exercises: WorkoutExercise[] }) => ({
+          ...w,
+          enriched: (w.workout_exercises || []).map(we => ({
+            workoutExercise: we,
+            info: allExercises.find(e =>
+              we.source === 'library' ? e.id === we.library_exercise_id : e.id === we.custom_exercise_id
+            ) ?? null,
+          })),
+        }))
+        return { ...p, workouts }
       })
     )
     setPrograms(withWorkouts)
     setLoading(false)
   }
 
-  // ── Navigation helpers ──────────────────────────────────────────────────────
+  // ── Navigation ──────────────────────────────────────────────────────────────
+  function openProgramDetail(p: ProgramWithWorkouts) {
+    setSelectedProgram(p)
+    setExpandedWorkouts(new Set())
+    setView('program-detail')
+  }
+
   function startCreate() {
     setDraft({ id: null, name: '', workouts: [] })
     setView('program-name')
@@ -91,7 +147,7 @@ export default function ProgramsPage() {
     setView('program-name')
   }
 
-  // ── Workout sheet logic ─────────────────────────────────────────────────────
+  // ── Workout sheet ───────────────────────────────────────────────────────────
   function openWorkoutSheet(idx: number | null) {
     const name = idx !== null ? (draft.workouts[idx]?.name ?? '') : ''
     setWorkoutSheet({ open: true, name, idx })
@@ -100,14 +156,12 @@ export default function ProgramsPage() {
   function confirmWorkoutSheet() {
     const name = workoutSheet.name.trim() || 'Séance'
     if (workoutSheet.idx !== null) {
-      // Rename existing
       setDraft(d => ({
         ...d,
         workouts: d.workouts.map((w, i) => i === workoutSheet.idx ? { ...w, name } : w),
       }))
       setWorkoutSheet({ open: false, name: '', idx: null })
     } else {
-      // Create new → go to library
       const newIdx = draft.workouts.length
       setDraft(d => ({
         ...d,
@@ -141,7 +195,71 @@ export default function ProgramsPage() {
     setView('workouts')
   }
 
-  // ── Save ────────────────────────────────────────────────────────────────────
+  // ── Detail view: exercise actions ───────────────────────────────────────────
+  async function removeExerciseFromWorkout(workoutId: string, exerciseId: string) {
+    await supabase.from('workout_exercises').delete().eq('id', exerciseId)
+    setSelectedProgram(p => {
+      if (!p) return p
+      return {
+        ...p,
+        workouts: p.workouts.map(w => {
+          if (w.id !== workoutId) return w
+          const filtered = w.workout_exercises.filter(e => e.id !== exerciseId)
+          return {
+            ...w,
+            workout_exercises: filtered,
+            enriched: w.enriched.filter(e => e.workoutExercise.id !== exerciseId),
+          }
+        }),
+      }
+    })
+    // Also refresh programs list
+    setPrograms(ps => ps.map(p => {
+      if (!selectedProgram || p.id !== selectedProgram.id) return p
+      return {
+        ...p,
+        workouts: p.workouts.map(w => {
+          if (w.id !== workoutId) return w
+          const filtered = w.workout_exercises.filter(e => e.id !== exerciseId)
+          return {
+            ...w,
+            workout_exercises: filtered,
+            enriched: w.enriched.filter(e => e.workoutExercise.id !== exerciseId),
+          }
+        }),
+      }
+    }))
+  }
+
+  async function saveExerciseEdit() {
+    if (!editExSheet) return
+    const { workoutId, exerciseId, workRepsPerSet, workLoadsPerSet, warmupRepsPerSet, warmupLoadsPerSet } = editExSheet
+    await supabase.from('workout_exercises').update({
+      work_reps_per_set: workRepsPerSet,
+      work_loads: workLoadsPerSet,
+      warmup_reps_per_set: warmupRepsPerSet,
+      warmup_loads: warmupLoadsPerSet,
+    }).eq('id', exerciseId)
+
+    // Update local state
+    const updateEx = (we: WorkoutExercise) =>
+      we.id !== exerciseId ? we : { ...we, work_reps_per_set: workRepsPerSet, work_loads: workLoadsPerSet, warmup_reps_per_set: warmupRepsPerSet, warmup_loads: warmupLoadsPerSet }
+
+    setSelectedProgram(p => {
+      if (!p) return p
+      return {
+        ...p,
+        workouts: p.workouts.map(w => w.id !== workoutId ? w : {
+          ...w,
+          workout_exercises: w.workout_exercises.map(updateEx),
+          enriched: w.enriched.map(e => ({ ...e, workoutExercise: updateEx(e.workoutExercise) })),
+        }),
+      }
+    })
+    setEditExSheet(null)
+  }
+
+  // ── Save program ─────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!draft.name.trim()) return
     const profileId = getProfileId()!
@@ -166,12 +284,7 @@ export default function ProgramsPage() {
 
     for (const w of draft.workouts) {
       let workoutId = w.id
-      const wPayload = {
-        profile_id: profileId,
-        program_id: programId,
-        name: w.name || 'Séance',
-        order_index: w.order_index,
-      }
+      const wPayload = { profile_id: profileId, program_id: programId, name: w.name || 'Séance', order_index: w.order_index }
       if (w.id) {
         await supabase.from('workouts').update(wPayload).eq('id', w.id)
       } else {
@@ -199,7 +312,7 @@ export default function ProgramsPage() {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // VIEW: exercise-library (full page — rendered outside main div)
+  // VIEW: exercise-library
   // ────────────────────────────────────────────────────────────────────────────
   if (view === 'exercise-library') {
     return (
@@ -218,7 +331,6 @@ export default function ProgramsPage() {
   if (view === 'program-name') {
     return (
       <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
-        {/* Header */}
         <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button onClick={() => setView('list')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
@@ -228,13 +340,10 @@ export default function ProgramsPage() {
             {draft.id ? 'Modifier le programme' : 'Nouveau programme'}
           </h1>
         </div>
-
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 pt-8">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nom du programme</label>
           <input
-            type="text"
-            value={draft.name}
+            type="text" value={draft.name}
             onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
             onKeyDown={e => { if (e.key === 'Enter' && draft.name.trim()) setView('workouts') }}
             placeholder="Ex: Push Pull Legs, Full Body..."
@@ -242,44 +351,36 @@ export default function ProgramsPage() {
             className="w-full bg-white border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-lg font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
           />
         </div>
-
-        {/* Footer button */}
         <div className="shrink-0 px-5 pt-4 bg-[#f8f8fb]"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
           <button
             onClick={() => { if (draft.name.trim()) setView('workouts') }}
             disabled={!draft.name.trim()}
             className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[56px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none"
-          >
-            Suivant →
-          </button>
+          >Suivant →</button>
         </div>
       </div>
     )
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // VIEW: workouts
+  // VIEW: workouts (editor)
   // ────────────────────────────────────────────────────────────────────────────
   if (view === 'workouts') {
     return (
       <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
-        {/* Header */}
         <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button onClick={() => setView('program-name')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
             <ChevronLeft size={20} className="text-gray-700" />
           </button>
           <h1 className="font-black text-gray-900 text-lg flex-1 truncate">{draft.name}</h1>
-          <button
-            onClick={() => openWorkoutSheet(null)}
-            className="flex items-center gap-1.5 bg-gray-950 text-white px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform shrink-0"
-          >
+          <button onClick={() => openWorkoutSheet(null)}
+            className="flex items-center gap-1.5 bg-gray-950 text-white px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform shrink-0">
             <Plus size={15} /> Séance
           </button>
         </div>
 
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3">
           {draft.workouts.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 flex flex-col items-center gap-3 mt-4">
@@ -317,41 +418,27 @@ export default function ProgramsPage() {
           )}
         </div>
 
-        {/* Footer: save button */}
         <div className="shrink-0 px-4 pt-3 bg-[#f8f8fb] border-t border-gray-100"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' }}>
-          <button
-            onClick={handleSave}
-            disabled={saving || !draft.name.trim()}
-            className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none"
-          >
+          <button onClick={handleSave} disabled={saving || !draft.name.trim()}
+            className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none">
             {saving ? 'Enregistrement...' : draft.id ? 'Mettre à jour' : 'Enregistrer'}
           </button>
         </div>
 
-        {/* Workout name bottom sheet */}
-        <BottomSheet
-          isOpen={workoutSheet.open}
-          onClose={() => setWorkoutSheet(s => ({ ...s, open: false }))}
-          title={workoutSheet.idx !== null ? 'Renommer la séance' : 'Nouvelle séance'}
-        >
+        {/* Workout name sheet */}
+        <BottomSheet isOpen={workoutSheet.open} onClose={() => setWorkoutSheet(s => ({ ...s, open: false }))}
+          title={workoutSheet.idx !== null ? 'Renommer la séance' : 'Nouvelle séance'}>
           <div className="space-y-4 pb-4">
-            <input
-              type="text"
-              value={workoutSheet.name}
+            <input type="text" value={workoutSheet.name}
               onChange={e => setWorkoutSheet(s => ({ ...s, name: e.target.value }))}
               onKeyDown={e => { if (e.key === 'Enter') confirmWorkoutSheet() }}
               placeholder="Ex: Push, Pull, Legs..."
               autoFocus
               className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
             />
-            <button
-              onClick={confirmWorkoutSheet}
-              className={cn(
-                'w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]',
-                !workoutSheet.name.trim() && 'opacity-40'
-              )}
-            >
+            <button onClick={confirmWorkoutSheet}
+              className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]">
               {workoutSheet.idx !== null ? 'Renommer' : 'Suivant →'}
             </button>
           </div>
@@ -361,22 +448,253 @@ export default function ProgramsPage() {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // VIEW: list (default)
+  // VIEW: program-detail
+  // ────────────────────────────────────────────────────────────────────────────
+  if (view === 'program-detail' && selectedProgram) {
+    const prog = selectedProgram
+
+    function toggleWorkout(id: string) {
+      setExpandedWorkouts(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+    }
+
+    return (
+      <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
+        {/* Header */}
+        <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
+          <button onClick={() => setView('list')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
+            <ChevronLeft size={20} className="text-gray-700" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-black text-gray-900 text-lg truncate">{prog.name}</h1>
+            <p className="text-xs text-gray-400">{prog.workouts.length} séance{prog.workouts.length !== 1 ? 's' : ''}</p>
+          </div>
+          <button onClick={() => startEdit(prog)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors shrink-0">
+            <Pencil size={15} className="text-gray-400" />
+          </button>
+        </div>
+
+        {/* Workout list with expand */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {prog.workouts.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 flex flex-col items-center gap-3 mt-4">
+              <Dumbbell size={28} className="text-gray-300" />
+              <p className="text-sm font-bold text-gray-400">Aucune séance dans ce programme</p>
+            </div>
+          ) : prog.workouts.map(w => {
+            const expanded = expandedWorkouts.has(w.id)
+            return (
+              <div key={w.id} className="bg-white rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
+                {/* Workout header — click to expand */}
+                <button
+                  onClick={() => toggleWorkout(w.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 text-sm">{w.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {w.workout_exercises.length} exercice{w.workout_exercises.length !== 1 ? 's' : ''}
+                      {w.enriched.length > 0 && (
+                        <span className="ml-2">
+                          {[...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 3)
+                            .map(m => MUSCLE_LABELS[m]).join(', ')}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    size={18}
+                    className={cn('text-gray-400 transition-transform shrink-0', expanded && 'rotate-180')}
+                  />
+                </button>
+
+                {/* Expanded: exercises */}
+                {expanded && (
+                  <div className="border-t border-gray-100 divide-y divide-gray-50">
+                    {w.enriched.length === 0 ? (
+                      <p className="px-4 py-3 text-xs text-gray-400 italic">Aucun exercice</p>
+                    ) : w.enriched.map(({ workoutExercise: we, info }) => (
+                      <div key={we.id} className="px-4 py-3 space-y-2">
+                        {/* Exercise title row */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 truncate">
+                              {info?.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
+                              {info?.name ?? 'Exercice inconnu'}
+                            </p>
+                            <div className="flex gap-1 mt-0.5 flex-wrap">
+                              {(info?.muscles_primary ?? []).slice(0, 2).map(m => (
+                                <span key={m} className="text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                                  {MUSCLE_LABELS[m]}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            {/* Edit button */}
+                            <button
+                              onClick={() => setEditExSheet({
+                                open: true,
+                                workoutId: w.id,
+                                exerciseId: we.id,
+                                workRepsPerSet: [...we.work_reps_per_set],
+                                workLoadsPerSet: [...we.work_loads],
+                                warmupRepsPerSet: [...we.warmup_reps_per_set],
+                                warmupLoadsPerSet: [...we.warmup_loads],
+                              })}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              <Pencil size={13} className="text-gray-400" />
+                            </button>
+                            {/* Delete button */}
+                            <button
+                              onClick={() => removeExerciseFromWorkout(w.id, we.id)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 size={13} className="text-red-400" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Sets summary */}
+                        {we.work_sets > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {Array(we.work_sets).fill(0).map((_, i) => (
+                              <div key={i} className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1">
+                                <span className="text-[10px] font-black text-gray-400">S{i + 1}</span>
+                                <span className="text-[11px] font-bold text-gray-700">
+                                  {we.work_reps_per_set[i] ?? '?'}r
+                                </span>
+                                {(we.work_loads[i] ?? 0) > 0 && (
+                                  <span className="text-[11px] font-bold text-orange-500">
+                                    · {we.work_loads[i]}kg
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {we.warmup_sets > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {Array(we.warmup_sets).fill(0).map((_, i) => (
+                              <div key={i} className="flex items-center gap-1 bg-amber-50 rounded-lg px-2 py-1">
+                                <span className="text-[10px] font-black text-amber-400">É{i + 1}</span>
+                                <span className="text-[11px] font-bold text-gray-700">
+                                  {we.warmup_reps_per_set[i] ?? '?'}r
+                                </span>
+                                {(we.warmup_loads[i] ?? 0) > 0 && (
+                                  <span className="text-[11px] font-bold text-orange-500">
+                                    · {we.warmup_loads[i]}kg
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Exercise edit sheet */}
+        {editExSheet && (
+          <BottomSheet isOpen={editExSheet.open} onClose={() => setEditExSheet(null)} title="Modifier l'exercice">
+            <div className="space-y-4 pb-4">
+              {/* Work sets */}
+              {editExSheet.workRepsPerSet.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Séries de travail</p>
+                  {editExSheet.workRepsPerSet.map((reps, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                      <span className="text-xs font-black text-gray-400 w-6">S{i + 1}</span>
+                      {/* Reps */}
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.workRepsPerSet]; r[i] = Math.max(1, r[i] - 1); return { ...s, workRepsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">−</button>
+                        <span className="text-sm font-black text-gray-900 w-8 text-center tabular-nums">{reps}r</span>
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.workRepsPerSet]; r[i] = r[i] + 1; return { ...s, workRepsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">+</button>
+                      </div>
+                      {/* Load */}
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.workLoadsPerSet]; r[i] = Math.max(0, +(r[i] - 2.5).toFixed(2)); return { ...s, workLoadsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">−</button>
+                        <span className="text-sm font-black text-orange-500 w-12 text-center tabular-nums">{editExSheet.workLoadsPerSet[i] ?? 0}kg</span>
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.workLoadsPerSet]; r[i] = +(r[i] + 2.5).toFixed(2); return { ...s, workLoadsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Warmup sets */}
+              {editExSheet.warmupRepsPerSet.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Échauffement</p>
+                  {editExSheet.warmupRepsPerSet.map((reps, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-amber-50 rounded-xl px-3 py-2.5">
+                      <span className="text-xs font-black text-amber-400 w-6">É{i + 1}</span>
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.warmupRepsPerSet]; r[i] = Math.max(1, r[i] - 1); return { ...s, warmupRepsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">−</button>
+                        <span className="text-sm font-black text-gray-900 w-8 text-center tabular-nums">{reps}r</span>
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.warmupRepsPerSet]; r[i] = r[i] + 1; return { ...s, warmupRepsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">+</button>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.warmupLoadsPerSet]; r[i] = Math.max(0, +(r[i] - 2.5).toFixed(2)); return { ...s, warmupLoadsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">−</button>
+                        <span className="text-sm font-black text-orange-500 w-12 text-center tabular-nums">{editExSheet.warmupLoadsPerSet[i] ?? 0}kg</span>
+                        <button onClick={() => setEditExSheet(s => {
+                          if (!s) return s; const r = [...s.warmupLoadsPerSet]; r[i] = +(r[i] + 2.5).toFixed(2); return { ...s, warmupLoadsPerSet: r }
+                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button onClick={saveExerciseEdit}
+                className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]">
+                Enregistrer
+              </button>
+            </div>
+          </BottomSheet>
+        )}
+      </div>
+    )
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // VIEW: list
   // ────────────────────────────────────────────────────────────────────────────
   return (
     <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
       <Navbar />
       <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6">
-
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-2xl font-black text-gray-950">Programmes</h1>
             <p className="text-gray-400 text-sm mt-0.5">{programs.length} programme{programs.length !== 1 ? 's' : ''}</p>
           </div>
-          <button
-            onClick={startCreate}
-            className="flex items-center gap-2 bg-gray-950 text-white px-4 py-2.5 rounded-2xl text-sm font-bold shadow-[0_4px_14px_rgba(0,0,0,0.2)] active:scale-95 transition-transform"
-          >
+          <button onClick={startCreate}
+            className="flex items-center gap-2 bg-gray-950 text-white px-4 py-2.5 rounded-2xl text-sm font-bold shadow-[0_4px_14px_rgba(0,0,0,0.2)] active:scale-95 transition-transform">
             <Plus size={16} /> Créer
           </button>
         </div>
@@ -396,7 +714,11 @@ export default function ProgramsPage() {
         ) : (
           <div className="space-y-3">
             {programs.map(p => (
-              <div key={p.id} className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4">
+              <button
+                key={p.id}
+                onClick={() => openProgramDetail(p)}
+                className="w-full bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4 text-left active:scale-[0.98] transition-transform"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -426,16 +748,15 @@ export default function ProgramsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-1 shrink-0 mt-0.5">
-                    <button onClick={() => startEdit(p)} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors">
-                      <Pencil size={14} className="text-gray-400" />
-                    </button>
-                    <button onClick={() => setDeleteConfirm(p.id)} className="w-9 h-9 flex items-center justify-center hover:bg-red-50 rounded-xl transition-colors">
+                  <div className="flex gap-1 shrink-0 mt-0.5" onClick={e => e.stopPropagation()}>
+                    <button onClick={e => { e.stopPropagation(); setDeleteConfirm(p.id) }}
+                      className="w-9 h-9 flex items-center justify-center hover:bg-red-50 rounded-xl transition-colors">
                       <Trash2 size={14} className="text-red-400" />
                     </button>
+                    <ChevronRight size={16} className="text-gray-300 self-center ml-1" />
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -445,11 +766,12 @@ export default function ProgramsPage() {
       <BottomSheet isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Supprimer le programme ?">
         <div className="space-y-3 pb-2">
           <p className="text-gray-500 text-sm">Cette action supprimera le programme et toutes ses séances.</p>
-          <button
-            onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
-            className="w-full bg-red-500 text-white rounded-2xl py-4 font-bold shadow-[0_4px_14px_rgba(239,68,68,0.3)] active:scale-[0.98] transition-all"
-          >Supprimer</button>
-          <button onClick={() => setDeleteConfirm(null)} className="w-full bg-white text-gray-800 rounded-2xl font-semibold min-h-[52px] flex items-center justify-center border border-gray-100 shadow-sm">
+          <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
+            className="w-full bg-red-500 text-white rounded-2xl py-4 font-bold shadow-[0_4px_14px_rgba(239,68,68,0.3)] active:scale-[0.98] transition-all">
+            Supprimer
+          </button>
+          <button onClick={() => setDeleteConfirm(null)}
+            className="w-full bg-white text-gray-800 rounded-2xl font-semibold min-h-[52px] flex items-center justify-center border border-gray-100 shadow-sm">
             Annuler
           </button>
         </div>
