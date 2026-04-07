@@ -140,6 +140,7 @@ interface ExerciseLibraryProps {
   isOpen: boolean
   onClose: () => void
   onConfirm: (exercises: Omit<WorkoutExercise, 'id' | 'workout_id' | 'created_at' | 'updated_at'>[]) => void
+  fullPage?: boolean
 }
 
 const MUSCLE_FILTERS: { key: MuscleGroup | 'all'; label: string }[] = [
@@ -599,7 +600,7 @@ function ExerciseConfigForm({
 }
 
 // ─── Main ExerciseLibrary ─────────────────────────────────────────────────────
-export default function ExerciseLibrary({ isOpen, onClose, onConfirm }: ExerciseLibraryProps) {
+export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }: ExerciseLibraryProps) {
   const [exercises, setExercises] = useState<AnyExercise[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -715,6 +716,161 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm }: Exercise
     )
   }
 
+  // ── Library screen content ───────────────────────────────────────────────
+  const libraryContent = (
+    <div className="space-y-3 pb-4">
+      {/* Search */}
+      <div className="relative">
+        <input
+          type="text" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher un exercice..."
+          className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 transition-all"
+        />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      </div>
+
+      {/* Muscle filter */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {MUSCLE_FILTERS.map(({ key, label }) => (
+          <button key={key} onClick={() => setMuscleFilter(key)}
+            className={cn(
+              'shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
+              muscleFilter === key ? 'bg-gray-950 text-white border-gray-950' : 'border-gray-200 text-gray-500 bg-white'
+            )}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Equipment filter */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {EQUIPMENT_FILTERS.map(({ key, label }) => (
+          <button key={key} onClick={() => setEquipmentFilter(key)}
+            className={cn(
+              'shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
+              equipmentFilter === key ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-500 bg-white'
+            )}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* My exercises header */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-black text-gray-400 uppercase tracking-wider">Mes exercices</p>
+        <button onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
+          <Plus size={12} /> Créer
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <div className="w-7 h-7 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {customExs.length > 0 && (
+            <div className="space-y-1.5">
+              {customExs.map(ex => <ExerciseItem key={`custom-${ex.id}`} ex={ex} />)}
+            </div>
+          )}
+          {customExs.length === 0 && !search && muscleFilter === 'all' && equipmentFilter === 'all' && (
+            <p className="text-xs text-gray-300 text-center py-1 font-medium">Aucun exercice custom — crée-en un !</p>
+          )}
+
+          {libraryExs.length > 0 && (
+            <>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider pt-2">Bibliothèque</p>
+              <div className="space-y-1.5">
+                {libraryExs.map(ex => <ExerciseItem key={`lib-${ex.id}`} ex={ex} />)}
+              </div>
+            </>
+          )}
+
+          {filtered.length === 0 && (
+            <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
+          )}
+        </div>
+      )}
+
+      {/* Confirm button */}
+      {selected.length > 0 && (
+        <div className="sticky bottom-0 pt-2">
+          <button onClick={handleConfirmSelection}
+            className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
+            <Check size={18} /> Confirmer ({selected.length})
+          </button>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── Config screen content ────────────────────────────────────────────────
+  const configContent = (
+    <div className="space-y-4 pb-4">
+      {!fullPage && (
+        <button onClick={() => setScreen('library')} className="flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">
+          <ChevronLeft size={16} /> Retour à la bibliothèque
+        </button>
+      )}
+      {configs.map((cfg, i) => (
+        <div key={`${cfg.exercise.source}-${cfg.exercise.id}`} className="relative">
+          <button
+            onClick={() => setConfigs(prev => prev.filter((_, j) => j !== i))}
+            className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-xl hover:bg-gray-200 transition-colors"
+          >
+            <X size={14} className="text-gray-400" />
+          </button>
+          <ExerciseConfigForm
+            cfg={cfg}
+            onChange={updated => setConfigs(prev => prev.map((c, j) => j === i ? updated : c))}
+          />
+        </div>
+      ))}
+      {configs.length > 0 && (
+        <button onClick={handleSaveConfigs}
+          className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
+          <Check size={18} /> Ajouter {configs.length} exercice{configs.length > 1 ? 's' : ''}
+        </button>
+      )}
+    </div>
+  )
+
+  // ── fullPage mode ────────────────────────────────────────────────────────
+  if (fullPage) {
+    if (!isOpen) return null
+    return (
+      <>
+        <div className="fixed inset-0 z-50 bg-[#f8f8fb] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 pt-[env(safe-area-inset-top,16px)] pb-3 bg-white border-b border-gray-100 shrink-0">
+            <button
+              onClick={screen === 'config' ? () => setScreen('library') : onClose}
+              className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <h2 className="font-black text-gray-900 text-lg flex-1">
+              {screen === 'library' ? 'Bibliothèque' : 'Configurer'}
+            </h2>
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            {screen === 'library' ? libraryContent : configContent}
+          </div>
+        </div>
+
+        <CreateCustomSheet
+          isOpen={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={handleCustomCreated}
+        />
+      </>
+    )
+  }
+
+  // ── BottomSheet mode (default) ───────────────────────────────────────────
   return (
     <>
       <BottomSheet
@@ -722,121 +878,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm }: Exercise
         onClose={onClose}
         title={screen === 'library' ? 'Bibliothèque d\'exercices' : 'Configurer les exercices'}
       >
-        {screen === 'library' ? (
-          <div className="space-y-3 pb-4">
-            {/* Search */}
-            <div className="relative">
-              <input
-                type="text" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Rechercher un exercice..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 transition-all"
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-
-            {/* Muscle filter */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {MUSCLE_FILTERS.map(({ key, label }) => (
-                <button key={key} onClick={() => setMuscleFilter(key)}
-                  className={cn(
-                    'shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
-                    muscleFilter === key ? 'bg-gray-950 text-white border-gray-950' : 'border-gray-200 text-gray-500 bg-white'
-                  )}>
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Equipment filter */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {EQUIPMENT_FILTERS.map(({ key, label }) => (
-                <button key={key} onClick={() => setEquipmentFilter(key)}
-                  className={cn(
-                    'shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
-                    equipmentFilter === key ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-500 bg-white'
-                  )}>
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* My exercises header */}
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider">Mes exercices</p>
-              <button onClick={() => setCreateOpen(true)}
-                className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
-                <Plus size={12} /> Créer
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="w-7 h-7 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {customExs.length > 0 && (
-                  <div className="space-y-1.5">
-                    {customExs.map(ex => <ExerciseItem key={`custom-${ex.id}`} ex={ex} />)}
-                  </div>
-                )}
-                {customExs.length === 0 && !search && muscleFilter === 'all' && equipmentFilter === 'all' && (
-                  <p className="text-xs text-gray-300 text-center py-1 font-medium">Aucun exercice custom — crée-en un !</p>
-                )}
-
-                {libraryExs.length > 0 && (
-                  <>
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-wider pt-2">Bibliothèque</p>
-                    <div className="space-y-1.5">
-                      {libraryExs.map(ex => <ExerciseItem key={`lib-${ex.id}`} ex={ex} />)}
-                    </div>
-                  </>
-                )}
-
-                {filtered.length === 0 && (
-                  <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
-                )}
-              </div>
-            )}
-
-            {/* Confirm button */}
-            {selected.length > 0 && (
-              <div className="sticky bottom-0 pt-2">
-                <button onClick={handleConfirmSelection}
-                  className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
-                  <Check size={18} /> Confirmer ({selected.length})
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          // Config screen
-          <div className="space-y-4 pb-4">
-            <button onClick={() => setScreen('library')} className="flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">
-              <ChevronLeft size={16} /> Retour à la bibliothèque
-            </button>
-            {configs.map((cfg, i) => (
-              <div key={`${cfg.exercise.source}-${cfg.exercise.id}`} className="relative">
-                <button
-                  onClick={() => setConfigs(prev => prev.filter((_, j) => j !== i))}
-                  className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-xl hover:bg-gray-200 transition-colors"
-                >
-                  <X size={14} className="text-gray-400" />
-                </button>
-                <ExerciseConfigForm
-                  cfg={cfg}
-                  onChange={updated => setConfigs(prev => prev.map((c, j) => j === i ? updated : c))}
-                />
-              </div>
-            ))}
-            {configs.length > 0 && (
-              <button onClick={handleSaveConfigs}
-                className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
-                <Check size={18} /> Ajouter {configs.length} exercice{configs.length > 1 ? 's' : ''}
-              </button>
-            )}
-          </div>
-        )}
+        {screen === 'library' ? libraryContent : configContent}
       </BottomSheet>
 
       <CreateCustomSheet

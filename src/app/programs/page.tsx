@@ -2,55 +2,51 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
-import type { Program, Workout, WorkoutExercise, AnyExercise } from '@/types'
+import type { Program, Workout, WorkoutExercise } from '@/types'
 import Navbar from '@/components/Navbar'
 import BottomSheet from '@/components/BottomSheet'
 import ExerciseLibrary from '@/components/ExerciseLibrary'
-import { Plus, ClipboardList, Trash2, Pencil, Check, ChevronUp, ChevronDown, Dumbbell } from 'lucide-react'
+import { Plus, ClipboardList, Trash2, Pencil, ChevronLeft, Dumbbell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const btnPrimary = 'w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40 disabled:shadow-none'
-const btnSecondary = 'w-full bg-white text-gray-800 rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-gray-100'
-const inputField = 'w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-base placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:bg-white transition-all'
-
-const RECURRENCE_OPTIONS = [4, 8, 12, 16, 24]
-
 // ─── Types ────────────────────────────────────────────────────────────────────
+type View = 'list' | 'program-name' | 'workouts' | 'exercise-library'
+
 interface WorkoutDraft {
-  id: string | null // null = new
+  id: string | null
   name: string
   order_index: number
   exercises: Omit<WorkoutExercise, 'id' | 'workout_id' | 'created_at' | 'updated_at'>[]
-  // loaded workout exercises for display (if editing)
-  loadedExercises?: AnyExercise[]
+}
+
+interface ProgramDraft {
+  id: string | null
+  name: string
+  workouts: WorkoutDraft[]
 }
 
 interface ProgramWithWorkouts extends Program {
   workouts: WorkoutWithExercises[]
 }
-
 interface WorkoutWithExercises extends Workout {
   workout_exercises: WorkoutExercise[]
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<ProgramWithWorkouts[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Sheet state
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
-
-  // Program form
-  const [programName, setProgramName] = useState('')
-  const [recurrenceEnabled, setRecurrenceEnabled] = useState(false)
-  const [recurrenceWeeks, setRecurrenceWeeks] = useState<number>(8)
-  const [workouts, setWorkouts] = useState<WorkoutDraft[]>([])
   const [saving, setSaving] = useState(false)
 
-  // Library
-  const [libraryOpen, setLibraryOpen] = useState(false)
-  const [activeWorkoutIndex, setActiveWorkoutIndex] = useState<number | null>(null)
+  // View state machine
+  const [view, setView] = useState<View>('list')
+  const [draft, setDraft] = useState<ProgramDraft>({ id: null, name: '', workouts: [] })
+  const [activeWorkoutIdx, setActiveWorkoutIdx] = useState<number | null>(null)
+
+  // Workout name bottom sheet
+  const [workoutSheet, setWorkoutSheet] = useState<{ open: boolean; name: string; idx: number | null }>({
+    open: false, name: '', idx: null,
+  })
 
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -63,14 +59,11 @@ export default function ProgramsPage() {
     setLoading(true)
     const { data: progs } = await supabase.from('programs').select('*').eq('profile_id', profileId).order('created_at')
     if (!progs) { setLoading(false); return }
-
     const withWorkouts: ProgramWithWorkouts[] = await Promise.all(
       progs.map(async (p: Program) => {
         const { data: wks } = await supabase
-          .from('workouts')
-          .select('*, workout_exercises(*)')
-          .eq('program_id', p.id)
-          .order('order_index')
+          .from('workouts').select('*, workout_exercises(*)')
+          .eq('program_id', p.id).order('order_index')
         return { ...p, workouts: (wks || []) as WorkoutWithExercises[] }
       })
     )
@@ -78,95 +71,92 @@ export default function ProgramsPage() {
     setLoading(false)
   }
 
-  function openCreate() {
-    setEditId(null)
-    setProgramName('')
-    setRecurrenceEnabled(false)
-    setRecurrenceWeeks(8)
-    setWorkouts([])
-    setSheetOpen(true)
+  // ── Navigation helpers ──────────────────────────────────────────────────────
+  function startCreate() {
+    setDraft({ id: null, name: '', workouts: [] })
+    setView('program-name')
   }
 
-  function openEdit(p: ProgramWithWorkouts) {
-    setEditId(p.id)
-    setProgramName(p.name)
-    setRecurrenceEnabled(!!p.recurrence_weeks)
-    setRecurrenceWeeks(p.recurrence_weeks || 8)
-    setWorkouts(p.workouts.map((w, i) => ({
-      id: w.id,
-      name: w.name,
-      order_index: i,
-      exercises: w.workout_exercises.map((we, j) => ({
-        ...we,
-        order_index: j,
+  function startEdit(p: ProgramWithWorkouts) {
+    setDraft({
+      id: p.id,
+      name: p.name,
+      workouts: p.workouts.map((w, i) => ({
+        id: w.id,
+        name: w.name,
+        order_index: i,
+        exercises: w.workout_exercises.map((we, j) => ({ ...we, order_index: j })),
       })),
-    })))
-    setSheetOpen(true)
-  }
-
-  function addWorkout() {
-    setWorkouts(prev => [...prev, {
-      id: null,
-      name: '',
-      order_index: prev.length,
-      exercises: [],
-    }])
-  }
-
-  function removeWorkout(index: number) {
-    setWorkouts(prev => prev.filter((_, i) => i !== index).map((w, i) => ({ ...w, order_index: i })))
-  }
-
-  function moveWorkout(index: number, direction: 'up' | 'down') {
-    setWorkouts(prev => {
-      const next = [...prev]
-      const target = direction === 'up' ? index - 1 : index + 1
-      if (target < 0 || target >= next.length) return prev
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next.map((w, i) => ({ ...w, order_index: i }))
     })
+    setView('program-name')
   }
 
-  function openLibraryForWorkout(index: number) {
-    setActiveWorkoutIndex(index)
-    setLibraryOpen(true)
+  // ── Workout sheet logic ─────────────────────────────────────────────────────
+  function openWorkoutSheet(idx: number | null) {
+    const name = idx !== null ? (draft.workouts[idx]?.name ?? '') : ''
+    setWorkoutSheet({ open: true, name, idx })
   }
 
-  function handleLibraryConfirm(
-    newExercises: Omit<WorkoutExercise, 'id' | 'workout_id' | 'created_at' | 'updated_at'>[]
+  function confirmWorkoutSheet() {
+    const name = workoutSheet.name.trim() || 'Séance'
+    if (workoutSheet.idx !== null) {
+      // Rename existing
+      setDraft(d => ({
+        ...d,
+        workouts: d.workouts.map((w, i) => i === workoutSheet.idx ? { ...w, name } : w),
+      }))
+      setWorkoutSheet({ open: false, name: '', idx: null })
+    } else {
+      // Create new → go to library
+      const newIdx = draft.workouts.length
+      setDraft(d => ({
+        ...d,
+        workouts: [...d.workouts, { id: null, name, order_index: newIdx, exercises: [] }],
+      }))
+      setActiveWorkoutIdx(newIdx)
+      setWorkoutSheet({ open: false, name: '', idx: null })
+      setView('exercise-library')
+    }
+  }
+
+  function removeWorkout(idx: number) {
+    setDraft(d => ({
+      ...d,
+      workouts: d.workouts.filter((_, i) => i !== idx).map((w, i) => ({ ...w, order_index: i })),
+    }))
+  }
+
+  function addExercisesToWorkout(
+    exercises: Omit<WorkoutExercise, 'id' | 'workout_id' | 'created_at' | 'updated_at'>[]
   ) {
-    if (activeWorkoutIndex === null) return
-    setWorkouts(prev => prev.map((w, i) => {
-      if (i !== activeWorkoutIndex) return w
-      const merged = [...w.exercises, ...newExercises].map((e, j) => ({ ...e, order_index: j }))
-      return { ...w, exercises: merged }
+    if (activeWorkoutIdx === null) return
+    setDraft(d => ({
+      ...d,
+      workouts: d.workouts.map((w, i) => {
+        if (i !== activeWorkoutIdx) return w
+        const merged = [...w.exercises, ...exercises].map((e, j) => ({ ...e, order_index: j }))
+        return { ...w, exercises: merged }
+      }),
     }))
-    setLibraryOpen(false)
-    setActiveWorkoutIndex(null)
+    setView('workouts')
   }
 
-  function removeExerciseFromWorkout(workoutIndex: number, exIndex: number) {
-    setWorkouts(prev => prev.map((w, i) => {
-      if (i !== workoutIndex) return w
-      return { ...w, exercises: w.exercises.filter((_, j) => j !== exIndex).map((e, j) => ({ ...e, order_index: j })) }
-    }))
-  }
-
+  // ── Save ────────────────────────────────────────────────────────────────────
   async function handleSave() {
-    if (!programName.trim()) return
+    if (!draft.name.trim()) return
     const profileId = getProfileId()!
     setSaving(true)
 
     const programPayload = {
-      name: programName.trim(),
+      name: draft.name.trim(),
       profile_id: profileId,
-      recurrence_weeks: recurrenceEnabled ? recurrenceWeeks : null,
+      recurrence_weeks: null as number | null,
       recurrence_until: null as string | null,
     }
 
-    let programId = editId
-    if (editId) {
-      await supabase.from('programs').update(programPayload).eq('id', editId)
+    let programId = draft.id
+    if (draft.id) {
+      await supabase.from('programs').update(programPayload).eq('id', draft.id)
     } else {
       const { data } = await supabase.from('programs').insert(programPayload).select().single()
       programId = data?.id
@@ -174,24 +164,21 @@ export default function ProgramsPage() {
 
     if (!programId) { setSaving(false); return }
 
-    // Upsert workouts
-    for (const w of workouts) {
+    for (const w of draft.workouts) {
       let workoutId = w.id
-      const workoutPayload = {
+      const wPayload = {
         profile_id: profileId,
         program_id: programId,
         name: w.name || 'Séance',
         order_index: w.order_index,
       }
       if (w.id) {
-        await supabase.from('workouts').update(workoutPayload).eq('id', w.id)
+        await supabase.from('workouts').update(wPayload).eq('id', w.id)
       } else {
-        const { data } = await supabase.from('workouts').insert(workoutPayload).select().single()
+        const { data } = await supabase.from('workouts').insert(wPayload).select().single()
         workoutId = data?.id
       }
       if (!workoutId) continue
-
-      // Delete existing exercises and reinsert
       await supabase.from('workout_exercises').delete().eq('workout_id', workoutId)
       if (w.exercises.length > 0) {
         await supabase.from('workout_exercises').insert(
@@ -202,7 +189,7 @@ export default function ProgramsPage() {
 
     await loadPrograms()
     setSaving(false)
-    setSheetOpen(false)
+    setView('list')
   }
 
   async function handleDelete(id: string) {
@@ -211,17 +198,181 @@ export default function ProgramsPage() {
     setDeleteConfirm(null)
   }
 
-  function ExerciseBadge({ ex }: { ex: Omit<WorkoutExercise, 'id' | 'workout_id' | 'created_at' | 'updated_at'> }) {
-    const isCardio = ex.cardio_sets > 0
-    const sets = isCardio ? ex.cardio_sets : ex.work_sets
+  // ────────────────────────────────────────────────────────────────────────────
+  // VIEW: exercise-library (full page — rendered outside main div)
+  // ────────────────────────────────────────────────────────────────────────────
+  if (view === 'exercise-library') {
     return (
-      <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl px-2.5 py-1.5">
-        {isCardio && <span className="text-[10px]">🏃</span>}
-        <span className="text-[11px] font-semibold text-gray-600">{sets}×</span>
+      <ExerciseLibrary
+        fullPage
+        isOpen={true}
+        onClose={() => setView('workouts')}
+        onConfirm={addExercisesToWorkout}
+      />
+    )
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // VIEW: program-name
+  // ────────────────────────────────────────────────────────────────────────────
+  if (view === 'program-name') {
+    return (
+      <div className="min-h-screen bg-[#f8f8fb] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 pt-[env(safe-area-inset-top,16px)] pb-3 bg-white border-b border-gray-100">
+          <button onClick={() => setView('list')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
+            <ChevronLeft size={20} className="text-gray-700" />
+          </button>
+          <h1 className="font-black text-gray-900 text-lg flex-1">
+            {draft.id ? 'Modifier le programme' : 'Nouveau programme'}
+          </h1>
+        </div>
+
+        <div className="flex-1 flex flex-col px-5 pt-10 gap-6">
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nom du programme</label>
+            <input
+              type="text"
+              value={draft.name}
+              onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+              placeholder="Ex: Push Pull Legs, Full Body..."
+              autoFocus
+              className="w-full bg-white border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-lg font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
+            />
+          </div>
+
+          <button
+            onClick={() => { if (draft.name.trim()) setView('workouts') }}
+            disabled={!draft.name.trim()}
+            className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[56px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none"
+          >
+            Suivant →
+          </button>
+        </div>
       </div>
     )
   }
 
+  // ────────────────────────────────────────────────────────────────────────────
+  // VIEW: workouts
+  // ────────────────────────────────────────────────────────────────────────────
+  if (view === 'workouts') {
+    return (
+      <div className="min-h-screen bg-[#f8f8fb] flex flex-col pb-8">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 pt-[env(safe-area-inset-top,16px)] pb-3 bg-white border-b border-gray-100">
+          <button onClick={() => setView('program-name')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
+            <ChevronLeft size={20} className="text-gray-700" />
+          </button>
+          <h1 className="font-black text-gray-900 text-lg flex-1 truncate">{draft.name}</h1>
+        </div>
+
+        <div className="flex-1 px-5 pt-6 space-y-4">
+          {/* Title row */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-black text-gray-900">Mes séances</h2>
+            <button
+              onClick={() => openWorkoutSheet(null)}
+              className="flex items-center gap-1.5 bg-gray-950 text-white px-4 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform"
+            >
+              <Plus size={15} /> Ajouter
+            </button>
+          </div>
+
+          {/* Workout list */}
+          {draft.workouts.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 flex flex-col items-center gap-3">
+              <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
+                <Dumbbell size={24} className="text-gray-300" />
+              </div>
+              <p className="text-sm font-bold text-gray-400">Aucune séance</p>
+              <p className="text-xs text-gray-300">Ajoute ta première séance</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {draft.workouts.map((w, i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 truncate">{w.name || 'Séance sans nom'}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{w.exercises.length} exercice{w.exercises.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => {
+                          setActiveWorkoutIdx(i)
+                          setView('exercise-library')
+                        }}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+                        title="Ajouter des exercices"
+                      >
+                        <Plus size={15} className="text-gray-500" />
+                      </button>
+                      <button
+                        onClick={() => openWorkoutSheet(i)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+                      >
+                        <Pencil size={14} className="text-gray-400" />
+                      </button>
+                      <button
+                        onClick={() => removeWorkout(i)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={14} className="text-red-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Save button */}
+        <div className="px-5 pt-6">
+          <button
+            onClick={handleSave}
+            disabled={saving || !draft.name.trim()}
+            className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[56px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none"
+          >
+            {saving ? 'Enregistrement...' : draft.id ? 'Mettre à jour' : 'Enregistrer le programme'}
+          </button>
+        </div>
+
+        {/* Workout name bottom sheet */}
+        <BottomSheet
+          isOpen={workoutSheet.open}
+          onClose={() => setWorkoutSheet(s => ({ ...s, open: false }))}
+          title={workoutSheet.idx !== null ? 'Renommer la séance' : 'Nouvelle séance'}
+        >
+          <div className="space-y-4 pb-4">
+            <input
+              type="text"
+              value={workoutSheet.name}
+              onChange={e => setWorkoutSheet(s => ({ ...s, name: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') confirmWorkoutSheet() }}
+              placeholder="Ex: Push, Pull, Legs..."
+              autoFocus
+              className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
+            />
+            <button
+              onClick={confirmWorkoutSheet}
+              className={cn(
+                'w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]',
+                !workoutSheet.name.trim() && 'opacity-40'
+              )}
+            >
+              {workoutSheet.idx !== null ? 'Renommer' : 'Suivant →'}
+            </button>
+          </div>
+        </BottomSheet>
+      </div>
+    )
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // VIEW: list (default)
+  // ────────────────────────────────────────────────────────────────────────────
   return (
     <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
       <Navbar />
@@ -232,8 +383,10 @@ export default function ProgramsPage() {
             <h1 className="text-2xl font-black text-gray-950">Programmes</h1>
             <p className="text-gray-400 text-sm mt-0.5">{programs.length} programme{programs.length !== 1 ? 's' : ''}</p>
           </div>
-          <button onClick={openCreate}
-            className="flex items-center gap-2 bg-gray-950 text-white px-4 py-2.5 rounded-2xl text-sm font-bold shadow-[0_4px_14px_rgba(0,0,0,0.2)] active:scale-95 transition-transform">
+          <button
+            onClick={startCreate}
+            className="flex items-center gap-2 bg-gray-950 text-white px-4 py-2.5 rounded-2xl text-sm font-bold shadow-[0_4px_14px_rgba(0,0,0,0.2)] active:scale-95 transition-transform"
+          >
             <Plus size={16} /> Créer
           </button>
         </div>
@@ -276,19 +429,15 @@ export default function ProgramsPage() {
                         {p.workouts.map((w, i) => (
                           <div key={w.id} className="flex items-center gap-2">
                             <span className="text-[11px] font-black text-gray-300 w-5">{i + 1}.</span>
-                            <span className="text-xs font-semibold text-gray-700 flex-1 truncate">
-                              {w.name || 'Séance sans nom'}
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-medium">
-                              {w.workout_exercises.length} ex.
-                            </span>
+                            <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{w.name || 'Séance sans nom'}</span>
+                            <span className="text-[10px] text-gray-400 font-medium">{w.workout_exercises.length} ex.</span>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0 mt-0.5">
-                    <button onClick={() => openEdit(p)} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors">
+                    <button onClick={() => startEdit(p)} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors">
                       <Pencil size={14} className="text-gray-400" />
                     </button>
                     <button onClick={() => setDeleteConfirm(p.id)} className="w-9 h-9 flex items-center justify-center hover:bg-red-50 rounded-xl transition-colors">
@@ -306,164 +455,15 @@ export default function ProgramsPage() {
       <BottomSheet isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Supprimer le programme ?">
         <div className="space-y-3 pb-2">
           <p className="text-gray-500 text-sm">Cette action supprimera le programme et toutes ses séances.</p>
-          <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
-            className="w-full bg-red-500 text-white rounded-2xl py-4 font-bold shadow-[0_4px_14px_rgba(239,68,68,0.3)] active:scale-[0.98] transition-all">
-            Supprimer
-          </button>
-          <button onClick={() => setDeleteConfirm(null)} className={btnSecondary}>Annuler</button>
-        </div>
-      </BottomSheet>
-
-      {/* Create / Edit sheet */}
-      <BottomSheet
-        isOpen={sheetOpen && !libraryOpen}
-        onClose={() => setSheetOpen(false)}
-        title={editId ? 'Modifier le programme' : 'Nouveau programme'}
-      >
-        <div className="space-y-5 pb-4">
-
-          {/* Program name */}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nom du programme</label>
-            <input type="text" value={programName} onChange={e => setProgramName(e.target.value)}
-              placeholder="Ex: Push Pull Legs, Full Body..."
-              className={inputField + ' font-semibold'} />
-          </div>
-
-          {/* Recurrence */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Récurrence</label>
-              <button
-                onClick={() => setRecurrenceEnabled(e => !e)}
-                className={cn(
-                  'w-11 h-6 rounded-full transition-all relative',
-                  recurrenceEnabled ? 'bg-indigo-500' : 'bg-gray-200'
-                )}
-              >
-                <span className={cn(
-                  'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all',
-                  recurrenceEnabled ? 'left-5' : 'left-0.5'
-                )} />
-              </button>
-            </div>
-            {recurrenceEnabled && (
-              <div className="flex gap-2 flex-wrap">
-                {RECURRENCE_OPTIONS.map(w => (
-                  <button key={w} onClick={() => setRecurrenceWeeks(w)}
-                    className={cn(
-                      'flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all min-w-[52px]',
-                      recurrenceWeeks === w ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500'
-                    )}>
-                    {w}sem
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Workouts */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Séances {workouts.length > 0 && <span className="text-gray-950 normal-case">({workouts.length})</span>}
-              </label>
-            </div>
-
-            {workouts.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-gray-200 py-5 text-center">
-                <p className="text-sm text-gray-400 font-medium">Aucune séance</p>
-                <p className="text-xs text-gray-300 mt-0.5">Ajoute des séances à ce programme</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {workouts.map((w, wi) => (
-                  <div key={wi} className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                    {/* Workout header */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-col gap-0.5">
-                        <button
-                          onClick={() => moveWorkout(wi, 'up')}
-                          disabled={wi === 0}
-                          className="w-6 h-5 flex items-center justify-center rounded disabled:opacity-20 hover:bg-gray-200 transition-colors">
-                          <ChevronUp size={12} className="text-gray-500" />
-                        </button>
-                        <button
-                          onClick={() => moveWorkout(wi, 'down')}
-                          disabled={wi === workouts.length - 1}
-                          className="w-6 h-5 flex items-center justify-center rounded disabled:opacity-20 hover:bg-gray-200 transition-colors">
-                          <ChevronDown size={12} className="text-gray-500" />
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        value={w.name}
-                        onChange={e => setWorkouts(prev => prev.map((x, i) => i === wi ? { ...x, name: e.target.value } : x))}
-                        placeholder={`Séance ${wi + 1} (ex: Push, Pull, Legs...)`}
-                        className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 font-semibold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
-                      />
-                      <button
-                        onClick={() => removeWorkout(wi)}
-                        className="w-9 h-9 flex items-center justify-center hover:bg-red-50 rounded-xl transition-colors shrink-0">
-                        <Trash2 size={14} className="text-red-400" />
-                      </button>
-                    </div>
-
-                    {/* Exercises list */}
-                    {w.exercises.length > 0 && (
-                      <div className="space-y-1.5">
-                        {w.exercises.map((ex, ei) => (
-                          <div key={ei} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2">
-                            <span className="text-xs font-black text-gray-300 w-5">{ei + 1}.</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-gray-700 truncate">
-                                {ex.cardio_sets > 0 && <span className="mr-1">🏃</span>}
-                                {ex.source === 'library'
-                                  ? `Exercice lib. (${ex.work_sets > 0 ? `${ex.work_sets} séries` : `${ex.cardio_sets} sets`})`
-                                  : `Exercice custom (${ex.work_sets > 0 ? `${ex.work_sets} séries` : `${ex.cardio_sets} sets`})`
-                                }
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => removeExerciseFromWorkout(wi, ei)}
-                              className="w-7 h-7 flex items-center justify-center hover:bg-red-50 rounded-lg transition-colors shrink-0">
-                              <span className="text-red-300 text-sm leading-none">×</span>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add exercises button */}
-                    <button
-                      onClick={() => openLibraryForWorkout(wi)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm font-bold text-gray-400 hover:border-gray-950 hover:text-gray-950 transition-all"
-                    >
-                      <Dumbbell size={14} /> Ajouter des exercices
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <button onClick={addWorkout}
-              className="w-full flex items-center justify-center gap-2 mt-3 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-bold text-gray-400 hover:border-gray-950 hover:text-gray-950 transition-all">
-              <Plus size={16} /> Ajouter une séance
-            </button>
-          </div>
-
-          <button onClick={handleSave} disabled={saving || !programName.trim()} className={btnPrimary}>
-            {saving ? 'Enregistrement...' : editId ? 'Mettre à jour' : 'Créer le programme'}
+          <button
+            onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
+            className="w-full bg-red-500 text-white rounded-2xl py-4 font-bold shadow-[0_4px_14px_rgba(239,68,68,0.3)] active:scale-[0.98] transition-all"
+          >Supprimer</button>
+          <button onClick={() => setDeleteConfirm(null)} className="w-full bg-white text-gray-800 rounded-2xl font-semibold min-h-[52px] flex items-center justify-center border border-gray-100 shadow-sm">
+            Annuler
           </button>
         </div>
       </BottomSheet>
-
-      {/* Exercise Library */}
-      <ExerciseLibrary
-        isOpen={libraryOpen}
-        onClose={() => { setLibraryOpen(false); setActiveWorkoutIndex(null) }}
-        onConfirm={handleLibraryConfirm}
-      />
     </div>
   )
 }
