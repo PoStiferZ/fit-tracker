@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, ClipboardList, Pill, User } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Pill, User, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const manageLinks = [
@@ -11,13 +11,16 @@ const manageLinks = [
 
 const allLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  ...manageLinks,
+  { href: '/programs', label: 'Programmes', icon: ClipboardList },
+  { href: '/history', label: 'Historique', icon: History },
+  { href: '/supplements', label: 'Compléments', icon: Pill },
   { href: '/profile', label: 'Profil', icon: User },
 ]
 
 const mobileLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/programs', label: 'Programmes', icon: ClipboardList },
+  { href: '/history', label: 'Historique', icon: History },
   { href: '/supplements', label: 'Compléments', icon: Pill },
   { href: '/profile', label: 'Profil', icon: User },
 ]
