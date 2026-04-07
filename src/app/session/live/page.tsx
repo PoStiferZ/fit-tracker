@@ -493,6 +493,8 @@ function LiveSessionInner() {
     ])
 
     if (!sessionRes.data) { router.replace('/dashboard'); return }
+    // If session was abandoned/finished externally, don't load it
+    if (sessionRes.data.status !== 'active') { router.replace('/dashboard'); return }
     setLiveSession(sessionRes.data as LiveSession)
     if (profileRes.data?.weight_kg) setProfileWeight(profileRes.data.weight_kg)
 
@@ -549,15 +551,17 @@ function LiveSessionInner() {
       })
     }
 
-    // Always position on the first uncompleted set (covers new sessions too)
+    // Position on first uncompleted set
     const firstUncompleted = builtSets.findIndex(s => !s.completed)
     if (firstUncompleted !== -1) {
       setCurrentExIdx(builtSets[firstUncompleted].exerciseIndex)
       setCurrentSetIdx(builtSets[firstUncompleted].setIndex)
       setCurrentSetType(builtSets[firstUncompleted].setType)
-    } else {
+    } else if (builtSets.length > 0) {
+      // All sets already completed (resumed finished session) → show finished screen
       setPhase('finished')
     }
+    // builtSets.length === 0 → workout has no sets configured, stay on exercise phase
 
     setSets(builtSets)
     setLoading(false)
