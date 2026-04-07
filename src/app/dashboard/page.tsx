@@ -136,8 +136,8 @@ export default function DashboardPage() {
 
   const getDayEntry = (day: number) => weekPlan.find(d => d.day_of_week === day)
 
-  const completedCount = weekPlan.filter(d => d.completed).length
-  const scheduledCount = weekPlan.filter(d => d.workout_id || d.program_id).length
+  const completedCount = weekPlan.filter(d => d.completed && !!d.workout_id).length
+  const scheduledCount = weekPlan.filter(d => !!d.workout_id).length
 
   const workoutsForProgram = (programId: string) =>
     workouts.filter(w => w.program_id === programId).sort((a, b) => a.order_index - b.order_index)
@@ -343,7 +343,7 @@ export default function DashboardPage() {
                     readonly={isPastWeek}
                     onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
                     onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}
-                    onLaunch={isToday && getWorkoutForDay(dayNum) ? () => startLiveSessionDirect(getWorkoutForDay(dayNum)!) : undefined}
+                    onLaunch={getWorkoutForDay(dayNum) && !isPastWeek ? () => startLiveSessionDirect(getWorkoutForDay(dayNum)!) : undefined}
                   />
                 )
               })}

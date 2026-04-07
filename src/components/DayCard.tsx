@@ -88,45 +88,48 @@ export default function DayCard({
         )}
       </div>
 
-      {/* Right action */}
+      {/* Right actions */}
       <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
         {readonly ? (
           <div className="w-9 h-9 flex items-center justify-center">
             <Lock size={13} className={isToday ? 'text-white/30' : 'text-gray-300'} />
           </div>
-        ) : completed && hasSession ? (
-          /* Green check — only for sessions (not rest days) */
-          <button
-            onClick={e => { e.stopPropagation(); onToggle?.() }}
-            className="w-9 h-9 rounded-xl bg-green-500 border-2 border-green-500 shadow-[0_2px_8px_rgba(34,197,94,0.4)] flex items-center justify-center active:scale-90 transition-all"
-          >
-            <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="2.5,8.5 6.5,12.5 13.5,4.5" />
-            </svg>
-          </button>
-        ) : hasSession && onLaunch ? (
-          /* Démarrer button — only if not yet completed */
-          <button
-            onClick={e => { e.stopPropagation(); onLaunch() }}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-90',
-              isToday
-                ? 'bg-white/15 text-white hover:bg-white/25'
-                : 'bg-gray-950 text-white shadow-sm hover:bg-gray-800'
-            )}
-          >
-            <Play size={11} className="fill-current" />
-            Démarrer
-          </button>
         ) : hasSession ? (
-          /* Manual toggle for days without launch */
-          <button
-            onClick={e => { e.stopPropagation(); onToggle?.() }}
-            className={cn(
-              'w-9 h-9 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90',
-              isToday ? 'border-white/30 hover:border-white/60' : 'border-gray-200 hover:border-gray-400'
+          <>
+            {/* Démarrer — toujours visible */}
+            {onLaunch && (
+              <button
+                onClick={e => { e.stopPropagation(); onLaunch() }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-90',
+                  isToday
+                    ? 'bg-white/15 text-white hover:bg-white/25'
+                    : 'bg-gray-950 text-white shadow-sm hover:bg-gray-800'
+                )}
+              >
+                <Play size={11} className="fill-current" />
+                Démarrer
+              </button>
             )}
-          />
+            {/* Coche — verte si terminé, vide sinon */}
+            <button
+              onClick={e => { e.stopPropagation(); onToggle?.() }}
+              className={cn(
+                'w-9 h-9 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90 shrink-0',
+                completed
+                  ? 'bg-green-500 border-green-500 shadow-[0_2px_8px_rgba(34,197,94,0.4)]'
+                  : isToday
+                    ? 'border-white/30 hover:border-white/60'
+                    : 'border-gray-200 hover:border-gray-400'
+              )}
+            >
+              {completed && (
+                <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="2.5,8.5 6.5,12.5 13.5,4.5" />
+                </svg>
+              )}
+            </button>
+          </>
         ) : null}
       </div>
     </div>
