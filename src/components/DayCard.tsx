@@ -94,8 +94,8 @@ export default function DayCard({
           <div className="w-9 h-9 flex items-center justify-center">
             <Lock size={13} className={isToday ? 'text-white/30' : 'text-gray-300'} />
           </div>
-        ) : completed ? (
-          /* Always show green check when completed — including rest days */
+        ) : completed && hasSession ? (
+          /* Green check — only for sessions (not rest days) */
           <button
             onClick={e => { e.stopPropagation(); onToggle?.() }}
             className="w-9 h-9 rounded-xl bg-green-500 border-2 border-green-500 shadow-[0_2px_8px_rgba(34,197,94,0.4)] flex items-center justify-center active:scale-90 transition-all"

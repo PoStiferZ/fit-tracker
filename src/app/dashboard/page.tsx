@@ -199,7 +199,7 @@ export default function DashboardPage() {
     const profileId = getProfileId()!
     const existing = weekPlan.find(d => d.day_of_week === editDay)
     if (existing) {
-      const updated = { program_id: null as string | null, workout_id: null as string | null, completed: true }
+      const updated = { program_id: null as string | null, workout_id: null as string | null, completed: false }
       await supabase.from('weekly_plan').update(updated).eq('id', existing.id)
       setWeekPlan(prev => prev.map(d => d.day_of_week === editDay ? { ...d, ...updated } : d))
     } else {
@@ -209,7 +209,7 @@ export default function DashboardPage() {
         day_of_week: editDay!,
         program_id: null as string | null,
         workout_id: null as string | null,
-        completed: true,
+        completed: false,
         week_start: weekStart,
         is_override: false,
       }
