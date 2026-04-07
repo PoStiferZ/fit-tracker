@@ -2,19 +2,18 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getProfileId, setProfileId } from '@/lib/cookies'
+import { getProfileId } from '@/lib/cookies'
 import { calculateAge, getMonday, formatDateISO, cn } from '@/lib/utils'
 import { fetchStreak } from '@/lib/streak'
 import { DAYS } from '@/lib/constants'
-import type { Profile, Program, Workout, WeeklyPlan, LiveSession } from '@/types'
+import type { Profile, Program, Workout, WeeklyPlan } from '@/types'
 import Navbar from '@/components/Navbar'
 import DayCard from '@/components/DayCard'
 import BottomSheet from '@/components/BottomSheet'
 import ProgressRing from '@/components/ProgressRing'
-import ProfileAvatar from '@/components/ProfileAvatar'
 import SupplementsTab from '@/components/SupplementsTab'
 import WeekNav from '@/components/WeekNav'
-import { Users, Check, Plus, Lock, ChevronRight, Play } from 'lucide-react'
+import { Check, Lock, ChevronRight } from 'lucide-react'
 
 type Tab = 'semaine' | 'complements'
 
@@ -34,26 +33,20 @@ function formatWeekLabel(monday: Date): string {
 export default function DashboardPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
-  const [workouts, setWorkouts] = useState<Workout[]>([]) // all workouts across all programs
+  const [workouts, setWorkouts] = useState<Workout[]>([])
   const [weekPlan, setWeekPlan] = useState<WeeklyPlan[]>([])
   const [streak, setStreak] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('semaine')
   const [weekOffset, setWeekOffset] = useState(0)
+  const [launching, setLaunching] = useState(false)
 
   // Assignment sheet
   const [editDay, setEditDay] = useState<number | null>(null)
   const [assignStep, setAssignStep] = useState<'program' | 'workout'>('program')
   const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>('')
-
-  // Launch sheet
-  const [launchWorkout, setLaunchWorkout] = useState<Workout | null>(null)
-  const [launchExerciseCount, setLaunchExerciseCount] = useState<number>(0)
-  const [launching, setLaunching] = useState(false)
 
   const todayMonday = getMonday(new Date())
   const viewMonday = addWeeks(todayMonday, weekOffset)
@@ -64,45 +57,45 @@ export default function DashboardPage() {
   const todayJS = new Date().getDay()
   const todayNum = todayJS === 0 ? 7 : todayJS
 
-  const load = useCallback(async () => {
+  // ── Initial load (profile + programs + workouts) — runs once ──
+  const loadBase = useCallback(async () => {
     const profileId = getProfileId()
     if (!profileId) { router.replace('/'); return }
-    const [pRes, allPRes, progRes, wpRes] = await Promise.all([
+    const [pRes, progRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', profileId).single(),
-      supabase.from('profiles').select('*').order('first_name'),
       supabase.from('programs').select('*').eq('profile_id', profileId).order('created_at'),
-      supabase.from('weekly_plan').select('*').eq('profile_id', profileId).eq('week_start', weekStart),
     ])
     if (!pRes.data) { router.replace('/'); return }
     setProfile(pRes.data)
-    setAllProfiles(allPRes.data || [])
     const progs: Program[] = progRes.data || []
     setPrograms(progs)
-
-    // Load all workouts for these programs
     if (progs.length > 0) {
-      const programIds = progs.map(p => p.id)
       const { data: wks } = await supabase
-        .from('workouts')
-        .select('*')
-        .in('program_id', programIds)
+        .from('workouts').select('*')
+        .in('program_id', progs.map(p => p.id))
         .order('order_index')
       setWorkouts(wks || [])
-    } else {
-      setWorkouts([])
     }
+    const s = await fetchStreak()
+    setStreak(s)
+    setLoading(false)
+  }, [router])
 
-    let currentPlan: WeeklyPlan[] = wpRes.data || []
+  // ── Week plan load — runs when weekOffset changes ──
+  const loadWeekPlan = useCallback(async (ws: string, isCurrent: boolean, todayMon: Date) => {
+    const profileId = getProfileId()
+    if (!profileId) return
+    const { data: wpData } = await supabase
+      .from('weekly_plan').select('*')
+      .eq('profile_id', profileId).eq('week_start', ws)
+    let plan: WeeklyPlan[] = wpData || []
 
     // Auto-copy previous week if current week is empty
-    if (isCurrentWeek && currentPlan.length === 0) {
-      const prevMonday = addWeeks(todayMonday, -1)
-      const prevWeekStart = formatDateISO(prevMonday)
+    if (isCurrent && plan.length === 0) {
+      const prevWeekStart = formatDateISO(addWeeks(todayMon, -1))
       const { data: prevData } = await supabase
-        .from('weekly_plan')
-        .select('*')
-        .eq('profile_id', profileId)
-        .eq('week_start', prevWeekStart)
+        .from('weekly_plan').select('*')
+        .eq('profile_id', profileId).eq('week_start', prevWeekStart)
       if (prevData && prevData.length > 0) {
         const rows = prevData
           .filter((d: WeeklyPlan) => d.workout_id || d.program_id)
@@ -112,25 +105,22 @@ export default function DashboardPage() {
             program_id: d.program_id,
             workout_id: d.workout_id,
             completed: false,
-            week_start: weekStart,
+            week_start: ws,
             is_override: false,
           }))
         if (rows.length > 0) {
           const { data: inserted } = await supabase.from('weekly_plan').insert(rows).select()
-          if (inserted) currentPlan = inserted
+          if (inserted) plan = inserted
         }
       }
     }
+    setWeekPlan(plan)
+  }, [])
 
-    setWeekPlan(currentPlan)
-    setLoading(false)
-    if (isCurrentWeek) {
-      const s = await fetchStreak()
-      setStreak(s)
-    }
-  }, [router, weekStart, isCurrentWeek, todayMonday])
-
-  useEffect(() => { load() }, [load])
+  useEffect(() => { loadBase() }, [loadBase])
+  useEffect(() => {
+    loadWeekPlan(weekStart, isCurrentWeek, todayMonday)
+  }, [weekStart, isCurrentWeek, todayMonday, loadWeekPlan])
 
   const getProgramForDay = (day: number): Program | null => {
     const entry = weekPlan.find(d => d.day_of_week === day)
@@ -214,39 +204,17 @@ export default function DashboardPage() {
     setEditDay(null)
   }
 
-  async function openLaunchSheet(workout: Workout) {
-    setLaunchWorkout(workout)
-    const { count } = await supabase
-      .from('workout_exercises')
-      .select('id', { count: 'exact', head: true })
-      .eq('workout_id', workout.id)
-    setLaunchExerciseCount(count || 0)
-  }
-
-  async function startLiveSession() {
-    if (!launchWorkout || launching) return
+  async function startLiveSessionDirect(workout: Workout) {
+    if (launching) return
     const profileId = getProfileId()!
     setLaunching(true)
     const { data, error } = await supabase
       .from('live_sessions')
-      .insert({
-        profile_id: profileId,
-        workout_id: launchWorkout.id,
-        status: 'active',
-      })
-      .select()
-      .single()
+      .insert({ profile_id: profileId, workout_id: workout.id, status: 'active' })
+      .select().single()
     setLaunching(false)
     if (error || !data) { console.error(error); return }
-    const session = data as LiveSession
-    router.push(`/session/live?id=${session.id}`)
-  }
-
-  function switchProfile(p: Profile) {
-    setProfileId(p.id)
-    setProfileSheetOpen(false)
-    setLoading(true)
-    load()
+    router.push(`/session/live?id=${data.id}`)
   }
 
   if (loading) return (
@@ -261,20 +229,11 @@ export default function DashboardPage() {
       <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6 space-y-4">
 
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <ProfileAvatar name={profile!.first_name} size="md" />
-          <div className="flex-1 min-w-0">
-            <h1 className="font-black text-gray-950 text-xl leading-tight">Bonjour {profile?.first_name} 👋</h1>
-            <p className="text-gray-400 text-xs font-medium mt-0.5">
-              {calculateAge(profile!.birth_date)} ans · {profile?.height_cm} cm · {profile?.weight_kg} kg
-            </p>
-          </div>
-          <button
-            onClick={() => setProfileSheetOpen(true)}
-            className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors"
-          >
-            <Users size={16} className="text-gray-500" />
-          </button>
+        <div>
+          <h1 className="font-black text-gray-950 text-xl leading-tight">Bonjour {profile?.first_name} 👋</h1>
+          <p className="text-gray-400 text-xs font-medium mt-0.5">
+            {calculateAge(profile!.birth_date)} ans · {profile?.height_cm} cm · {profile?.weight_kg} kg
+          </p>
         </div>
 
         {/* Tabs */}
@@ -369,7 +328,7 @@ export default function DashboardPage() {
                     readonly={isPastWeek}
                     onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
                     onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}
-                    onLaunch={isToday && getWorkoutForDay(dayNum) ? () => openLaunchSheet(getWorkoutForDay(dayNum)!) : undefined}
+                    onLaunch={isToday && getWorkoutForDay(dayNum) ? () => startLiveSessionDirect(getWorkoutForDay(dayNum)!) : undefined}
                   />
                 )
               })}
@@ -482,62 +441,7 @@ export default function DashboardPage() {
         </div>
       </BottomSheet>
 
-      {/* Launch live session */}
-      <BottomSheet
-        isOpen={!!launchWorkout}
-        onClose={() => setLaunchWorkout(null)}
-        title="Démarrer une séance ?"
-      >
-        {launchWorkout && (
-          <div className="space-y-4 pb-2">
-            <div className="bg-gray-50 rounded-2xl px-4 py-4 border border-gray-100">
-              <p className="font-bold text-gray-900 text-lg">{launchWorkout.name}</p>
-              <p className="text-sm text-gray-400 mt-1">{launchExerciseCount} exercice{launchExerciseCount !== 1 ? 's' : ''}</p>
-            </div>
-            <button
-              onClick={startLiveSession}
-              disabled={launching}
-              className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[64px] flex items-center justify-center gap-2 text-base transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-60"
-            >
-              {launching ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Play size={18} className="fill-white" />
-                  C&apos;est parti 🚀
-                </>
-              )}
-            </button>
-          </div>
-        )}
-      </BottomSheet>
 
-      {/* Profile switcher */}
-      <BottomSheet isOpen={profileSheetOpen} onClose={() => setProfileSheetOpen(false)} title="Changer de profil">
-        <div className="space-y-2.5 pb-2">
-          {allProfiles.map(p => (
-            <button key={p.id} onClick={() => switchProfile(p)}
-              className={cn(
-                'w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 transition-all min-h-[60px]',
-                p.id === profile?.id ? 'border-gray-950 bg-gray-950/5' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'
-              )}
-            >
-              <ProfileAvatar name={p.first_name} size="sm" />
-              <div className="flex-1 text-left">
-                <p className="font-bold text-gray-900 text-sm">{p.first_name}</p>
-                <p className="text-xs text-gray-400">{calculateAge(p.birth_date)} ans · {p.weight_kg} kg</p>
-              </div>
-              {p.id === profile?.id && <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">Actif</span>}
-            </button>
-          ))}
-          <button
-            onClick={() => { setProfileSheetOpen(false); router.push('/') }}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 border-2 border-dashed border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-all text-sm font-semibold"
-          >
-            <Plus size={16} /> Nouveau profil
-          </button>
-        </div>
-      </BottomSheet>
     </div>
   )
 }

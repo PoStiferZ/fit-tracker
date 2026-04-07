@@ -1,8 +1,7 @@
 'use client'
-import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { Program, Workout } from '@/types'
-import { Pencil, Check, Lock, Play } from 'lucide-react'
+import { Lock, Play } from 'lucide-react'
 
 interface DayCardProps {
   dayName: string
@@ -13,7 +12,7 @@ interface DayCardProps {
   isToday?: boolean
   isOverride?: boolean
   readonly?: boolean
-  onEdit?: () => void
+  onEdit?: () => void      // opens assign modal — triggered by clicking the whole card
   onToggle?: () => void
   onLaunch?: () => void
 }
@@ -31,20 +30,28 @@ export default function DayCard({
   onToggle,
   onLaunch,
 }: DayCardProps) {
-  const router = useRouter()
   const today = new Date().getDay()
   const todayNum = today === 0 ? 7 : today
   const isPast = !isToday && dayNum < todayNum
   const hasSession = !!workout
 
+  function handleCardClick() {
+    if (readonly) return
+    onEdit?.()
+  }
+
   return (
-    <div className={cn(
-      'rounded-2xl px-4 py-3.5 flex items-center gap-3 transition-all',
-      isToday
-        ? 'bg-gray-950 shadow-[0_4px_20px_rgba(0,0,0,0.2)]'
-        : 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100',
-      isPast && !completed && !isToday && 'opacity-50',
-    )}>
+    <div
+      onClick={handleCardClick}
+      className={cn(
+        'rounded-2xl px-4 py-3.5 flex items-center gap-3 transition-all',
+        !readonly && 'cursor-pointer active:scale-[0.98]',
+        isToday
+          ? 'bg-gray-950 shadow-[0_4px_20px_rgba(0,0,0,0.2)]'
+          : 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100',
+        isPast && !completed && !isToday && 'opacity-50',
+      )}
+    >
       {/* Day label */}
       <div className="w-10 shrink-0">
         <p className={cn(
@@ -56,14 +63,8 @@ export default function DayCard({
         {isToday && <p className="text-white text-xs font-semibold mt-0.5">Auj.</p>}
       </div>
 
-      {/* Workout info — clickable zone navigates to programs page */}
-      <div
-        className={cn(
-          'flex-1 min-w-0',
-          hasSession && !readonly ? 'cursor-pointer' : ''
-        )}
-        onClick={() => { if (hasSession && !readonly) router.push('/programs') }}
-      >
+      {/* Workout info */}
+      <div className="flex-1 min-w-0">
         {hasSession ? (
           <div>
             <div className="flex items-center gap-1.5">
@@ -71,7 +72,7 @@ export default function DayCard({
                 {workout!.name}
               </p>
               {isOverride && (
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" title="Override semaine" />
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
               )}
             </div>
             {program && (
@@ -79,60 +80,54 @@ export default function DayCard({
                 {program.name}
               </p>
             )}
-            {isToday && onLaunch && !readonly && (
-              <button
-                onClick={e => { e.stopPropagation(); onLaunch() }}
-                className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors"
-              >
-                <Play size={9} className="fill-current" />
-                Lancer
-              </button>
-            )}
           </div>
         ) : (
-          <p className={cn('text-sm italic', isToday ? 'text-white/40' : 'text-gray-300')}>Repos</p>
+          <p className={cn('text-sm italic', isToday ? 'text-white/40' : 'text-gray-300')}>
+            {readonly ? 'Repos' : 'Appuyer pour planifier'}
+          </p>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 shrink-0">
+      {/* Right action */}
+      <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
         {readonly ? (
           <div className="w-9 h-9 flex items-center justify-center">
             <Lock size={13} className={isToday ? 'text-white/30' : 'text-gray-300'} />
           </div>
-        ) : (
-          onEdit && (
-            <button
-              onClick={onEdit}
-              className={cn(
-                'w-9 h-9 flex items-center justify-center rounded-xl transition-colors',
-                isToday ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-              )}
-            >
-              <Pencil size={14} className={isToday ? 'text-white/50' : 'text-gray-400'} />
-            </button>
-          )
-        )}
-
-        {hasSession && (
+        ) : hasSession && onLaunch ? (
+          /* Démarrer button (today only) */
           <button
-            onClick={e => { e.stopPropagation(); if (!readonly) onToggle?.() }}
-            disabled={readonly}
+            onClick={e => { e.stopPropagation(); onLaunch() }}
             className={cn(
-              'w-9 h-9 rounded-xl border-2 flex items-center justify-center transition-all',
-              completed
-                ? 'bg-green-500 border-green-500 shadow-[0_2px_8px_rgba(34,197,94,0.4)]'
-                : readonly
-                  ? 'border-gray-100 bg-gray-50 cursor-not-allowed'
-                  : isToday
-                    ? 'border-white/30 hover:border-white/60 active:scale-90'
-                    : 'border-gray-200 hover:border-gray-400 active:scale-90'
+              'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-90',
+              isToday
+                ? 'bg-white/15 text-white hover:bg-white/25'
+                : 'bg-gray-950 text-white shadow-sm hover:bg-gray-800'
             )}
           >
-            {completed && <Check size={16} className="text-white" strokeWidth={3} />}
-            {!completed && readonly && <Lock size={11} className="text-gray-300" />}
+            <Play size={11} className="fill-current" />
+            Démarrer
           </button>
-        )}
+        ) : hasSession ? (
+          /* Completed toggle (non-today days with session, no launch) */
+          <button
+            onClick={e => { e.stopPropagation(); onToggle?.() }}
+            className={cn(
+              'w-9 h-9 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90',
+              completed
+                ? 'bg-green-500 border-green-500 shadow-[0_2px_8px_rgba(34,197,94,0.4)]'
+                : isToday
+                  ? 'border-white/30 hover:border-white/60'
+                  : 'border-gray-200 hover:border-gray-400'
+            )}
+          >
+            {completed && (
+              <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="2.5,8.5 6.5,12.5 13.5,4.5" />
+              </svg>
+            )}
+          </button>
+        ) : null}
       </div>
     </div>
   )
