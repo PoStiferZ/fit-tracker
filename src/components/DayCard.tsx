@@ -140,13 +140,7 @@ export default function DayCard({
                 </p>
                 {isOverride && <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />}
               </div>
-              {program && (
-                <p className={cn('text-xs truncate mt-0.5',
-                  missed ? 'text-red-300' : isToday ? 'text-white/40' : 'text-gray-400'
-                )}>
-                  {program.name}
-                </p>
-              )}
+
             </div>
           ) : (
             <p className={cn('text-sm font-medium', isToday ? 'text-white/50' : 'text-gray-400')}>
@@ -176,14 +170,13 @@ export default function DayCard({
                 <button
                   onClick={e => { e.stopPropagation(); onLaunch() }}
                   className={cn(
-                    'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-90',
+                    'w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90',
                     isToday
                       ? 'bg-white/15 text-white hover:bg-white/25'
                       : 'bg-gray-950 text-white shadow-sm hover:bg-gray-800'
                   )}
                 >
-                  <Play size={11} className="fill-current" />
-                  Démarrer
+                  <Play size={14} className="fill-current" />
                 </button>
               )}
               <button
