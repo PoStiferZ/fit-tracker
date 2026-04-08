@@ -138,7 +138,21 @@ export default function DashboardPage() {
       }
     }
     setWeekPlan(plan)
+    if (isCurrent) {
+      const curTodayNum = new Date().getDay() === 0 ? 7 : new Date().getDay()
+      await autoMarkMissedRaw(plan, curTodayNum)
+    }
   }, [])
+
+  async function autoMarkMissedRaw(plan: WeeklyPlan[], currentTodayNum: number) {
+    const toMark = plan.filter(d =>
+      d.workout_id && !d.completed && !d.missed && d.day_of_week < currentTodayNum
+    )
+    if (toMark.length === 0) return
+    const ids = toMark.map(d => d.id)
+    await supabase.from('weekly_plan').update({ missed: true }).in('id', ids)
+    setWeekPlan(prev => prev.map(d => ids.includes(d.id) ? { ...d, missed: true } : d))
+  }
 
   useEffect(() => { loadBase() }, [loadBase])
   useEffect(() => {
@@ -227,12 +241,36 @@ export default function DashboardPage() {
     if (isPastWeek) return
     const entry = weekPlan.find(d => d.day_of_week === dayOfWeek)
     if (!entry) return
-    // Optimistic update — immediate visual feedback
-    setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, completed: !current } : d))
-    const { data } = await supabase.from('weekly_plan').update({ completed: !current }).eq('id', entry.id).select().single()
-    // Reconcile with server
+    const newCompleted = !current
+    setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, completed: newCompleted, missed: false } : d))
+    const { data } = await supabase.from('weekly_plan')
+      .update({ completed: newCompleted, missed: false }).eq('id', entry.id).select().single()
     if (data) setWeekPlan(prev => prev.map(d => d.id === data.id ? data : d))
-    else setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, completed: current } : d)) // rollback
+    else setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, completed: current } : d))
+  }
+
+  async function toggleMissed(dayOfWeek: number) {
+    if (isPastWeek) return
+    const entry = weekPlan.find(d => d.day_of_week === dayOfWeek)
+    if (!entry) return
+    const newMissed = !entry.missed
+    setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, missed: newMissed, completed: false } : d))
+    const { data } = await supabase.from('weekly_plan')
+      .update({ missed: newMissed, completed: false }).eq('id', entry.id).select().single()
+    if (data) setWeekPlan(prev => prev.map(d => d.id === data.id ? data : d))
+    else setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, missed: entry.missed } : d))
+  }
+
+  // Auto-mark past days with a workout as missed if not completed
+  async function autoMarkMissed(plan: WeeklyPlan[], ws: string, currentTodayNum: number) {
+    if (weekOffset !== 0) return // only for current week
+    const toMark = plan.filter(d =>
+      d.workout_id && !d.completed && !d.missed && d.day_of_week < currentTodayNum
+    )
+    if (toMark.length === 0) return
+    const ids = toMark.map(d => d.id)
+    await supabase.from('weekly_plan').update({ missed: true }).in('id', ids)
+    setWeekPlan(prev => prev.map(d => ids.includes(d.id) ? { ...d, missed: true } : d))
   }
 
   function openAssignSheet(day: number) {
@@ -507,13 +545,15 @@ export default function DashboardPage() {
                   program={getProgramForDay(dayNum)}
                   workout={getWorkoutForDay(dayNum)}
                   completed={entry?.completed || false}
+                  missed={entry?.missed || false}
                   isToday={isToday}
                   isOverride={entry?.is_override || false}
                   isRestDay={!!(entry && !entry.workout_id)}
                   readonly={isPastWeek}
                   onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
                   onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}
-                  onLaunch={getWorkoutForDay(dayNum) && !isPastWeek ? () => startLiveSessionDirect(getWorkoutForDay(dayNum)!) : undefined}
+                  onMissed={!isPastWeek && !!entry?.workout_id ? () => toggleMissed(dayNum) : undefined}
+                  onLaunch={getWorkoutForDay(dayNum) && !isPastWeek && !entry?.missed ? () => startLiveSessionDirect(getWorkoutForDay(dayNum)!) : undefined}
                 />
               )
             })}

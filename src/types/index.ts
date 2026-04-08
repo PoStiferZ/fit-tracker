@@ -87,6 +87,7 @@ export interface WeeklyPlan {
   program_id: string | null
   workout_id: string | null
   completed: boolean
+  missed: boolean
   week_start: string
   is_override: boolean
 }
