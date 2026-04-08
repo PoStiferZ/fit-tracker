@@ -3,30 +3,27 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, ClipboardList, Pill, User, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const manageLinks = [
-  { href: '/programs', label: 'Programmes', icon: ClipboardList },
-  { href: '/supplements', label: 'Compléments', icon: Pill },
-]
-
-const allLinks = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/programs', label: 'Programmes', icon: ClipboardList },
-  { href: '/history', label: 'Historique', icon: History },
-  { href: '/supplements', label: 'Compléments', icon: Pill },
-  { href: '/profile', label: 'Profil', icon: User },
-]
-
-const mobileLinks = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/programs', label: 'Programmes', icon: ClipboardList },
-  { href: '/history', label: 'Historique', icon: History },
-  { href: '/supplements', label: 'Compléments', icon: Pill },
-  { href: '/profile', label: 'Profil', icon: User },
-]
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function Navbar() {
   const pathname = usePathname()
+  const { t } = useLanguage()
+
+  const allLinks = [
+    { href: '/dashboard', labelKey: 'nav_dashboard', icon: LayoutDashboard },
+    { href: '/programs', labelKey: 'nav_programs', icon: ClipboardList },
+    { href: '/history', labelKey: 'nav_history', icon: History },
+    { href: '/supplements', labelKey: 'nav_supplements', icon: Pill },
+    { href: '/profile', labelKey: 'nav_profile', icon: User },
+  ]
+
+  const mobileLinks = [
+    { href: '/dashboard', labelKey: 'nav_dashboard', icon: LayoutDashboard },
+    { href: '/programs', labelKey: 'nav_programs', icon: ClipboardList },
+    { href: '/history', labelKey: 'nav_history', icon: History },
+    { href: '/supplements', labelKey: 'nav_supplements', icon: Pill },
+    { href: '/profile', labelKey: 'nav_profile', icon: User },
+  ]
 
   return (
     <>
@@ -37,7 +34,7 @@ export default function Navbar() {
           <span className="text-xl font-black text-gray-950">Fitrack</span>
         </div>
         <div className="space-y-1 flex-1">
-          {allLinks.map(({ href, label, icon: Icon }) => (
+          {allLinks.map(({ href, labelKey, icon: Icon }) => (
             <Link key={href} href={href} className={cn(
               'flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-all',
               pathname === href
@@ -45,7 +42,7 @@ export default function Navbar() {
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
             )}>
               <Icon size={18} />
-              {label}
+              {t(labelKey)}
             </Link>
           ))}
         </div>
@@ -58,8 +55,9 @@ export default function Navbar() {
       {/* Mobile bottom bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 px-2 pt-2 pb-[env(safe-area-inset-bottom,12px)]">
         <div className="flex">
-          {mobileLinks.map(({ href, label, icon: Icon }) => {
+          {mobileLinks.map(({ href, labelKey, icon: Icon }) => {
             const active = pathname === href
+            const label = t(labelKey)
             return (
               <Link key={href} href={href} className={cn(
                 'flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all',

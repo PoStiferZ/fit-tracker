@@ -67,3 +67,9 @@ export const ALL_MUSCLES: MuscleGroup[] = [
   'forearms', 'traps', 'core', 'quads', 'hamstrings', 'glutes',
   'calves', 'inner_thighs', 'outer_thighs', 'neck', 'cardio',
 ]
+
+export function getMuscleLabel(muscle: MuscleGroup, lang: string): string {
+  return lang === 'en'
+    ? (MUSCLE_LABELS_EN[muscle] ?? muscle)
+    : (MUSCLE_LABELS[muscle] ?? muscle)
+}

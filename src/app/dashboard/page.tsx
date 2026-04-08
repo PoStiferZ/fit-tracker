@@ -14,6 +14,7 @@ import ProgressRing from '@/components/ProgressRing'
 import SupplementsTab from '@/components/SupplementsTab'
 import WeekNav from '@/components/WeekNav'
 import { Check, Lock } from 'lucide-react'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 type Tab = 'semaine' | 'complements'
 
@@ -32,6 +33,7 @@ function formatWeekLabel(monday: Date): string {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [programs, setPrograms] = useState<Program[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -341,26 +343,109 @@ export default function DashboardPage() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="grid grid-cols-2">
           {([
-            { key: 'semaine', label: '🏋️ Entraînement' },
-            { key: 'complements', label: '💊 Compléments' },
-          ] as const).map(t => (
+            { key: 'semaine', labelKey: 'tab_training' },
+            { key: 'complements', labelKey: 'tab_supplements' },
+          ] as const).map(tab => (
             <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
               className={cn(
                 'py-3.5 text-sm font-bold transition-all border-b-2',
-                activeTab === t.key
+                activeTab === tab.key
                   ? 'text-gray-950 border-gray-950'
                   : 'text-gray-400 border-transparent'
               )}
             >
-              {t.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
       <main className="max-w-lg mx-auto px-4 md:px-6 pt-4 space-y-3">
+
+        {/* ── Calendrier (non-sticky, défile avec le contenu) ── */}
+        {(() => {
+          const todayDate = new Date(); todayDate.setHours(0,0,0,0)
+          const isSemaine = activeTab === 'semaine'
+          const days7 = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(viewMonday); d.setDate(d.getDate() + i); return d
+          })
+          const suppAnchor = new Date(todayDate); suppAnchor.setDate(suppAnchor.getDate() + suppDayOffset)
+          const suppWeekMonday = getMonday(suppAnchor)
+          const suppDays7 = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(suppWeekMonday); d.setDate(d.getDate() + i); return d
+          })
+          const activeDays = isSemaine ? days7 : suppDays7
+          const monthLabel = activeDays[0].toLocaleDateString('fr-FR', { month: 'long' })
+          const monthEnd = activeDays[6].toLocaleDateString('fr-FR', { month: 'long' })
+          const monthDisplay = monthLabel === monthEnd
+            ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+            : `${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1,3)}. – ${monthEnd.charAt(0).toUpperCase() + monthEnd.slice(1,3)}.`
+
+          return (
+            <div className="bg-white rounded-2xl px-3 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-2">{monthDisplay}</p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => isSemaine ? setWeekOffset(o => o - 1) : setSuppDayOffset(o => o - 7)}
+                  disabled={isSemaine ? weekOffset <= minWeekOffset : suppDayOffset - 7 < minDayOffset}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-20 shrink-0"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div className="flex-1 flex justify-between gap-1">
+                  {activeDays.map((d, i) => {
+                    const isToday = d.toDateString() === todayDate.toDateString()
+                    const dayEntry = isSemaine ? weekPlan.find(wp => wp.day_of_week === i + 1) : null
+                    const hasWorkout = isSemaine && !!dayEntry?.workout_id
+                    const done = isSemaine && !!dayEntry?.completed
+                    const missed = isSemaine && !!dayEntry?.missed
+                    const isSuppSelected = !isSemaine && d.toDateString() === suppAnchor.toDateString()
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase">
+                          {['L','M','M','J','V','S','D'][i]}
+                        </span>
+                        <button
+                          disabled={isSemaine || d > todayDate || (!isSemaine && d < createdDate)}
+                          onClick={() => {
+                            if (!isSemaine) {
+                              const diff = Math.round((d.getTime() - todayDate.getTime()) / 86400000)
+                              setSuppDayOffset(diff)
+                            }
+                          }}
+                          className={cn(
+                            'w-full aspect-square max-w-[34px] rounded-xl flex items-center justify-center text-xs font-bold transition-all',
+                            isSemaine
+                              ? (done ? 'bg-green-500 text-white ring-2 ring-green-300' :
+                                 missed ? 'bg-red-500 text-white ring-2 ring-red-300' :
+                                 isToday ? 'bg-gray-950 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]' :
+                                 hasWorkout ? 'bg-orange-100 text-orange-600' :
+                                 'bg-gray-100 text-gray-400')
+                              : (isSuppSelected ? 'bg-gray-950 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]' :
+                                 isToday ? 'bg-gray-200 text-gray-700' :
+                                 d > todayDate ? 'bg-gray-50 text-gray-300' :
+                                 'bg-gray-100 text-gray-500 active:bg-gray-200')
+                          )}
+                        >
+                          {d.getDate()}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+                <button
+                  onClick={() => isSemaine ? setWeekOffset(o => Math.min(0, o + 1)) : setSuppDayOffset(o => Math.min(0, o + 7))}
+                  disabled={isSemaine ? isCurrentWeek : suppDayOffset >= 0}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-20 shrink-0"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── Semaine tab ── */}
         <div className={cn('space-y-3', activeTab !== 'semaine' && 'hidden')}>
@@ -415,7 +500,7 @@ export default function DashboardPage() {
           {isPastWeek && (
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
               <Lock size={14} className="text-amber-500 shrink-0" />
-              <p className="text-amber-700 text-xs font-semibold">Historique — lecture seule</p>
+              <p className="text-amber-700 text-xs font-semibold">{t('history_readonly')}</p>
             </div>
           )}
 
@@ -458,7 +543,7 @@ export default function DashboardPage() {
       <BottomSheet
         isOpen={editDay !== null}
         onClose={() => setEditDay(null)}
-        title={`${editDay ? DAYS[editDay - 1] : ''} — Choisir une séance`}
+        title={`${editDay ? DAYS[editDay - 1] : ''} — ${t('choose_program')}`}
       >
         <div className="space-y-2.5 pb-2">
           {activeProgram ? (
@@ -473,7 +558,7 @@ export default function DashboardPage() {
                     : 'border-gray-100 bg-gray-50 text-gray-700'
                 )}
               >
-                🧘 Repos
+                🧘 {t('rest')}
               </button>
 
               {workoutsForProgram(activeProgram.program_id).map((w, i) => (
@@ -504,7 +589,7 @@ export default function DashboardPage() {
                   onClick={assignWorkout}
                   className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] mt-2"
                 >
-                  <Check size={18} /> Confirmer
+                  <Check size={18} /> {t('confirm')}
                 </button>
               )}
             </>
