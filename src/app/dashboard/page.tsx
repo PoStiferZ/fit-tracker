@@ -399,51 +399,47 @@ export default function DashboardPage() {
         {/* ── Semaine tab ── */}
         <div className={cn('space-y-3', activeTab !== 'semaine' && 'hidden')}>
 
-          {/* Progress card — compact */}
+          {/* Progress card */}
           <div className={cn(
-            'rounded-2xl px-5 py-4 flex items-center gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.12)] relative overflow-hidden',
+            'rounded-2xl px-5 py-4 flex items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.12)] relative overflow-hidden',
             isPastWeek ? 'bg-gray-700' : 'bg-gray-950'
           )}>
             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)' }} />
-            <div className="relative shrink-0">
-              <ProgressRing done={completedCount} total={scheduledCount} size={70} strokeWidth={7} />
-            </div>
-            <div className="flex-1 relative min-w-0">
-              <p className="text-white font-bold text-sm leading-tight">
-                {completedCount === scheduledCount && scheduledCount > 0
-                  ? '🎉 Semaine complète !'
-                  : scheduledCount === 0
-                    ? 'Aucune séance planifiée'
-                    : `${scheduledCount - completedCount} séance${scheduledCount - completedCount > 1 ? 's' : ''} restante${scheduledCount - completedCount > 1 ? 's' : ''}`}
-              </p>
-              {isCurrentWeek && streak > 0 && (
-                <p className="text-orange-400 text-xs font-bold mt-1">🔥 {streak} sem. consécutive{streak > 1 ? 's' : ''}</p>
-              )}
-              {isPastWeek && (
-                <p className="text-white/40 text-xs font-bold mt-1 flex items-center gap-1"><Lock size={10}/> Historique</p>
-              )}
-            </div>
-            {/* Programme actif — inline */}
-            <div className="shrink-0 flex flex-col items-end gap-1">
+
+            {/* Left — programme info */}
+            <div className="relative flex-1 min-w-0 space-y-1.5">
+              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Programme</p>
               {activeProgram ? (
-                <>
-                  <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest">Programme</p>
+                <div className="flex items-center gap-2">
+                  <span className="bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold px-2.5 py-1 rounded-full truncate max-w-[140px]">
+                    {programs.find(p => p.id === activeProgram.program_id)?.name}
+                  </span>
                   <button
                     onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setProgramSheet(true) }}
-                    className="flex items-center gap-1 bg-white/10 hover:bg-white/20 rounded-lg px-2 py-1 transition-colors"
+                    className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition-colors shrink-0"
                   >
-                    <p className="text-white text-xs font-bold max-w-[80px] truncate">{programs.find(p => p.id === activeProgram.program_id)?.name}</p>
-                    <Pencil size={10} className="text-white/50 shrink-0" />
+                    <Pencil size={11} className="text-white/60" />
                   </button>
-                </>
+                </div>
               ) : (
                 <button
                   onClick={() => { setSelectingProgramId(''); setSelectingRecurrence(1); setProgramSheet(true) }}
-                  className="bg-white/10 hover:bg-white/20 text-white/70 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
+                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white/60 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
                 >
-                  + Programme
+                  <span>+ Associer</span>
                 </button>
               )}
+              {isCurrentWeek && streak > 0 && (
+                <p className="text-orange-400 text-xs font-bold">🔥 {streak} sem. consécutive{streak > 1 ? 's' : ''}</p>
+              )}
+              {isPastWeek && (
+                <p className="text-white/40 text-xs font-bold flex items-center gap-1"><Lock size={10}/> Historique</p>
+              )}
+            </div>
+
+            {/* Right — progress ring */}
+            <div className="relative shrink-0 flex flex-col items-center gap-1">
+              <ProgressRing done={completedCount} total={scheduledCount} size={72} strokeWidth={7} />
             </div>
           </div>
 
