@@ -52,6 +52,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [weights, setWeights] = useState<BodyWeightEntry[]>([])
   const [stats, setStats] = useState<StatsData | null>(null)
+  const [consistency, setConsistency] = useState<{ month: string; done: number; missed: number }[]>([])
   const [loading, setLoading] = useState(true)
 
   // Weight input
@@ -148,6 +149,30 @@ export default function ProfilePage() {
     }
 
     setStats({ totalSessions, monthSessions, avgDurationMin, setsByMuscle: volumeByMuscle.map(v => ({ muscle: v.muscle, sets: v.volume })) })
+
+    // ── Consistency chart (6 derniers mois) ──────────────────────────────
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+    const { data: planData } = await supabase
+      .from('weekly_plan')
+      .select('week_start, completed, missed, workout_id')
+      .eq('profile_id', profileId)
+      .gte('week_start', formatDateISO(sixMonthsAgo))
+      .not('workout_id', 'is', null)
+    const monthMap = new Map<string, { done: number; missed: number }>()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      monthMap.set(key, { done: 0, missed: 0 })
+    }
+    ;(planData || []).forEach((row: { week_start: string; completed: boolean; missed: boolean; workout_id: string }) => {
+      const key = row.week_start.slice(0, 7)
+      if (!monthMap.has(key)) return
+      const m = monthMap.get(key)!
+      if (row.completed) m.done++
+      else if (row.missed) m.missed++
+    })
+    setConsistency(Array.from(monthMap.entries()).map(([month, v]) => ({ month, ...v })))
+
     setLoading(false)
   }, [router])
 
@@ -317,6 +342,85 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Consistency chart */}
+        {consistency.length > 0 && (() => {
+          const svgW = 300, svgH = 80, padX = 8, padY = 8
+          const maxVal = Math.max(...consistency.map(c => Math.max(c.done, c.missed)), 1)
+          const n = consistency.length
+          const toPoints = (arr: number[]) =>
+            arr.map((v, i) => {
+              const x = padX + (i / (n - 1)) * (svgW - padX * 2)
+              const y = padY + (1 - v / maxVal) * (svgH - padY * 2)
+              return `${x.toFixed(1)},${y.toFixed(1)}`
+            }).join(' ')
+          const donePoints = toPoints(consistency.map(c => c.done))
+          const missedPoints = toPoints(consistency.map(c => c.missed))
+          const monthLabels = consistency.map(c => {
+            const [y, m] = c.month.split('-')
+            return new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleDateString('fr-FR', { month: 'short' })
+          })
+          return (
+            <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-bold text-gray-900">Régularité</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                    <span className="text-[11px] text-gray-400 font-medium">Validées</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                    <span className="text-[11px] text-gray-400 font-medium">Manquées</span>
+                  </div>
+                </div>
+              </div>
+              <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full" style={{ height: svgH }} aria-hidden>
+                <defs>
+                  <linearGradient id="doneGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="missedGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f87171" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#f87171" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {/* fill areas */}
+                <polygon
+                  points={`${padX},${svgH - padY} ${donePoints} ${svgW - padX},${svgH - padY}`}
+                  fill="url(#doneGrad)"
+                />
+                <polygon
+                  points={`${padX},${svgH - padY} ${missedPoints} ${svgW - padX},${svgH - padY}`}
+                  fill="url(#missedGrad)"
+                />
+                {/* lines */}
+                <polyline points={donePoints} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points={missedPoints} fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {/* dots */}
+                {consistency.map((c, i) => {
+                  const x = padX + (i / (n - 1)) * (svgW - padX * 2)
+                  const yDone = padY + (1 - c.done / maxVal) * (svgH - padY * 2)
+                  const yMissed = padY + (1 - c.missed / maxVal) * (svgH - padY * 2)
+                  const isLast = i === n - 1
+                  return (
+                    <g key={c.month}>
+                      <circle cx={x} cy={yDone} r={isLast ? 4 : 2.5} fill={isLast ? '#22c55e' : '#86efac'} stroke="white" strokeWidth="1.5" />
+                      <circle cx={x} cy={yMissed} r={isLast ? 4 : 2.5} fill={isLast ? '#f87171' : '#fca5a5'} stroke="white" strokeWidth="1.5" />
+                    </g>
+                  )
+                })}
+              </svg>
+              {/* month labels */}
+              <div className="flex justify-between mt-1 px-1">
+                {monthLabels.map((l, i) => (
+                  <span key={i} className="text-[9px] font-semibold text-gray-400 uppercase">{l}</span>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Weight tracking */}
         <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4">
