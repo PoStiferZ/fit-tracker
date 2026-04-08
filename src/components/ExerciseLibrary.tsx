@@ -831,6 +831,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
   const [equipmentFilter, setEquipmentFilter] = useState<Equipment | 'all'>('all')
   const [filterTab, setFilterTab] = useState<'all' | 'muscle' | 'category'>('all')
   const [materiauExpanded, setMateriauExpanded] = useState(false)
+  const [filterLabel, setFilterLabel] = useState<string | null>(null) // label du filtre actif
   const [selected, setSelected] = useState<AnyExercise[]>([])
   const [screen, setScreen] = useState<'library' | 'config'>('library')
   const [configs, setConfigs] = useState<ConfiguredExercise[]>([])
@@ -974,6 +975,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
               setMuscleFilter('all')
               setEquipmentFilter('all')
               setMateriauExpanded(false)
+              setFilterLabel(null)
             }}
             className={cn(
               'flex-1 py-2 rounded-xl text-xs font-bold transition-all',
@@ -1033,48 +1035,87 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
 
       {/* Tab: Par Muscle */}
       {filterTab === 'muscle' && (
-        <div className="space-y-1">
-          {MUSCLE_GROUPS_TAB.map(group => (
-            <div key={group.section}>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider py-2">{group.section}</p>
-              {group.muscles.map(muscle => {
-                const img = MUSCLE_IMAGE[muscle]
-                const count = exercises.filter(ex => ex.muscles_primary.includes(muscle)).length
-                return (
-                  <button
-                    key={muscle}
-                    onClick={() => {
-                      setMuscleFilter(muscle)
-                      setFilterTab('all')
-                    }}
-                    className="w-full flex items-center gap-3 px-1 py-3 border-b border-gray-100 active:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
-                      {img && (
-                        <Image src={img} alt={muscle} width={40} height={40} className="object-contain" />
-                      )}
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-semibold text-gray-900">{MUSCLE_LABELS[muscle]}</p>
-                      <p className="text-xs text-gray-400">{count} exercice{count !== 1 ? 's' : ''}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-gray-400 shrink-0" />
-                  </button>
-                )
-              })}
+        <>
+          {/* Liste des muscles (quand aucun filtre actif) */}
+          {muscleFilter === 'all' && (
+            <div className="space-y-1">
+              {MUSCLE_GROUPS_TAB.map(group => (
+                <div key={group.section}>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-wider py-2">{group.section}</p>
+                  {group.muscles.map(muscle => {
+                    const img = MUSCLE_IMAGE[muscle]
+                    const count = exercises.filter(ex => ex.muscles_primary.includes(muscle)).length
+                    return (
+                      <button
+                        key={muscle}
+                        onClick={() => {
+                          setMuscleFilter(muscle)
+                          setFilterLabel(MUSCLE_LABELS[muscle])
+                        }}
+                        className="w-full flex items-center gap-3 px-1 py-3 border-b border-gray-100 active:bg-gray-50 transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                          {img && <Image src={img} alt={muscle} width={40} height={40} className="object-contain" />}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-semibold text-gray-900">{MUSCLE_LABELS[muscle]}</p>
+                          <p className="text-xs text-gray-400">{count} exercice{count !== 1 ? 's' : ''}</p>
+                        </div>
+                        <ChevronRight size={16} className="text-gray-400 shrink-0" />
+                      </button>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* Liste filtrée par muscle */}
+          {muscleFilter !== 'all' && (
+            <>
+              <button
+                onClick={() => { setMuscleFilter('all'); setFilterLabel(null) }}
+                className="flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors -mt-1"
+              >
+                <ChevronLeft size={16} /> {filterLabel}
+              </button>
+              <div className="space-y-1.5">
+                {filtered.length === 0
+                  ? <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
+                  : filtered.map(ex => <ExerciseItem key={`${ex.source}-${ex.id}`} ex={ex} />)
+                }
+              </div>
+            </>
+          )}
+        </>
       )}
 
       {/* Tab: Catégorie */}
       {filterTab === 'category' && (
         <div className="space-y-3">
+          {/* Filtre actif → affiche liste + retour */}
+          {equipmentFilter !== 'all' ? (
+            <>
+              <button
+                onClick={() => { setEquipmentFilter('all'); setFilterLabel(null); setMateriauExpanded(false) }}
+                className="flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors -mt-1"
+              >
+                <ChevronLeft size={16} /> {filterLabel}
+              </button>
+              <div className="space-y-1.5">
+                {filtered.length === 0
+                  ? <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
+                  : filtered.map(ex => <ExerciseItem key={`${ex.source}-${ex.id}`} ex={ex} />)
+                }
+              </div>
+            </>
+          ) : (
+            <>
           {/* Cardio card */}
           <button
             onClick={() => {
               setEquipmentFilter('cardio')
-              setFilterTab('all')
+              setFilterLabel('Cardio')
             }}
             className="w-full flex items-center justify-between px-4 py-4 bg-white rounded-2xl border-2 border-gray-100 active:border-gray-300 transition-all"
           >
@@ -1107,7 +1148,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
                     key={key}
                     onClick={() => {
                       setEquipmentFilter(key)
-                      setFilterTab('all')
+                      setFilterLabel(label)
                     }}
                     className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-50 last:border-b-0 active:bg-gray-50 transition-colors"
                   >
@@ -1118,6 +1159,8 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       )}
 
