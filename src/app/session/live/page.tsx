@@ -90,30 +90,31 @@ function ExerciseDrawer({
   exercises,
   sets,
   currentExIdx,
+  pendingSkipExIdx,
   onJumpTo,
-  onSkipExercise,
+  onToggleSkip,
 }: {
   exercises: ExerciseWithName[]
   sets: LiveSetState[]
   currentExIdx: number
+  pendingSkipExIdx: Set<number>
   onJumpTo: (exIdx: number) => void
-  onSkipExercise: (exIdx: number) => void
+  onToggleSkip: (exIdx: number) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const touchStartYRef = useRef<number | null>(null)
 
   // Build per-exercise status
   const exerciseItems = exercises.map((ex, exIdx) => {
-    const workSets = sets.filter(s => s.exerciseIndex === exIdx && s.setType === 'work')
     const cardioPlusSets = sets.filter(s => s.exerciseIndex === exIdx && (s.setType === 'cardio' || s.setType === 'work' || s.setType === 'warmup'))
-    // Count relevant sets (work + cardio — not warmup for completion check)
     const relevantSets = sets.filter(s => s.exerciseIndex === exIdx && (s.setType === 'work' || s.setType === 'cardio'))
     const allWorkSetsCompleted =
       relevantSets.length > 0 &&
-      relevantSets.every(s => s.completed && !s.skipped)
-    const isCurrent = exIdx === currentExIdx
+      relevantSets.every(s => s.completed)
+    const isPendingSkip = pendingSkipExIdx.has(exIdx)
+    const isCurrent = exIdx === currentExIdx && !isPendingSkip
     const totalSets = cardioPlusSets.length
-    return { ex, exIdx, allWorkSetsCompleted, isCurrent, totalSets }
+    return { ex, exIdx, allWorkSetsCompleted, isCurrent, isPendingSkip, totalSets }
   })
 
   const completedCount = exerciseItems.filter(e => e.allWorkSetsCompleted).length
@@ -154,24 +155,29 @@ function ExerciseDrawer({
       {/* Scrollable list */}
       {expanded && (
         <div className="overflow-y-auto px-4 pb-6" style={{ maxHeight: 'calc(min(72vh, 520px) - 56px)' }}>
-          {exerciseItems.map(({ ex, exIdx, allWorkSetsCompleted, isCurrent, totalSets }) => {
-            const notStarted = !allWorkSetsCompleted && !isCurrent
+          {exerciseItems.map(({ ex, exIdx, allWorkSetsCompleted, isCurrent, isPendingSkip, totalSets }) => {
             const allSets = sets.filter(s => s.exerciseIndex === exIdx)
             const nSets = allSets.filter(s => s.setType === 'work' || s.setType === 'cardio').length || totalSets
             return (
               <div
                 key={ex.id}
-                className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0"
+                className={cn(
+                  'flex items-center gap-3 py-3 border-b border-gray-100 last:border-0 transition-opacity',
+                  isPendingSkip && 'opacity-40'
+                )}
               >
-                {/* Tap zone: jump to exercise */}
+                {/* Tap zone: jump to exercise (disabled if pending skip) */}
                 <button
-                  onClick={() => { onJumpTo(exIdx); setExpanded(false) }}
-                  className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
+                  onClick={() => { if (!isPendingSkip) { onJumpTo(exIdx); setExpanded(false) } }}
+                  disabled={isPendingSkip}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 transition-opacity disabled:cursor-default"
                 >
                   {/* Status icon */}
                   <div className="shrink-0 w-7 h-7 flex items-center justify-center">
                     {allWorkSetsCompleted ? (
                       <span className="text-green-500 text-lg">✅</span>
+                    ) : isPendingSkip ? (
+                      <span className="text-gray-300 text-base">✕</span>
                     ) : isCurrent ? (
                       <span className="text-indigo-600 text-base">▶</span>
                     ) : (
@@ -183,6 +189,7 @@ function ExerciseDrawer({
                     <p className={cn(
                       'font-bold text-sm truncate',
                       allWorkSetsCompleted ? 'text-green-600' :
+                      isPendingSkip ? 'text-gray-400 line-through' :
                       isCurrent ? 'text-indigo-600' :
                       'text-gray-500'
                     )}>
@@ -193,13 +200,18 @@ function ExerciseDrawer({
                     </p>
                   </div>
                 </button>
-                {/* Skip exercise button — only if not already completed */}
+                {/* Passer / Annuler — only if not already completed */}
                 {!allWorkSetsCompleted && (
                   <button
-                    onClick={() => { onSkipExercise(exIdx); setExpanded(false) }}
-                    className="shrink-0 text-[10px] font-bold text-red-400 bg-red-50 px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform"
+                    onClick={() => onToggleSkip(exIdx)}
+                    className={cn(
+                      'shrink-0 text-[10px] font-bold px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform',
+                      isPendingSkip
+                        ? 'text-indigo-600 bg-indigo-50'
+                        : 'text-red-400 bg-red-50'
+                    )}
                   >
-                    Passer
+                    {isPendingSkip ? 'Annuler' : 'Passer'}
                   </button>
                 )}
               </div>
@@ -486,6 +498,8 @@ function LiveSessionInner() {
   const [sets, setSets] = useState<LiveSetState[]>([])
   const [phase, setPhase] = useState<Phase>('exercise')
   const [abandonConfirm, setAbandonConfirm] = useState(false)
+  const [pendingSkipExIdx, setPendingSkipExIdx] = useState<Set<number>>(new Set())
+  const pendingSkipRef = useRef(new Set<number>())
   const [currentExIdx, setCurrentExIdx] = useState(0)
   const [currentSetIdx, setCurrentSetIdx] = useState(0)
   const [currentSetType, setCurrentSetType] = useState<SetType>('warmup')
@@ -775,18 +789,31 @@ function LiveSessionInner() {
   }
 
   function advanceToNext(fromFlatIdx: number) {
-    // Use the latest sets state directly to account for the just-completed set
+    const pending = pendingSkipRef.current
     setSets(prevSets => {
-      // Find next uncompleted set after current index (in order)
-      let next = prevSets.findIndex((s, i) => i > fromFlatIdx && !s.completed)
+      // Next uncompleted set that is NOT in a pending-skip exercise
+      let next = prevSets.findIndex((s, i) => i > fromFlatIdx && !s.completed && !pending.has(s.exerciseIndex))
       if (next === -1) {
-        // Wrap around: look for any uncompleted set anywhere
-        next = prevSets.findIndex(s => !s.completed)
+        // Wrap around — still skip pending exercises
+        next = prevSets.findIndex(s => !s.completed && !pending.has(s.exerciseIndex))
       }
       if (next === -1) {
-        // Truly all done
-        finishSession()
-        setPhase('finished')
+        // Only pending-skipped exercises remain — flush them then finish
+        ;(async () => {
+          for (const exIdx of pending) {
+            const toSkip = prevSets.filter(s => s.exerciseIndex === exIdx && !s.completed)
+            for (const s of toSkip) {
+              const flatIdx = prevSets.findIndex(ss =>
+                ss.exerciseIndex === s.exerciseIndex && ss.setIndex === s.setIndex && ss.setType === s.setType
+              )
+              if (flatIdx !== -1) await saveSet(flatIdx, true)
+            }
+          }
+          pendingSkipRef.current = new Set()
+          setPendingSkipExIdx(new Set())
+          finishSession()
+          setPhase('finished')
+        })()
       } else {
         setCurrentExIdx(prevSets[next].exerciseIndex)
         setCurrentSetIdx(prevSets[next].setIndex)
@@ -797,20 +824,24 @@ function LiveSessionInner() {
     })
   }
 
-  // Skip all remaining sets of the current exercise
-  async function skipCurrentExercise() {
-    if (!liveSession) return
-    const toSkip = sets.filter(s => s.exerciseIndex === currentExIdx && !s.completed)
-    for (const s of toSkip) {
-      const flatIdx = sets.findIndex(ss =>
-        ss.exerciseIndex === s.exerciseIndex && ss.setIndex === s.setIndex && ss.setType === s.setType
-      )
-      if (flatIdx !== -1) await saveSet(flatIdx, true)
-    }
-    // After skipping, advance
-    const lastSkippedIdx = sets.reduce((last, s, i) =>
-      s.exerciseIndex === currentExIdx ? i : last, -1)
-    advanceToNext(lastSkippedIdx)
+  // Toggle pending-skip for an exercise (no DB write yet)
+  function togglePendingSkip(exIdx: number) {
+    setPendingSkipExIdx(prev => {
+      const next = new Set(prev)
+      if (next.has(exIdx)) {
+        next.delete(exIdx)
+        pendingSkipRef.current.delete(exIdx)
+      } else {
+        next.add(exIdx)
+        pendingSkipRef.current.add(exIdx)
+        // If we're currently on this exercise, advance away
+        if (exIdx === currentExIdx) {
+          const lastIdx = sets.reduce((last, s, i) => s.exerciseIndex === exIdx ? i : last, -1)
+          advanceToNext(lastIdx)
+        }
+      }
+      return next
+    })
   }
 
   async function completeCurrentSet(skipped = false) {
@@ -917,8 +948,9 @@ function LiveSessionInner() {
           exercises={exercises}
           sets={sets}
           currentExIdx={currentExIdx}
+          pendingSkipExIdx={pendingSkipExIdx}
           onJumpTo={jumpToExercise}
-          onSkipExercise={skipCurrentExercise}
+          onToggleSkip={togglePendingSkip}
         />
       {abandonConfirm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
@@ -1118,8 +1150,9 @@ function LiveSessionInner() {
         exercises={exercises}
         sets={sets}
         currentExIdx={currentExIdx}
+        pendingSkipExIdx={pendingSkipExIdx}
         onJumpTo={jumpToExercise}
-        onSkipExercise={skipCurrentExercise}
+        onToggleSkip={togglePendingSkip}
       />
 
       {/* ── Abandon confirmation modal ── */}
