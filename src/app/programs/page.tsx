@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { SwipeToDelete } from '@/components/SwipeToDelete'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
 import type { AnyExercise, MuscleGroup, Program, Workout, WorkoutExercise } from '@/types'
@@ -154,42 +155,7 @@ function SwipeableWorkoutCard({
   )
 }
 
-// ─── SwipeableProgramCard ─────────────────────────────────────────────────────
-function SwipeableProgramCard({
-  children,
-  onOpen,
-  onDelete,
-}: {
-  children: React.ReactNode
-  onOpen: () => void
-  onDelete: () => void
-}) {
-  return (
-    <SwipeableCard
-      actionWidth={130}
-      actions={(close: () => void) => (
-        <>
-          <button
-            onClick={() => { close(); onOpen() }}
-            className="flex-1 flex flex-col items-center justify-center gap-1 bg-gray-900 text-white active:opacity-80 transition-opacity"
-          >
-            <ChevronRight size={18} />
-            <span className="text-[10px] font-bold">Ouvrir</span>
-          </button>
-          <button
-            onClick={() => { close(); onDelete() }}
-            className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white active:opacity-80 transition-opacity"
-          >
-            <Trash2 size={18} />
-            <span className="text-[10px] font-bold">Supprimer</span>
-          </button>
-        </>
-      )}
-    >
-      {children}
-    </SwipeableCard>
-  )
-}
+
 
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<ProgramWithWorkouts[]>([])
@@ -1165,11 +1131,7 @@ export default function ProgramsPage() {
         ) : (
           <div className="space-y-3">
             {programs.map(p => (
-              <SwipeableProgramCard
-                key={p.id}
-                onOpen={() => openProgramDetail(p)}
-                onDelete={() => setDeleteConfirm(p.id)}
-              >
+              <SwipeToDelete key={p.id} onDelete={() => setDeleteConfirm(p.id)}>
                 <button
                   onClick={() => openProgramDetail(p)}
                   className="w-full bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4 text-left active:scale-[0.98] transition-transform"
@@ -1206,7 +1168,7 @@ export default function ProgramsPage() {
                     <ChevronRight size={16} className="text-gray-300 self-center ml-1 shrink-0" />
                   </div>
                 </button>
-              </SwipeableProgramCard>
+              </SwipeToDelete>
             ))}
           </div>
         )}

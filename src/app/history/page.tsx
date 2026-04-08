@@ -1,10 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
 import Navbar from '@/components/Navbar'
-import { ChevronRight, History, Trash2 } from 'lucide-react'
+import { ChevronRight, History } from 'lucide-react'
+import { SwipeToDelete } from '@/components/SwipeToDelete'
 import type { LiveSession } from '@/types'
 
 interface SessionWithWorkout extends LiveSession {
@@ -123,10 +124,10 @@ export default function HistoryPage() {
               const workoutName = session.workouts?.name ?? 'Séance inconnue'
               const programName = session.workouts?.programs?.name ?? ''
               return (
-                <div key={session.id} className="bg-white rounded-2xl shadow border border-gray-50 overflow-hidden">
+                <SwipeToDelete key={session.id} onDelete={() => setConfirmId(session.id)}>
                   <button
                     onClick={() => router.push(`/history/${session.id}`)}
-                    className="w-full text-left p-4 active:scale-[0.99] transition-transform"
+                    className="w-full text-left p-4 bg-white rounded-2xl shadow border border-gray-50 active:scale-[0.99] transition-transform"
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -147,18 +148,7 @@ export default function HistoryPage() {
                       </span>
                     </div>
                   </button>
-
-                  {/* Delete button */}
-                  <div className="border-t border-gray-100 px-4 py-2.5 flex justify-end">
-                    <button
-                      onClick={() => setConfirmId(session.id)}
-                      className="flex items-center gap-1.5 text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-xl active:scale-95 transition-transform"
-                    >
-                      <Trash2 size={12} />
-                      Supprimer
-                    </button>
-                  </div>
-                </div>
+                </SwipeToDelete>
               )
             })}
           </div>
