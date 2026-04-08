@@ -268,148 +268,148 @@ export default function DashboardPage() {
   return (
     <div className="md:pl-60 pb-28 md:pb-8 bg-white min-h-screen">
       <Navbar />
-      <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6 space-y-4">
 
-        {/* Header */}
-        <div>
-          <h1 className="font-black text-gray-950 text-xl leading-tight">Bonjour {profile?.first_name} 👋</h1>
-          <p className="text-gray-400 text-xs font-medium mt-0.5">
-            {calculateAge(profile!.birth_date)} ans · {profile?.height_cm} cm · {profile?.weight_kg} kg
-          </p>
-        </div>
+      {/* ── Sticky week header ── */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="max-w-lg mx-auto px-4 md:px-6">
+          {/* Tabs */}
+          <div className="flex gap-1 pt-3 pb-1">
+            {([
+              { key: 'semaine', label: '🗓 Semaine' },
+              { key: 'complements', label: '💊 Compléments' },
+            ] as const).map(t => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={cn(
+                  'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                  activeTab === t.key
+                    ? 'bg-gray-950 text-white'
+                    : 'text-gray-400'
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-2xl p-1.5 flex gap-1 shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100">
-          {([
-            { key: 'semaine', label: '🗓 Ma semaine' },
-            { key: 'complements', label: '💊 Compléments' },
-          ] as const).map(t => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={cn(
-                'flex-1 py-2.5 rounded-xl text-sm font-bold transition-all',
-                activeTab === t.key
-                  ? 'bg-gray-950 text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
-                  : 'text-gray-400 hover:text-gray-700'
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
+          {/* Week nav — only in semaine tab */}
+          {activeTab === 'semaine' && (
+            <div className="flex items-center justify-between py-2">
+              <button
+                onClick={() => setWeekOffset(o => o - 1)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div className="text-center">
+                <p className="text-sm font-bold text-gray-900">{formatWeekLabel(viewMonday)}</p>
+                <p className={cn('text-[10px] font-semibold mt-0.5', isCurrentWeek ? 'text-indigo-500' : 'text-gray-400')}>
+                  {isCurrentWeek ? 'Cette semaine' : weekOffset === -1 ? 'Semaine dernière' : `Il y a ${Math.abs(weekOffset)} semaines`}
+                </p>
+              </div>
+              <button
+                onClick={() => setWeekOffset(o => Math.min(0, o + 1))}
+                disabled={isCurrentWeek}
+                className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-20"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          )}
         </div>
+      </div>
+
+      <main className="max-w-lg mx-auto px-4 md:px-6 pt-4 space-y-3">
 
         {/* ── Semaine tab ── */}
         <div className={cn('space-y-3', activeTab !== 'semaine' && 'hidden')}>
 
-            {/* Active program card */}
-            {!activeProgram ? (
-              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-gray-400">Aucun programme associé</p>
-                  <p className="text-xs text-gray-300 mt-0.5">Associe un programme pour planifier ta semaine</p>
-                </div>
+          {/* Progress card — compact */}
+          <div className={cn(
+            'rounded-2xl px-5 py-4 flex items-center gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.12)] relative overflow-hidden',
+            isPastWeek ? 'bg-gray-700' : 'bg-gray-950'
+          )}>
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)' }} />
+            <div className="relative shrink-0">
+              <ProgressRing done={completedCount} total={scheduledCount} size={70} strokeWidth={7} />
+            </div>
+            <div className="flex-1 relative min-w-0">
+              <p className="text-white font-bold text-sm leading-tight">
+                {completedCount === scheduledCount && scheduledCount > 0
+                  ? '🎉 Semaine complète !'
+                  : scheduledCount === 0
+                    ? 'Aucune séance planifiée'
+                    : `${scheduledCount - completedCount} séance${scheduledCount - completedCount > 1 ? 's' : ''} restante${scheduledCount - completedCount > 1 ? 's' : ''}`}
+              </p>
+              {isCurrentWeek && streak > 0 && (
+                <p className="text-orange-400 text-xs font-bold mt-1">🔥 {streak} sem. consécutive{streak > 1 ? 's' : ''}</p>
+              )}
+              {isPastWeek && (
+                <p className="text-white/40 text-xs font-bold mt-1 flex items-center gap-1"><Lock size={10}/> Historique</p>
+              )}
+            </div>
+            {/* Programme actif — inline */}
+            <div className="shrink-0 flex flex-col items-end gap-1">
+              {activeProgram ? (
+                <>
+                  <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest">Programme</p>
+                  <button
+                    onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setProgramSheet(true) }}
+                    className="flex items-center gap-1 bg-white/10 hover:bg-white/20 rounded-lg px-2 py-1 transition-colors"
+                  >
+                    <p className="text-white text-xs font-bold max-w-[80px] truncate">{programs.find(p => p.id === activeProgram.program_id)?.name}</p>
+                    <Pencil size={10} className="text-white/50 shrink-0" />
+                  </button>
+                </>
+              ) : (
                 <button
                   onClick={() => { setSelectingProgramId(''); setSelectingRecurrence(1); setProgramSheet(true) }}
-                  className="bg-gray-950 text-white text-xs font-bold px-3 py-2 rounded-xl"
+                  className="bg-white/10 hover:bg-white/20 text-white/70 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
                 >
-                  Associer →
+                  + Programme
                 </button>
-              </div>
-            ) : (
-              <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)] flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-0.5">Programme actif</p>
-                  <p className="text-sm font-black text-gray-950">{programs.find(p => p.id === activeProgram.program_id)?.name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    🔄 {activeProgram.recurrence_months} mois · depuis {new Date(activeProgram.started_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                  </p>
-                </div>
-                <button
-                  onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setProgramSheet(true) }}
-                  className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-                >
-                  <Pencil size={14} className="text-gray-500" />
-                </button>
-              </div>
-            )}
-
-            {/* Week navigator */}
-            <WeekNav
-              weekOffset={weekOffset}
-              onPrev={() => setWeekOffset(o => o - 1)}
-              onNext={() => setWeekOffset(o => Math.min(0, o + 1))}
-              weekLabel={formatWeekLabel(viewMonday)}
-            />
-
-            {/* Progress card */}
-            <div className={cn(
-              'rounded-3xl p-5 flex items-center gap-5 shadow-[0_8px_30px_rgba(0,0,0,0.15)] relative overflow-hidden',
-              isPastWeek ? 'bg-gray-700' : 'bg-gray-950'
-            )}>
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)' }} />
-              <div className="relative">
-                <ProgressRing done={completedCount} total={scheduledCount} size={90} strokeWidth={8} />
-              </div>
-              <div className="flex-1 relative space-y-2">
-                <div>
-                  <p className="text-white font-bold text-base leading-tight">
-                    {completedCount === scheduledCount && scheduledCount > 0
-                      ? '🎉 Semaine complète !'
-                      : scheduledCount === 0
-                        ? 'Aucune séance planifiée'
-                        : `${scheduledCount - completedCount} séance${scheduledCount - completedCount > 1 ? 's' : ''} restante${scheduledCount - completedCount > 1 ? 's' : ''}`}
-                  </p>
-                </div>
-                {isCurrentWeek && streak > 0 && (
-                  <div className="inline-flex items-center gap-1.5 bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-500/20">
-                    🔥 {streak} semaine{streak > 1 ? 's' : ''} consécutive{streak > 1 ? 's' : ''}
-                  </div>
-                )}
-                {isPastWeek && (
-                  <div className="inline-flex items-center gap-1.5 bg-white/10 text-white/50 text-xs font-bold px-3 py-1.5 rounded-full">
-                    <Lock size={10} /> Historique
-                  </div>
-                )}
-              </div>
+              )}
             </div>
+          </div>
 
-            {/* Readonly banner for past weeks */}
-            {isPastWeek && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
-                <Lock size={14} className="text-amber-500 shrink-0" />
-                <p className="text-amber-700 text-xs font-semibold">Historique — lecture seule</p>
-              </div>
-            )}
-
-            {/* Day cards */}
-            <div className="space-y-2">
-              {DAYS.map((dayName, i) => {
-                const dayNum = i + 1
-                const isToday = isCurrentWeek && dayNum === todayNum
-                const entry = getDayEntry(dayNum)
-                return (
-                  <DayCard
-                    key={dayNum}
-                    dayName={dayName}
-                    dayNum={dayNum}
-                    program={getProgramForDay(dayNum)}
-                    workout={getWorkoutForDay(dayNum)}
-                    completed={entry?.completed || false}
-                    isToday={isToday}
-                    isOverride={entry?.is_override || false}
-                    isRestDay={!!(entry && !entry.workout_id)}
-                    readonly={isPastWeek}
-                    onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
-                    onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}
-                    onLaunch={getWorkoutForDay(dayNum) && !isPastWeek ? () => startLiveSessionDirect(getWorkoutForDay(dayNum)!) : undefined}
-                  />
-                )
-              })}
+          {/* Readonly banner */}
+          {isPastWeek && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+              <Lock size={14} className="text-amber-500 shrink-0" />
+              <p className="text-amber-700 text-xs font-semibold">Historique — lecture seule</p>
             </div>
+          )}
+
+          {/* Day cards */}
+          <div className="space-y-2">
+            {DAYS.map((dayName, i) => {
+              const dayNum = i + 1
+              const isToday = isCurrentWeek && dayNum === todayNum
+              const entry = getDayEntry(dayNum)
+              return (
+                <DayCard
+                  key={dayNum}
+                  dayName={dayName}
+                  dayNum={dayNum}
+                  program={getProgramForDay(dayNum)}
+                  workout={getWorkoutForDay(dayNum)}
+                  completed={entry?.completed || false}
+                  isToday={isToday}
+                  isOverride={entry?.is_override || false}
+                  isRestDay={!!(entry && !entry.workout_id)}
+                  readonly={isPastWeek}
+                  onEdit={isPastWeek ? undefined : () => openAssignSheet(dayNum)}
+                  onToggle={isPastWeek ? undefined : () => toggleCompleted(dayNum, entry?.completed || false)}
+                  onLaunch={getWorkoutForDay(dayNum) && !isPastWeek ? () => startLiveSessionDirect(getWorkoutForDay(dayNum)!) : undefined}
+                />
+              )
+            })}
+          </div>
         </div>
 
-        {/* ── Compléments tab — kept mounted to preserve dayOffset state ── */}
+        {/* ── Compléments tab ── */}
         <div className={cn(activeTab !== 'complements' && 'hidden')}>
           <SupplementsTab />
         </div>
