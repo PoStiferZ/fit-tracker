@@ -63,8 +63,13 @@ export default function ProgramsPage() {
     open: false, name: '', idx: null,
   })
 
-  // Delete confirm
+  // Delete confirm (program)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+
+  // Detail view: rename program, create workout, delete workout
+  const [renameProgramSheet, setRenameProgramSheet] = useState<{ open: boolean; name: string }>({ open: false, name: '' })
+  const [detailNewWorkoutSheet, setDetailNewWorkoutSheet] = useState<{ open: boolean; name: string }>({ open: false, name: '' })
+  const [deleteWorkoutConfirm, setDeleteWorkoutConfirm] = useState<string | null>(null)
 
   // Expanded workouts in detail view
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set())
@@ -196,6 +201,50 @@ export default function ProgramsPage() {
       }),
     }))
     setView('workouts')
+  }
+
+  // ── Detail view: rename program ─────────────────────────────────────────────
+  async function saveProgramRename() {
+    if (!selectedProgram || !renameProgramSheet.name.trim()) return
+    const name = renameProgramSheet.name.trim()
+    await supabase.from('programs').update({ name }).eq('id', selectedProgram.id)
+    setSelectedProgram(p => p ? { ...p, name } : p)
+    setPrograms(ps => ps.map(p => p.id === selectedProgram.id ? { ...p, name } : p))
+    setRenameProgramSheet({ open: false, name: '' })
+  }
+
+  // ── Detail view: create new workout directly ─────────────────────────────────
+  async function createWorkoutInDetail() {
+    if (!selectedProgram || !detailNewWorkoutSheet.name.trim()) return
+    const profileId = getProfileId()!
+    const name = detailNewWorkoutSheet.name.trim()
+    const order_index = selectedProgram.workouts.length
+    const { data } = await supabase.from('workouts').insert({
+      profile_id: profileId,
+      program_id: selectedProgram.id,
+      name,
+      order_index,
+    }).select().single()
+    if (!data) return
+    const newWorkout: WorkoutWithEnrichedExercises = {
+      ...data,
+      workout_exercises: [],
+      enriched: [],
+    }
+    setSelectedProgram(p => p ? { ...p, workouts: [...p.workouts, newWorkout] } : p)
+    setPrograms(ps => ps.map(p => p.id === selectedProgram.id ? { ...p, workouts: [...p.workouts, newWorkout] } : p))
+    setDetailNewWorkoutSheet({ open: false, name: '' })
+  }
+
+  // ── Detail view: delete workout ──────────────────────────────────────────────
+  async function deleteWorkoutInDetail(workoutId: string) {
+    await supabase.from('workout_exercises').delete().eq('workout_id', workoutId)
+    await supabase.from('workouts').delete().eq('id', workoutId)
+    setSelectedProgram(p => p ? { ...p, workouts: p.workouts.filter(w => w.id !== workoutId) } : p)
+    setPrograms(ps => ps.map(p => p.id === selectedProgram?.id
+      ? { ...p, workouts: p.workouts.filter(w => w.id !== workoutId) }
+      : p))
+    setDeleteWorkoutConfirm(null)
   }
 
   // ── Detail view: exercise actions ───────────────────────────────────────────
@@ -586,13 +635,20 @@ export default function ProgramsPage() {
           <button onClick={() => setView('list')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
             <ChevronLeft size={20} className="text-gray-700" />
           </button>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-1.5">
             <h1 className="font-black text-gray-900 text-lg truncate">{prog.name}</h1>
-            <p className="text-xs text-gray-400">{prog.workouts.length} séance{prog.workouts.length !== 1 ? 's' : ''}</p>
+            <button
+              onClick={() => setRenameProgramSheet({ open: true, name: prog.name })}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+            >
+              <Pencil size={13} className="text-gray-400" />
+            </button>
           </div>
-          <button onClick={() => startEdit(prog)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors shrink-0">
-            <Pencil size={15} className="text-gray-400" />
+          <button
+            onClick={() => setDetailNewWorkoutSheet({ open: true, name: '' })}
+            className="flex items-center gap-1.5 bg-gray-950 text-white px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform shrink-0"
+          >
+            <Plus size={13} /> Séance
           </button>
         </div>
 
@@ -632,13 +688,21 @@ export default function ProgramsPage() {
                     </div>
                     <ChevronDown size={18} className={cn('text-gray-400 transition-transform shrink-0', expanded && 'rotate-180')} />
                   </button>
-                  {/* Add exercise button — always visible */}
-                  <button
-                    onClick={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
-                    className="flex items-center gap-1 bg-gray-950 text-white px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition-transform shrink-0 ml-1"
-                  >
-                    <Plus size={13} /> Ajouter
-                  </button>
+                  {/* Add exercise + delete workout buttons */}
+                  <div className="flex items-center gap-1 shrink-0 ml-1">
+                    <button
+                      onClick={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
+                      className="flex items-center gap-1 bg-gray-950 text-white px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition-transform"
+                    >
+                      <Plus size={13} /> Ajouter
+                    </button>
+                    <button
+                      onClick={() => setDeleteWorkoutConfirm(w.id)}
+                      className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={14} className="text-red-400" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Expanded: exercises */}
@@ -758,6 +822,62 @@ export default function ProgramsPage() {
             )
           })}
         </div>
+
+        {/* Rename program sheet */}
+        <BottomSheet isOpen={renameProgramSheet.open} onClose={() => setRenameProgramSheet({ open: false, name: '' })} title="Renommer le programme">
+          <div className="space-y-4 pb-4">
+            <input
+              type="text" value={renameProgramSheet.name}
+              onChange={e => setRenameProgramSheet(s => ({ ...s, name: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') saveProgramRename() }}
+              placeholder="Nom du programme"
+              autoFocus
+              className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
+            />
+            <button onClick={saveProgramRename} disabled={!renameProgramSheet.name.trim()}
+              className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40">
+              Renommer
+            </button>
+          </div>
+        </BottomSheet>
+
+        {/* Create new workout sheet */}
+        <BottomSheet isOpen={detailNewWorkoutSheet.open} onClose={() => setDetailNewWorkoutSheet({ open: false, name: '' })} title="Nouvelle séance">
+          <div className="space-y-4 pb-4">
+            <input
+              type="text" value={detailNewWorkoutSheet.name}
+              onChange={e => setDetailNewWorkoutSheet(s => ({ ...s, name: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') createWorkoutInDetail() }}
+              placeholder="Ex: Push, Pull, Legs..."
+              autoFocus
+              className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
+            />
+            <button onClick={createWorkoutInDetail} disabled={!detailNewWorkoutSheet.name.trim()}
+              className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40">
+              Créer la séance
+            </button>
+          </div>
+        </BottomSheet>
+
+        {/* Delete workout confirm modal */}
+        {deleteWorkoutConfirm && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
+            <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-xl font-black text-gray-950">Supprimer cette séance ?</p>
+                <p className="text-sm text-gray-400">Les exercices associés seront aussi supprimés.</p>
+              </div>
+              <button onClick={() => deleteWorkoutInDetail(deleteWorkoutConfirm)}
+                className="w-full bg-red-500 text-white font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all">
+                Oui, supprimer
+              </button>
+              <button onClick={() => setDeleteWorkoutConfirm(null)}
+                className="w-full bg-gray-100 text-gray-700 font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all">
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Exercise edit sheet */}
         {editExSheet && (
