@@ -13,7 +13,7 @@ import { MUSCLE_IMAGE } from '@/lib/muscles'
 import Image from 'next/image'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type View = 'list' | 'program-detail' | 'program-name' | 'workouts' | 'exercise-library' | 'exercise-edit'
+type View = 'list' | 'program-detail' | 'workout-detail' | 'program-name' | 'workouts' | 'exercise-library' | 'exercise-edit'
 
 interface WorkoutDraft {
   id: string | null
@@ -185,6 +185,7 @@ export default function ProgramsPage() {
 
   // Expanded workouts in detail view
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set())
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutWithEnrichedExercises | null>(null)
 
   // Add exercises to a workout in detail view (without going through full editor)
   const [detailAddWorkoutId, setDetailAddWorkoutId] = useState<string | null>(null)
@@ -411,8 +412,16 @@ export default function ProgramsPage() {
         }),
       }
     })
+    // Also update selectedWorkout if in workout-detail view
+    if (selectedWorkout && selectedWorkout.id === workoutId) {
+      setSelectedWorkout(prev => prev ? {
+        ...prev,
+        workout_exercises: prev.workout_exercises.map(updateEx),
+        enriched: prev.enriched.map(e => ({ ...e, workoutExercise: updateEx(e.workoutExercise) })),
+      } : prev)
+    }
     setSaving(false)
-    setView('program-detail')
+    setView(selectedWorkout ? 'workout-detail' : 'program-detail')
   }
 
   // ── Detail view: exercise actions ───────────────────────────────────────────
@@ -449,6 +458,14 @@ export default function ProgramsPage() {
         }),
       }
     }))
+    // Also update selectedWorkout if in workout-detail view
+    if (selectedWorkout && selectedWorkout.id === workoutId) {
+      setSelectedWorkout(prev => prev ? {
+        ...prev,
+        workout_exercises: prev.workout_exercises.filter(e => e.id !== exerciseId),
+        enriched: prev.enriched.filter(e => e.workoutExercise.id !== exerciseId),
+      } : prev)
+    }
   }
 
   // Add exercises directly from detail view
@@ -495,8 +512,16 @@ export default function ProgramsPage() {
     setPrograms(ps => ps.map(p =>
       p.id !== selectedProgram.id ? p : { ...p, workouts: p.workouts.map(updateWorkout) }
     ))
+    // Update selectedWorkout if we're in workout-detail view
+    if (selectedWorkout && selectedWorkout.id === detailAddWorkoutId) {
+      setSelectedWorkout(prev => prev ? {
+        ...prev,
+        workout_exercises: [...prev.workout_exercises, ...(inserted as WorkoutExercise[])],
+        enriched: [...prev.enriched, ...newEnriched],
+      } : prev)
+    }
     setDetailAddWorkoutId(null)
-    setExpandedWorkouts(prev => new Set([...prev, detailAddWorkoutId]))
+    setView(selectedWorkout ? 'workout-detail' : 'program-detail')
   }
 
   // Move exercise up or down within a workout
@@ -676,7 +701,7 @@ export default function ProgramsPage() {
         fullPage
         isOpen={true}
         onClose={() => {
-          if (isFromDetail) { setDetailAddWorkoutId(null); setView('program-detail') }
+          if (isFromDetail) { setDetailAddWorkoutId(null); setView(selectedWorkout ? 'workout-detail' : 'program-detail') }
           else setView('workouts')
         }}
         onConfirm={(exercises) => {
@@ -812,6 +837,115 @@ export default function ProgramsPage() {
   // ────────────────────────────────────────────────────────────────────────────
   // VIEW: program-detail
   // ────────────────────────────────────────────────────────────────────────────
+  // ── VIEW: workout-detail ─────────────────────────────────────────────────────
+  if (view === 'workout-detail' && selectedWorkout && selectedProgram) {
+    const w = selectedProgram.workouts.find(w => w.id === selectedWorkout.id) ?? selectedWorkout
+
+    return (
+      <div className="h-[100dvh] bg-gray-50 flex flex-col">
+        {/* Header */}
+        <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
+          <button
+            onClick={() => { setSelectedWorkout(null); setView('program-detail') }}
+            className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            <ChevronLeft size={20} className="text-gray-700" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{selectedProgram.name}</p>
+            <h1 className="font-black text-gray-900 text-lg truncate">{w.name}</h1>
+          </div>
+        </div>
+
+        {/* Exercise list */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 pb-28">
+          {w.enriched.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 py-16 flex flex-col items-center gap-3 mt-4">
+              <Dumbbell size={28} className="text-gray-300" />
+              <p className="text-sm font-bold text-gray-400">Aucun exercice dans cette séance</p>
+            </div>
+          ) : w.enriched.map(({ workoutExercise: we, info }, exIdx) => (
+            <button
+              key={we.id}
+              onClick={() => info && openExerciseFullEdit(w.id, we, info)}
+              disabled={!info}
+              className="w-full bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.05)] border border-gray-100 px-4 py-3.5 space-y-2 text-left active:scale-[0.99] transition-transform disabled:opacity-50"
+            >
+              {/* Title + reorder */}
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => reorderExercise(w.id, we.id, 'up')}
+                    disabled={exIdx === 0}
+                    className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-20"
+                  ><ArrowUp size={11} className="text-gray-400" /></button>
+                  <button
+                    onClick={() => reorderExercise(w.id, we.id, 'down')}
+                    disabled={exIdx === w.enriched.length - 1}
+                    className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-20"
+                  ><ArrowDown size={11} className="text-gray-400" /></button>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">
+                    {info?.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
+                    {info?.name ?? 'Exercice inconnu'}
+                  </p>
+                  <div className="flex gap-1 mt-0.5 flex-wrap">
+                    {(info?.muscles_primary ?? []).slice(0, 2).map(m => (
+                      <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                        {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
+                        {MUSCLE_LABELS[m]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 shrink-0" />
+              </div>
+              {/* Sets summary */}
+              {we.work_sets > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {Array(we.work_sets).fill(0).map((_, i) => (
+                    <div key={i} className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1">
+                      <span className="text-[10px] font-black text-gray-400">S{i + 1}</span>
+                      <span className="text-[11px] font-bold text-gray-700">{we.work_reps_per_set[i] ?? '?'}r</span>
+                      {(we.work_loads[i] ?? 0) > 0 && (
+                        <span className="text-[11px] font-bold text-orange-500">· {we.work_loads[i]}kg</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {we.warmup_sets > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {Array(we.warmup_sets).fill(0).map((_, i) => (
+                    <div key={i} className="flex items-center gap-1 bg-amber-50 rounded-lg px-2 py-1">
+                      <span className="text-[10px] font-black text-amber-400">É{i + 1}</span>
+                      <span className="text-[11px] font-bold text-gray-700">{we.warmup_reps_per_set[i] ?? '?'}r</span>
+                      {(we.warmup_loads[i] ?? 0) > 0 && (
+                        <span className="text-[11px] font-bold text-orange-500">· {we.warmup_loads[i]}kg</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Floating add button */}
+        <div className="fixed bottom-8 right-5 z-30">
+          <button
+            onClick={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
+            className="flex items-center gap-2 bg-gray-950 text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-[0_4px_20px_rgba(0,0,0,0.25)] active:scale-95 transition-transform"
+          >
+            <Plus size={16} /> Ajouter un exercice
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (view === 'program-detail' && selectedProgram) {
     const prog = selectedProgram
 
@@ -866,20 +1000,19 @@ export default function ProgramsPage() {
               <p className="text-sm font-bold text-gray-400">Aucune séance dans ce programme</p>
             </div>
           ) : prog.workouts.map(w => {
-            const expanded = expandedWorkouts.has(w.id)
             const wIdx = prog.workouts.indexOf(w)
             const muscles = [...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 4)
             const restLabel = calcRestTime(w.workout_exercises)
             return (
               <SwipeableWorkoutCard
                 key={w.id}
-                expanded={expanded}
-                onCollapse={() => setExpandedWorkouts(prev => { const n = new Set(prev); n.delete(w.id); return n })}
-                onAddExercise={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
+                expanded={false}
+                onCollapse={() => {}}
+                onAddExercise={() => { setSelectedWorkout(w); setDetailAddWorkoutId(w.id); setView('exercise-library') }}
                 onDelete={() => setDeleteWorkoutConfirm(w.id)}
               >
               <div className="bg-white rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
-                {/* Workout header */}
+                {/* Workout header — click → workout-detail */}
                 <div className="flex items-center gap-2 px-4 py-3.5">
                   {/* Reorder buttons */}
                   <div className="flex flex-col gap-0.5 shrink-0">
@@ -898,8 +1031,8 @@ export default function ProgramsPage() {
                       <ArrowDown size={11} className="text-gray-400" />
                     </button>
                   </div>
-                  {/* Expand toggle */}
-                  <button onClick={() => toggleWorkout(w.id)} className="flex-1 flex items-center gap-2 text-left min-w-0">
+                  {/* Click → open workout detail page */}
+                  <button onClick={() => { setSelectedWorkout(w); setView('workout-detail') }} className="flex-1 flex items-center gap-2 text-left min-w-0">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-900 text-sm">{w.name}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -922,22 +1055,16 @@ export default function ProgramsPage() {
                         </div>
                       )}
                     </div>
-                    <ChevronDown size={18} className={cn('text-gray-400 transition-transform shrink-0', expanded && 'rotate-180')} />
+                    <ChevronRight size={18} className="text-gray-300 shrink-0" />
                   </button>
                 </div>
 
-                {/* Expanded: exercises */}
-                {expanded && (
+                {/* No more inline expand — exercises are on workout-detail page */}
+                {false && (
                   <div className="border-t border-gray-100 divide-y divide-gray-50">
                     {w.enriched.length === 0 ? (
                       <div className="px-4 py-4 flex flex-col items-center gap-2">
                         <p className="text-xs text-gray-400 italic">Aucun exercice</p>
-                        <button
-                          onClick={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
-                          className="flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform"
-                        >
-                          <Plus size={13} /> Ajouter un exercice
-                        </button>
                       </div>
                     ) : w.enriched.map(({ workoutExercise: we, info }, exIdx) => (
                       <button
@@ -948,37 +1075,11 @@ export default function ProgramsPage() {
                       >
                         {/* Exercise title row */}
                         <div className="flex items-center gap-2">
-                          {/* Reorder buttons */}
-                          <div className="flex flex-col gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-                            <button
-                              onClick={() => reorderExercise(w.id, we.id, 'up')}
-                              disabled={exIdx === 0}
-                              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
-                            >
-                              <ArrowUp size={11} className="text-gray-400" />
-                            </button>
-                            <button
-                              onClick={() => reorderExercise(w.id, we.id, 'down')}
-                              disabled={exIdx === w.enriched.length - 1}
-                              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
-                            >
-                              <ArrowDown size={11} className="text-gray-400" />
-                            </button>
-                          </div>
-
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-gray-900 truncate">
                               {info?.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
                               {info?.name ?? 'Exercice inconnu'}
                             </p>
-                            <div className="flex gap-1 mt-0.5 flex-wrap">
-                              {(info?.muscles_primary ?? []).slice(0, 2).map(m => (
-                                <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
-                                  {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
-                                  {MUSCLE_LABELS[m]}
-                                </span>
-                              ))}
-                            </div>
                           </div>
                         </div>
 
