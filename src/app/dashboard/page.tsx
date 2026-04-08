@@ -464,29 +464,36 @@ export default function DashboardPage() {
         <div className={cn('space-y-3', activeTab !== 'semaine' && 'hidden')}>
 
           {/* Progress card */}
-          <div className={cn(
-            'rounded-2xl px-5 py-4 flex items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.12)] relative overflow-hidden',
-            isPastWeek ? 'bg-gray-700' : 'bg-gray-950'
-          )}>
+          <div
+            onClick={() => {
+              if (activeProgram) {
+                setSelectingProgramId(activeProgram.program_id)
+                setSelectingRecurrence(activeProgram.recurrence_months)
+                setSelectingRestDays(activeProgram.rest_days ?? [])
+              } else {
+                setSelectingProgramId('')
+                setSelectingRecurrence(1)
+                setSelectingRestDays([])
+              }
+              setProgramSheet(true)
+            }}
+            className={cn(
+              'rounded-2xl px-5 py-4 flex items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.12)] relative overflow-hidden cursor-pointer active:opacity-80 transition-opacity',
+              isPastWeek ? 'bg-gray-700' : 'bg-gray-950'
+            )}>
             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)' }} />
 
             {/* Left — programme info */}
             <div className="relative flex-1 min-w-0 space-y-1.5">
               <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Programme</p>
               {activeProgram ? (
-                <button
-                  onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setSelectingRestDays(activeProgram.rest_days ?? []); setProgramSheet(true) }}
-                  className="bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold px-2.5 py-1 rounded-full truncate max-w-[160px] text-left active:bg-indigo-500/30 transition-colors"
-                >
+                <span className="bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold px-2.5 py-1 rounded-full truncate max-w-[160px]">
                   {programs.find(p => p.id === activeProgram.program_id)?.name}
-                </button>
+                </span>
               ) : (
-                <button
-                  onClick={() => { setSelectingProgramId(''); setSelectingRecurrence(1); setSelectingRestDays([]); setProgramSheet(true) }}
-                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white/60 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
-                >
-                  <span>+ Associer</span>
-                </button>
+                <span className="flex items-center gap-1.5 bg-white/10 text-white/60 text-xs font-bold px-3 py-1.5 rounded-xl">
+                  + Associer
+                </span>
               )}
               {isCurrentWeek && streak > 0 && (
                 <p className="text-orange-400 text-xs font-bold">🔥 {streak} sem. consécutive{streak > 1 ? 's' : ''}</p>
