@@ -386,13 +386,34 @@ export default function DashboardPage() {
         return (
           <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100"
             style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            {/* Tabs — full width */}
+            <div className="grid grid-cols-2 border-b border-gray-100">
+              {([
+                { key: 'semaine', label: '🏋️ Entraînement' },
+                { key: 'complements', label: '💊 Compléments' },
+              ] as const).map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={cn(
+                    'py-3 text-sm font-bold transition-all border-b-2',
+                    activeTab === t.key
+                      ? 'text-gray-950 border-gray-950'
+                      : 'text-gray-400 border-transparent'
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
             <div className="max-w-lg mx-auto px-4 md:px-6 pt-3 pb-3">
 
               {/* Month */}
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-2">{monthDisplay}</p>
 
               {/* Arrows + pills */}
-              <div className="flex items-center gap-1 mb-3">
+              <div className="flex items-center gap-1 mb-1">
                 <button
                   onClick={() => isSemaine ? setWeekOffset(o => o - 1) : setSuppDayOffset(o => o - 7)}
                   disabled={isSemaine ? weekOffset <= minWeekOffset : suppDayOffset - 7 < minDayOffset}
@@ -451,25 +472,8 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Tabs — deux gros blocs */}
-              <div className="grid grid-cols-2 gap-2">
-                {([
-                  { key: 'semaine', label: '🏋️ Entraînement' },
-                  { key: 'complements', label: '💊 Compléments' },
-                ] as const).map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setActiveTab(t.key)}
-                    className={cn(
-                      'py-2.5 rounded-2xl text-sm font-bold transition-all',
-                      activeTab === t.key
-                        ? 'bg-gray-950 text-white shadow-[0_2px_10px_rgba(0,0,0,0.2)]'
-                        : 'bg-gray-100 text-gray-400'
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+              {/* spacer */}
+              <div className="hidden">
               </div>
             </div>
           </div>
