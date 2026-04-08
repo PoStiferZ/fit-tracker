@@ -5,7 +5,7 @@ import { getProfileId } from '@/lib/cookies'
 import type { AnyExercise, MuscleGroup, Equipment, ExerciseType, WorkoutExercise } from '@/types'
 import BottomSheet from '@/components/BottomSheet'
 import { SpeedPickerSheet, InclinePickerSheet } from '@/components/Pickers'
-import { Search, Plus, Check, ChevronLeft, X } from 'lucide-react'
+import { Search, Plus, Check, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MUSCLE_IMAGE } from '@/lib/muscles'
 import Image from 'next/image'
@@ -319,10 +319,10 @@ const EQUIPMENT_FILTERS: { key: Equipment | 'all'; label: string }[] = [
 ]
 
 const MUSCLE_LABELS: Record<MuscleGroup, string> = {
-  chest: 'Chest', back: 'Back', shoulders: 'Shoulders', rear_delts: 'Rear Delts',
-  biceps: 'Biceps', triceps: 'Triceps', forearms: 'Forearms', traps: 'Traps',
-  core: 'Core', quads: 'Quads', hamstrings: 'Hamstrings', glutes: 'Glutes',
-  calves: 'Calves', inner_thighs: 'Inner Thighs', cardio: 'Cardio', neck: 'Neck',
+  chest: 'Pectoraux', back: 'Dos', shoulders: 'Épaules', rear_delts: 'Delts arr.',
+  biceps: 'Biceps', triceps: 'Triceps', forearms: 'Avant-bras', traps: 'Trapèzes',
+  core: 'Abdos', quads: 'Quadriceps', hamstrings: 'Ischio', glutes: 'Fessiers',
+  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio', neck: 'Cou',
 }
 
 const EQUIPMENT_LABELS: Record<Equipment, string> = {
@@ -815,6 +815,13 @@ export function ExerciseConfigForm({
   )
 }
 
+// ─── Muscle groups for Par Muscle tab ────────────────────────────────────────
+const MUSCLE_GROUPS_TAB: { section: string; muscles: MuscleGroup[] }[] = [
+  { section: 'Torse', muscles: ['chest', 'back', 'shoulders', 'rear_delts', 'traps', 'core', 'neck'] },
+  { section: 'Bras', muscles: ['biceps', 'triceps', 'forearms'] },
+  { section: 'Bas du Corps', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'inner_thighs'] },
+]
+
 // ─── Main ExerciseLibrary ─────────────────────────────────────────────────────
 export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }: ExerciseLibraryProps) {
   const [exercises, setExercises] = useState<AnyExercise[]>([])
@@ -822,6 +829,8 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
   const [search, setSearch] = useState('')
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | 'all'>('all')
   const [equipmentFilter, setEquipmentFilter] = useState<Equipment | 'all'>('all')
+  const [filterTab, setFilterTab] = useState<'all' | 'muscle' | 'category'>('all')
+  const [materiauExpanded, setMateriauExpanded] = useState(false)
   const [selected, setSelected] = useState<AnyExercise[]>([])
   const [screen, setScreen] = useState<'library' | 'config'>('library')
   const [configs, setConfigs] = useState<ConfiguredExercise[]>([])
@@ -834,6 +843,8 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
     setSearch('')
     setMuscleFilter('all')
     setEquipmentFilter('all')
+    setFilterTab('all')
+    setMateriauExpanded(false)
     loadExercises()
   }, [isOpen])
 
@@ -948,72 +959,169 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
       </div>
 
-      {/* Muscle filter */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        {MUSCLE_FILTERS.map(({ key, label }) => (
-          <button key={key} onClick={() => setMuscleFilter(key)}
+      {/* 3-tab segmented control */}
+      <div className="flex bg-gray-100 rounded-2xl p-1 gap-1">
+        {([
+          { key: 'all', label: 'Tout' },
+          { key: 'muscle', label: 'Par Muscle' },
+          { key: 'category', label: 'Catégorie' },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => {
+              setFilterTab(tab.key)
+              setSearch('')
+              setMuscleFilter('all')
+              setEquipmentFilter('all')
+              setMateriauExpanded(false)
+            }}
             className={cn(
-              'shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
-              muscleFilter === key ? 'bg-gray-950 text-white border-gray-950' : 'border-gray-200 text-gray-500 bg-white'
-            )}>
-            {label}
+              'flex-1 py-2 rounded-xl text-xs font-bold transition-all',
+              filterTab === tab.key
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500'
+            )}
+          >
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Equipment filter */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        {EQUIPMENT_FILTERS.map(({ key, label }) => (
-          <button key={key} onClick={() => setEquipmentFilter(key)}
-            className={cn(
-              'shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
-              equipmentFilter === key ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-500 bg-white'
-            )}>
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Tab: Tout — exercise list */}
+      {filterTab === 'all' && (
+        <>
+          {/* My exercises header */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-black text-gray-400 uppercase tracking-wider">Mes exercices</p>
+            <button onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
+              <Plus size={12} /> Créer
+            </button>
+          </div>
 
-      {/* My exercises header */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-black text-gray-400 uppercase tracking-wider">Mes exercices</p>
-        <button onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
-          <Plus size={12} /> Créer
-        </button>
-      </div>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-7 h-7 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {customExs.length > 0 && (
+                <div className="space-y-1.5">
+                  {customExs.map(ex => <ExerciseItem key={`custom-${ex.id}`} ex={ex} />)}
+                </div>
+              )}
+              {customExs.length === 0 && !search && muscleFilter === 'all' && equipmentFilter === 'all' && (
+                <p className="text-xs text-gray-300 text-center py-1 font-medium">Aucun exercice custom — crée-en un !</p>
+              )}
 
-      {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="w-7 h-7 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {customExs.length > 0 && (
-            <div className="space-y-1.5">
-              {customExs.map(ex => <ExerciseItem key={`custom-${ex.id}`} ex={ex} />)}
+              {libraryExs.length > 0 && (
+                <>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-wider pt-2">Bibliothèque</p>
+                  <div className="space-y-1.5">
+                    {libraryExs.map(ex => <ExerciseItem key={`lib-${ex.id}`} ex={ex} />)}
+                  </div>
+                </>
+              )}
+
+              {filtered.length === 0 && (
+                <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
+              )}
             </div>
           )}
-          {customExs.length === 0 && !search && muscleFilter === 'all' && equipmentFilter === 'all' && (
-            <p className="text-xs text-gray-300 text-center py-1 font-medium">Aucun exercice custom — crée-en un !</p>
-          )}
+        </>
+      )}
 
-          {libraryExs.length > 0 && (
-            <>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-wider pt-2">Bibliothèque</p>
-              <div className="space-y-1.5">
-                {libraryExs.map(ex => <ExerciseItem key={`lib-${ex.id}`} ex={ex} />)}
-              </div>
-            </>
-          )}
-
-          {filtered.length === 0 && (
-            <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
-          )}
+      {/* Tab: Par Muscle */}
+      {filterTab === 'muscle' && (
+        <div className="space-y-1">
+          {MUSCLE_GROUPS_TAB.map(group => (
+            <div key={group.section}>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-wider py-2">{group.section}</p>
+              {group.muscles.map(muscle => {
+                const img = MUSCLE_IMAGE[muscle]
+                const count = exercises.filter(ex => ex.muscles_primary.includes(muscle)).length
+                return (
+                  <button
+                    key={muscle}
+                    onClick={() => {
+                      setMuscleFilter(muscle)
+                      setFilterTab('all')
+                    }}
+                    className="w-full flex items-center gap-3 px-1 py-3 border-b border-gray-100 active:bg-gray-50 transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                      {img && (
+                        <Image src={img} alt={muscle} width={40} height={40} className="object-contain" />
+                      )}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-semibold text-gray-900">{MUSCLE_LABELS[muscle]}</p>
+                      <p className="text-xs text-gray-400">{count} exercice{count !== 1 ? 's' : ''}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-gray-400 shrink-0" />
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Confirm button */}
+      {/* Tab: Catégorie */}
+      {filterTab === 'category' && (
+        <div className="space-y-3">
+          {/* Cardio card */}
+          <button
+            onClick={() => {
+              setEquipmentFilter('cardio')
+              setFilterTab('all')
+            }}
+            className="w-full flex items-center justify-between px-4 py-4 bg-white rounded-2xl border-2 border-gray-100 active:border-gray-300 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏃</span>
+              <p className="text-sm font-bold text-gray-900">Cardio</p>
+            </div>
+            <ChevronRight size={16} className="text-gray-400" />
+          </button>
+
+          {/* Matériel card (expandable) */}
+          <div className="bg-white rounded-2xl border-2 border-gray-100 overflow-hidden">
+            <button
+              onClick={() => setMateriauExpanded(prev => !prev)}
+              className="w-full flex items-center justify-between px-4 py-4 active:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🏋️</span>
+                <p className="text-sm font-bold text-gray-900">Matériel</p>
+              </div>
+              <ChevronRight
+                size={16}
+                className={cn('text-gray-400 transition-transform', materiauExpanded ? 'rotate-90' : '')}
+              />
+            </button>
+            {materiauExpanded && (
+              <div className="border-t border-gray-100">
+                {EQUIPMENT_FILTERS.filter(e => e.key !== 'all' && e.key !== 'cardio').map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setEquipmentFilter(key)
+                      setFilterTab('all')
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-50 last:border-b-0 active:bg-gray-50 transition-colors"
+                  >
+                    <p className="text-sm font-semibold text-gray-700">{label}</p>
+                    <ChevronRight size={14} className="text-gray-400" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirm button — always visible when exercises selected */}
       {selected.length > 0 && (
         <div className="sticky bottom-0 pt-2">
           <button onClick={handleConfirmSelection}
