@@ -148,38 +148,47 @@ export default function HistoryPage() {
                     </div>
                   </button>
 
-                  {/* Delete row */}
-                  {confirmId === session.id ? (
-                    <div className="flex border-t border-gray-100">
-                      <button
-                        onClick={() => setConfirmId(null)}
-                        className="flex-1 py-2.5 text-xs font-bold text-gray-400 hover:bg-gray-50 transition-colors"
-                      >
-                        Annuler
-                      </button>
-                      <button
-                        onClick={() => deleteSession(session.id)}
-                        disabled={deletingId === session.id}
-                        className="flex-1 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 transition-colors border-l border-gray-100"
-                      >
-                        {deletingId === session.id ? 'Suppression...' : 'Confirmer'}
-                      </button>
-                    </div>
-                  ) : (
+                  {/* Delete button */}
+                  <div className="border-t border-gray-100 px-4 py-2.5 flex justify-end">
                     <button
                       onClick={() => setConfirmId(session.id)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-gray-100 text-[11px] font-bold text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                      className="flex items-center gap-1.5 text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-xl active:scale-95 transition-transform"
                     >
-                      <Trash2 size={11} />
+                      <Trash2 size={12} />
                       Supprimer
                     </button>
-                  )}
+                  </div>
                 </div>
               )
             })}
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {confirmId && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-1">
+              <p className="text-xl font-black text-gray-950">Supprimer cette séance ?</p>
+              <p className="text-sm text-gray-400">Cette action est irréversible.</p>
+            </div>
+            <button
+              onClick={() => deleteSession(confirmId)}
+              disabled={!!deletingId}
+              className="w-full bg-red-500 text-white font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
+            >
+              {deletingId ? 'Suppression...' : 'Oui, supprimer'}
+            </button>
+            <button
+              onClick={() => setConfirmId(null)}
+              className="w-full bg-gray-100 text-gray-700 font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
