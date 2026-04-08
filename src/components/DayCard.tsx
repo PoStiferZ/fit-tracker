@@ -113,7 +113,7 @@ export default function DayCard({
             : isToday
               ? 'bg-gray-950 shadow-[0_4px_20px_rgba(0,0,0,0.2)]'
               : isPast && !completed
-                ? 'bg-gray-50 border border-gray-100 opacity-60'
+                ? 'bg-gray-100 border border-gray-200'
                 : 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100',
         )}
       >
@@ -121,7 +121,7 @@ export default function DayCard({
         <div className="w-10 shrink-0">
           <p className={cn(
             'text-xs font-bold uppercase tracking-wide',
-            missed ? 'text-red-400' : isToday ? 'text-white/60' : 'text-gray-400'
+            missed ? 'text-red-400' : isToday ? 'text-white/60' : isPast && !completed ? 'text-gray-500' : 'text-gray-400'
           )}>
             {dayName.slice(0, 3)}
           </p>
@@ -134,7 +134,7 @@ export default function DayCard({
             <div>
               <div className="flex items-center gap-1.5">
                 <p className={cn('text-sm font-semibold truncate',
-                  missed ? 'text-red-500 line-through' : isToday ? 'text-white' : 'text-gray-900'
+                  missed ? 'text-red-500 line-through' : isToday ? 'text-white' : isPast && !completed ? 'text-gray-500' : 'text-gray-900'
                 )}>
                   {workout!.name}
                 </p>
