@@ -429,6 +429,31 @@ export default function ProgramsPage() {
     ))
   }
 
+  async function reorderWorkout(workoutId: string, direction: 'up' | 'down') {
+    if (!selectedProgram) return
+    const workouts = [...selectedProgram.workouts]
+    const idx = workouts.findIndex(w => w.id === workoutId)
+    if (idx === -1) return
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= workouts.length) return
+
+    // Swap
+    const tmp = workouts[idx]
+    workouts[idx] = workouts[swapIdx]
+    workouts[swapIdx] = tmp
+
+    // Reassign order_index
+    const updated = workouts.map((w, i) => ({ ...w, order_index: i }))
+
+    // Optimistic update
+    setSelectedProgram(p => p ? { ...p, workouts: updated } : p)
+
+    // Persist to DB
+    await Promise.all(updated.map(w =>
+      supabase.from('workouts').update({ order_index: w.order_index }).eq('id', w.id)
+    ))
+  }
+
   // ── Save program ─────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!draft.name.trim()) return
@@ -734,6 +759,23 @@ export default function ProgramsPage() {
               <div key={w.id} className="bg-white rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
                 {/* Workout header */}
                 <div className="flex items-center gap-2 px-4 py-3.5">
+                  {/* Reorder buttons */}
+                  <div className="flex flex-col gap-0.5 shrink-0">
+                    <button
+                      onClick={() => reorderWorkout(w.id, 'up')}
+                      disabled={prog.workouts.indexOf(w) === 0}
+                      className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
+                    >
+                      <ArrowUp size={11} className="text-gray-400" />
+                    </button>
+                    <button
+                      onClick={() => reorderWorkout(w.id, 'down')}
+                      disabled={prog.workouts.indexOf(w) === prog.workouts.length - 1}
+                      className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
+                    >
+                      <ArrowDown size={11} className="text-gray-400" />
+                    </button>
+                  </div>
                   {/* Expand toggle — takes most space */}
                   <button onClick={() => toggleWorkout(w.id)} className="flex-1 flex items-center gap-2 text-left min-w-0">
                     <div className="flex-1 min-w-0">
