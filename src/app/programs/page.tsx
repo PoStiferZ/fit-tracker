@@ -652,7 +652,7 @@ export default function ProgramsPage() {
         {/* Header */}
         <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
-          <button onClick={() => setView('program-detail')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
+          <button onClick={() => setView(selectedWorkout ? 'workout-detail' : 'program-detail')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
             <ChevronLeft size={20} className="text-gray-700" />
           </button>
           <h1 className="font-black text-gray-900 text-lg flex-1 truncate">Modifier l&apos;exercice</h1>
@@ -671,7 +671,7 @@ export default function ProgramsPage() {
             onClick={async () => {
               if (!editExConfig) return
               await removeExerciseFromWorkout(editExConfig.workoutId, editExConfig.exerciseId)
-              setView('program-detail')
+              setView(selectedWorkout ? 'workout-detail' : 'program-detail')
             }}
             className="flex-1 bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[52px] flex items-center justify-center gap-2 active:scale-[0.97] transition-all text-sm"
           >
