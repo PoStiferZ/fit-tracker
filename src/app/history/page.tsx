@@ -79,7 +79,7 @@ export default function HistoryPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f8f8fb] md:pl-60">
+    <div className="min-h-screen bg-white md:pl-60">
       <Navbar />
 
       <div className="max-w-xl mx-auto px-4 pt-6 pb-28 md:pb-10">

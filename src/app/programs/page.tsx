@@ -431,7 +431,7 @@ export default function ProgramsPage() {
   // ────────────────────────────────────────────────────────────────────────────
   if (view === 'program-name') {
     return (
-      <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
+      <div className="h-[100dvh] bg-white flex flex-col">
         <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button onClick={() => setView('list')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
@@ -452,7 +452,7 @@ export default function ProgramsPage() {
             className="w-full bg-white border-2 border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-lg font-bold placeholder:text-gray-300 focus:outline-none focus:border-gray-900 transition-all"
           />
         </div>
-        <div className="shrink-0 px-5 pt-4 bg-[#f8f8fb]"
+        <div className="shrink-0 px-5 pt-4 bg-white"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
           <button
             onClick={() => { if (draft.name.trim()) setView('workouts') }}
@@ -469,7 +469,7 @@ export default function ProgramsPage() {
   // ────────────────────────────────────────────────────────────────────────────
   if (view === 'workouts') {
     return (
-      <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
+      <div className="h-[100dvh] bg-white flex flex-col">
         <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button onClick={() => setView('program-name')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
@@ -519,7 +519,7 @@ export default function ProgramsPage() {
           )}
         </div>
 
-        <div className="shrink-0 px-4 pt-3 bg-[#f8f8fb] border-t border-gray-100"
+        <div className="shrink-0 px-4 pt-3 bg-white border-t border-gray-100"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' }}>
           <button onClick={handleSave} disabled={saving || !draft.name.trim()}
             className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:shadow-none">
@@ -579,7 +579,7 @@ export default function ProgramsPage() {
     }
 
     return (
-      <div className="h-[100dvh] bg-[#f8f8fb] flex flex-col">
+      <div className="h-[100dvh] bg-white flex flex-col">
         {/* Header */}
         <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
@@ -838,7 +838,7 @@ export default function ProgramsPage() {
   // VIEW: list
   // ────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
+    <div className="md:pl-60 pb-28 md:pb-8 bg-white min-h-screen">
       <Navbar />
       <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6">
         <div className="flex items-center justify-between mb-5">

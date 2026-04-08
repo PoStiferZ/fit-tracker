@@ -207,7 +207,7 @@ export default function SessionPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb]">
+    <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-9 h-9 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
     </div>
   )
@@ -226,7 +226,7 @@ export default function SessionPage() {
   const allCompleted = orderedRows.length > 0 && orderedRows.every(r => r.set.completed_at)
 
   return (
-    <div className="bg-[#f8f8fb] min-h-screen pb-32">
+    <div className="bg-white min-h-screen pb-32">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-20 shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">

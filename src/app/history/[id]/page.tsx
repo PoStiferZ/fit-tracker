@@ -135,7 +135,7 @@ export default function HistoryDetailPage() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-[#f8f8fb]">
+    <div className="h-[100dvh] flex flex-col bg-white">
       {/* Fixed header */}
       <header className="flex-shrink-0 bg-white border-b border-gray-100 px-4 pt-[env(safe-area-inset-top,12px)] pb-3">
         <div className="flex items-center gap-3 max-w-xl mx-auto">

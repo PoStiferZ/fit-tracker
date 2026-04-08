@@ -294,7 +294,7 @@ function FinishedScreen({
   })
 
   return (
-    <div className="min-h-screen bg-[#f8f8fb] flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <div className="flex-1 overflow-y-auto px-5 pt-12 pb-32">
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🎉</div>
@@ -348,7 +348,7 @@ function FinishedScreen({
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 px-5 pb-[env(safe-area-inset-bottom,20px)] bg-[#f8f8fb] pt-4">
+      <div className="fixed bottom-0 left-0 right-0 px-5 pb-[env(safe-area-inset-bottom,20px)] bg-white pt-4">
         <button
           onClick={onReturn}
           className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[64px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-transform"
@@ -701,7 +701,7 @@ function LiveSessionInner() {
   const elapsedSecs = elapsed % 60
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb]">
+    <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-9 h-9 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
     </div>
   )
@@ -733,9 +733,9 @@ function LiveSessionInner() {
     const nextExercise = nextSet ? (exercises[nextSet.exerciseIndex] ?? null) : null
 
     return (
-      <div className="h-[100dvh] flex flex-col bg-[#f8f8fb]">
+      <div className="h-[100dvh] flex flex-col bg-white">
         {/* Top bar */}
-        <div className="shrink-0 flex items-center justify-between px-5 bg-[#f8f8fb]"
+        <div className="shrink-0 flex items-center justify-between px-5 bg-white"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
           <button
             onClick={() => setAbandonConfirm(true)}
@@ -789,10 +789,10 @@ function LiveSessionInner() {
   const exSecs = exElapsed % 60
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-[#f8f8fb] overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-white overflow-hidden">
 
       {/* ── Top bar ── */}
-      <div className="shrink-0 flex items-center justify-between px-4 bg-[#f8f8fb]"
+      <div className="shrink-0 flex items-center justify-between px-4 bg-white"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingBottom: 8 }}>
         <button
           onClick={() => setAbandonConfirm(true)}
@@ -985,7 +985,7 @@ function LiveSessionInner() {
 export default function LiveSessionPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="w-9 h-9 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
       </div>
     }>

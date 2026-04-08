@@ -71,7 +71,7 @@ export default function EntryPage() {
 
   if (screen === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="w-9 h-9 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -79,7 +79,7 @@ export default function EntryPage() {
 
   if (screen === 'picker') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb] px-4 py-8">
+      <div className="min-h-screen flex items-center justify-center bg-white px-4 py-8">
         <div className="w-full max-w-sm">
           <ProfilePicker
             profiles={profiles}
@@ -96,7 +96,7 @@ export default function EntryPage() {
   const stepIndex = STEPS.indexOf(step)
 
   return (
-    <div className="min-h-screen bg-[#f8f8fb] flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <div className="flex-1 flex flex-col justify-start px-4 pt-12 pb-8 max-w-sm mx-auto w-full">
 
         {/* Header */}

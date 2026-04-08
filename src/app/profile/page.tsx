@@ -213,13 +213,13 @@ export default function ProfilePage() {
   })()
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f8fb]">
+    <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-9 h-9 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
   return (
-    <div className="md:pl-60 pb-28 md:pb-8 bg-[#f8f8fb] min-h-screen">
+    <div className="md:pl-60 pb-28 md:pb-8 bg-white min-h-screen">
       <Navbar />
       <main className="max-w-lg mx-auto px-4 pt-5 md:px-6 md:pt-6 space-y-4">
 
