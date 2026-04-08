@@ -347,17 +347,16 @@ export default function ProfilePage() {
         {consistency.length > 0 && (() => {
           const svgW = 300, svgH = 100, padX = 12, padY = 14
           const n = consistency.length
-          // axes indépendants pour éviter superposition si done==missed
-          const maxDone = Math.max(...consistency.map(c => c.done), 1)
-          const maxMissed = Math.max(...consistency.map(c => c.missed), 1)
-          const toCoords = (vals: number[], maxV: number) =>
+          // axe partagé : 4 validées → haut, 2 manquées → milieu
+          const maxVal = Math.max(...consistency.map(c => Math.max(c.done, c.missed)), 1)
+          const toCoords = (vals: number[]) =>
             vals.map((v, i) => ({
               x: padX + (n === 1 ? (svgW - padX * 2) / 2 : (i / (n - 1)) * (svgW - padX * 2)),
-              y: padY + (1 - v / maxV) * (svgH - padY * 2),
+              y: padY + (1 - v / maxVal) * (svgH - padY * 2),
               v,
             }))
-          const doneCoords = toCoords(consistency.map(c => c.done), maxDone)
-          const missedCoords = toCoords(consistency.map(c => c.missed), maxMissed)
+          const doneCoords = toCoords(consistency.map(c => c.done))
+          const missedCoords = toCoords(consistency.map(c => c.missed))
           const toPolyline = (coords: { x: number; y: number }[]) =>
             coords.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
           const donePoints = toPolyline(doneCoords)
