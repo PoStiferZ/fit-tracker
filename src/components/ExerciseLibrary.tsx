@@ -628,34 +628,7 @@ export function ExerciseConfigForm({
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Work sets */}
-          <div className="flex items-center gap-3">
-            <label className="text-xs font-bold text-gray-500 w-24">Séries de travail</label>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setWorkSets(cfg.workSets - 1)} className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center">−</button>
-              <span className="w-6 text-center font-bold text-gray-900">{cfg.workSets}</span>
-              <button onClick={() => setWorkSets(cfg.workSets + 1)} className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center">+</button>
-            </div>
-          </div>
-          {Array(cfg.workSets).fill(0).map((_, i) => (
-            <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5">
-              <span className="text-xs font-black text-gray-400 w-6">S{i + 1}</span>
-              <button
-                onClick={() => setNumPickerOpen({ setType: 'work', field: 'reps', index: i })}
-                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[42px] text-center"
-              >{cfg.workRepsPerSet[i] ?? 10}r</button>
-              <button
-                onClick={() => setNumPickerOpen({ setType: 'work', field: 'kg', index: i })}
-                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[46px] text-center"
-              >{cfg.workLoadsPerSet[i] ?? 0}kg</button>
-              <button
-                onClick={() => setRestPickerOpen({ setType: 'work', index: i })}
-                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap flex-1 text-center"
-              >{formatRest(cfg.workRestSeconds[i] ?? 90)}</button>
-            </div>
-          ))}
-
-          {/* Warmup toggle */}
+          {/* Warmup toggle — first */}
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs font-bold text-gray-500">Échauffement</span>
             <button
@@ -684,7 +657,7 @@ export function ExerciseConfigForm({
               </div>
               {Array(cfg.warmupSets).fill(0).map((_, i) => (
                 <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5">
-                  <span className="text-xs font-black text-gray-400 w-6">É{i + 1}</span>
+                  <span className="text-xs font-black text-amber-400 w-6">É{i + 1}</span>
                   <button
                     onClick={() => setNumPickerOpen({ setType: 'warmup', field: 'reps', index: i })}
                     className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[42px] text-center"
@@ -703,6 +676,33 @@ export function ExerciseConfigForm({
               ))}
             </>
           )}
+
+          {/* Work sets — after warmup */}
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-bold text-gray-500 w-24">Séries de travail</label>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setWorkSets(cfg.workSets - 1)} className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center">−</button>
+              <span className="w-6 text-center font-bold text-gray-900">{cfg.workSets}</span>
+              <button onClick={() => setWorkSets(cfg.workSets + 1)} className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center">+</button>
+            </div>
+          </div>
+          {Array(cfg.workSets).fill(0).map((_, i) => (
+            <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5">
+              <span className="text-xs font-black text-gray-400 w-6">S{i + 1}</span>
+              <button
+                onClick={() => setNumPickerOpen({ setType: 'work', field: 'reps', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[42px] text-center"
+              >{cfg.workRepsPerSet[i] ?? 10}r</button>
+              <button
+                onClick={() => setNumPickerOpen({ setType: 'work', field: 'kg', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[46px] text-center"
+              >{cfg.workLoadsPerSet[i] ?? 0}kg</button>
+              <button
+                onClick={() => setRestPickerOpen({ setType: 'work', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap flex-1 text-center"
+              >{formatRest(cfg.workRestSeconds[i] ?? 90)}</button>
+            </div>
+          ))}
         </div>
       )}
 
