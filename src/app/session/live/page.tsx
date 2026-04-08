@@ -16,6 +16,7 @@ interface ExerciseWithName extends WorkoutExercise {
   muscles_primary: string[]
   muscles_secondary: string[]
   exercise_type: 'strength' | 'cardio'
+  image_url?: string | null
 }
 
 type SetType = 'warmup' | 'work' | 'cardio'
@@ -675,7 +676,7 @@ function LiveSessionInner() {
       .from('workout_exercises')
       .select(`
         *,
-        library_ex:exercise_library(name, muscles_primary, muscles_secondary, exercise_type),
+        library_ex:exercise_library(name, muscles_primary, muscles_secondary, exercise_type, image_url),
         custom_ex:custom_exercises(name, muscles_primary, muscles_secondary, exercise_type)
       `)
       .eq('workout_id', sessionRes.data.workout_id)
@@ -684,7 +685,7 @@ function LiveSessionInner() {
     if (!weData) { setLoading(false); return }
 
     const enriched: ExerciseWithName[] = weData.map((we: Record<string, unknown>) => {
-      const libEx = we.library_ex as { name: string; muscles_primary: string[]; muscles_secondary: string[]; exercise_type: 'strength' | 'cardio' } | null
+      const libEx = we.library_ex as { name: string; muscles_primary: string[]; muscles_secondary: string[]; exercise_type: 'strength' | 'cardio'; image_url?: string | null } | null
       const custEx = we.custom_ex as { name: string; muscles_primary: string[]; muscles_secondary: string[]; exercise_type: 'strength' | 'cardio' } | null
       const ex = libEx || custEx
       return {
@@ -693,6 +694,7 @@ function LiveSessionInner() {
         muscles_primary: ex?.muscles_primary ?? [],
         muscles_secondary: ex?.muscles_secondary ?? [],
         exercise_type: ex?.exercise_type ?? 'strength',
+        image_url: libEx?.image_url ?? null,
       }
     })
 
@@ -1076,6 +1078,14 @@ function LiveSessionInner() {
           <h1 className="text-xl font-black text-gray-950 text-center leading-tight line-clamp-1 px-4">
             {currentEx?.name}
           </h1>
+          {/* Image exercice */}
+          {currentEx?.image_url && (
+            <div className="w-full px-4">
+              <div className="w-full h-28 rounded-2xl overflow-hidden bg-gray-100">
+                <img src={currentEx.image_url} alt={currentEx.name} className="w-full h-full object-cover" />
+              </div>
+            </div>
+          )}
         </div>
         {/* Cercle SVG */}
         <div className="relative" style={{ width: RING_SIZE, height: RING_SIZE }}>

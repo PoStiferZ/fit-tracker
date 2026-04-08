@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
-import type { AnyExercise, MuscleGroup, Equipment, ExerciseType, WorkoutExercise } from '@/types'
+import type { AnyExercise, LibraryExercise, MuscleGroup, Equipment, ExerciseType, WorkoutExercise } from '@/types'
 import BottomSheet from '@/components/BottomSheet'
 import { SpeedPickerSheet, InclinePickerSheet } from '@/components/Pickers'
 import { Search, Plus, Check, ChevronLeft, ChevronRight, X } from 'lucide-react'
@@ -586,22 +586,43 @@ export function ExerciseConfigForm({
 
   return (
     <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <p className="font-bold text-gray-900 text-sm">{cfg.exercise.name}</p>
-          <div className="flex gap-1 mt-1 flex-wrap">
-            {cfg.exercise.muscles_primary.slice(0, 2).map(m => (
-              <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
-                {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
-                {MUSCLE_LABELS[m]}
-              </span>
-            ))}
-            <span className="text-[10px] font-bold bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">
-              {EQUIPMENT_LABELS[cfg.exercise.equipment]}
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* Exercise header + image */}
+      {(() => {
+        const libEx = cfg.exercise.source === 'library' ? (cfg.exercise as LibraryExercise) : null
+        const imageUrl = libEx?.image_url ?? null
+        const secondaryMuscles = cfg.exercise.muscles_secondary ?? []
+        return (
+          <>
+            {imageUrl && (
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-200">
+                <Image src={imageUrl} alt={cfg.exercise.name} fill className="object-cover" unoptimized />
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <p className="font-bold text-gray-900 text-sm">{cfg.exercise.name}</p>
+                <div className="flex gap-1 mt-1 flex-wrap">
+                  {cfg.exercise.muscles_primary.slice(0, 2).map(m => (
+                    <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                      {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
+                      {MUSCLE_LABELS[m]}
+                    </span>
+                  ))}
+                  {secondaryMuscles.slice(0, 2).map(m => (
+                    <span key={`sec-${m}`} className="flex items-center gap-1 text-[10px] font-bold bg-orange-50 text-orange-400 px-1.5 py-0.5 rounded-full">
+                      {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0 opacity-70" />}
+                      {MUSCLE_LABELS[m]}
+                    </span>
+                  ))}
+                  <span className="text-[10px] font-bold bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">
+                    {EQUIPMENT_LABELS[cfg.exercise.equipment]}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       {isCardio ? (
         <div className="space-y-3">
@@ -841,6 +862,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
   const [screen, setScreen] = useState<'library' | 'config'>('library')
   const [configs, setConfigs] = useState<ConfiguredExercise[]>([])
   const [createOpen, setCreateOpen] = useState(false)
+  const [expandedExIds, setExpandedExIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!isOpen) return
@@ -851,6 +873,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
     setEquipmentFilter('all')
     setFilterTab('all')
     setMateriauExpanded(false)
+    setExpandedExIds(new Set())
     loadExercises()
   }, [isOpen])
 
@@ -908,47 +931,129 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
 
   function ExerciseItem({ ex }: { ex: AnyExercise }) {
     const sel = isSelected(ex)
+    const exKey = `${ex.source}-${ex.id}`
+    const expanded = expandedExIds.has(exKey)
+    const toggleExpanded = () => setExpandedExIds(prev => {
+      const next = new Set(prev)
+      if (next.has(exKey)) next.delete(exKey)
+      else next.add(exKey)
+      return next
+    })
+    const libEx = ex.source === 'library' ? (ex as LibraryExercise) : null
+    const imageUrl = libEx?.image_url ?? null
+    const instructions = libEx?.instructions ?? null
+    const secondaryMuscles = ex.muscles_secondary ?? []
+    const hasDetail = !!(imageUrl || secondaryMuscles.length > 0 || instructions)
+
     return (
-      <button
-        onClick={() => toggleSelect(ex)}
+      <div
         className={cn(
-          'w-full flex items-center gap-3 px-4 py-5 rounded-2xl border-2 text-left transition-all active:scale-[0.98]',
+          'w-full rounded-2xl border-2 text-left transition-all overflow-hidden',
           sel ? 'border-gray-950 bg-gray-950' : 'border-gray-100 bg-white hover:border-gray-300'
         )}
       >
-        <div className={cn(
-          'w-8 h-8 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all',
-          sel ? 'bg-white border-white' : 'border-gray-300'
-        )}>
-          {sel
-            ? <Check size={14} className="text-gray-950" strokeWidth={3} />
-            : <Plus size={14} className="text-gray-400" />
-          }
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={cn('text-sm font-semibold truncate', sel ? 'text-white' : 'text-gray-900')}>
-            {ex.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
-            {ex.name}
-          </p>
-          <div className="flex gap-1 mt-0.5 flex-wrap">
-            {ex.muscles_primary.slice(0, 2).map(m => (
-              <span key={m} className={cn('flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                sel ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600'
+        {/* Main row */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          {/* Checkbox */}
+          <button
+            onClick={() => toggleSelect(ex)}
+            className={cn(
+              'w-8 h-8 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all',
+              sel ? 'bg-white border-white' : 'border-gray-300'
+            )}
+          >
+            {sel
+              ? <Check size={14} className="text-gray-950" strokeWidth={3} />
+              : <Plus size={14} className="text-gray-400" />
+            }
+          </button>
+          {/* Info */}
+          <button
+            onClick={hasDetail ? toggleExpanded : () => toggleSelect(ex)}
+            className="flex-1 min-w-0 text-left"
+          >
+            <p className={cn('text-sm font-semibold truncate', sel ? 'text-white' : 'text-gray-900')}>
+              {ex.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
+              {ex.name}
+            </p>
+            <div className="flex gap-1 mt-0.5 flex-wrap">
+              {ex.muscles_primary.slice(0, 2).map(m => (
+                <span key={m} className={cn('flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                  sel ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600'
+                )}>
+                  {MUSCLE_IMAGE[m] && (
+                    <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className={cn('object-contain shrink-0', sel ? 'brightness-0 invert' : '')} />
+                  )}
+                  {MUSCLE_LABELS[m]}
+                </span>
+              ))}
+              <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                sel ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
               )}>
-                {MUSCLE_IMAGE[m] && (
-                  <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className={cn('object-contain shrink-0', sel ? 'brightness-0 invert' : '')} />
-                )}
-                {MUSCLE_LABELS[m]}
+                {EQUIPMENT_LABELS[ex.equipment]}
               </span>
-            ))}
-            <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-              sel ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-            )}>
-              {EQUIPMENT_LABELS[ex.equipment]}
-            </span>
-          </div>
+            </div>
+          </button>
+          {/* Expand chevron */}
+          {hasDetail && (
+            <button
+              onClick={toggleExpanded}
+              className={cn('shrink-0 transition-transform', expanded ? 'rotate-90' : '')}
+            >
+              <ChevronRight size={16} className={sel ? 'text-white/60' : 'text-gray-400'} />
+            </button>
+          )}
         </div>
-      </button>
+
+        {/* Expanded detail */}
+        {expanded && (
+          <div className={cn('border-t px-4 pb-4 space-y-3', sel ? 'border-white/20' : 'border-gray-100')}>
+            {/* Exercise image */}
+            {imageUrl && (
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100 mt-3">
+                <Image
+                  src={imageUrl}
+                  alt={ex.name}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            )}
+            {/* Secondary muscles */}
+            {secondaryMuscles.length > 0 && (
+              <div>
+                <p className={cn('text-[10px] font-black uppercase tracking-wider mb-1.5', sel ? 'text-white/50' : 'text-gray-400')}>
+                  Muscles secondaires
+                </p>
+                <div className="flex gap-1 flex-wrap">
+                  {secondaryMuscles.map(m => (
+                    <span key={m} className={cn('flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                      sel ? 'bg-orange-400/30 text-orange-200' : 'bg-orange-50 text-orange-400'
+                    )}>
+                      {MUSCLE_IMAGE[m] && (
+                        <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className={cn('object-contain shrink-0', sel ? 'brightness-0 invert opacity-70' : 'opacity-70')} />
+                      )}
+                      {MUSCLE_LABELS[m]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Instructions */}
+            {instructions && (
+              <div>
+                <p className={cn('text-[10px] font-black uppercase tracking-wider mb-1', sel ? 'text-white/50' : 'text-gray-400')}>
+                  Instructions
+                </p>
+                <p className={cn('text-xs leading-relaxed line-clamp-4', sel ? 'text-white/70' : 'text-gray-500')}>
+                  {instructions}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     )
   }
 

@@ -23,6 +23,9 @@ export interface LibraryExercise {
   equipment: Equipment
   exercise_type: ExerciseType
   created_at: string
+  image_url: string | null
+  instructions: string | null
+  source_id: string | null
 }
 
 export interface CustomExercise {
