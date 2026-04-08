@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
 import Navbar from '@/components/Navbar'
-import { ChevronRight, History } from 'lucide-react'
+import { ChevronRight, History, Trash2 } from 'lucide-react'
 import type { LiveSession } from '@/types'
 
 interface SessionWithWorkout extends LiveSession {
@@ -34,6 +34,17 @@ export default function HistoryPage() {
   const router = useRouter()
   const [sessions, setSessions] = useState<SessionWithWorkout[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+
+  async function deleteSession(id: string) {
+    setDeletingId(id)
+    await supabase.from('live_session_sets').delete().eq('live_session_id', id)
+    await supabase.from('live_sessions').delete().eq('id', id)
+    setSessions(prev => prev.filter(s => s.id !== id))
+    setDeletingId(null)
+    setConfirmId(null)
+  }
 
   useEffect(() => {
     async function load() {
@@ -112,30 +123,58 @@ export default function HistoryPage() {
               const workoutName = session.workouts?.name ?? 'Séance inconnue'
               const programName = session.workouts?.programs?.name ?? ''
               return (
-                <button
-                  key={session.id}
-                  onClick={() => router.push(`/history/${session.id}`)}
-                  className="w-full text-left bg-white rounded-2xl p-4 shadow border border-gray-50 active:scale-[0.99] transition-transform"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-gray-900">{workoutName}</p>
-                      {programName && <p className="text-xs text-gray-400">{programName}</p>}
+                <div key={session.id} className="bg-white rounded-2xl shadow border border-gray-50 overflow-hidden">
+                  <button
+                    onClick={() => router.push(`/history/${session.id}`)}
+                    className="w-full text-left p-4 active:scale-[0.99] transition-transform"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-gray-900">{workoutName}</p>
+                        {programName && <p className="text-xs text-gray-400">{programName}</p>}
+                      </div>
+                      <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
                     </div>
-                    <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                      📅 {formatDate(session.started_at)}
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                      ⏱ {formatDuration(session.started_at, session.finished_at)}
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                      ✅ {session.completedSets} série{session.completedSets !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </button>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        📅 {formatDate(session.started_at)}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        ⏱ {formatDuration(session.started_at, session.finished_at)}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        ✅ {session.completedSets} série{session.completedSets !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Delete row */}
+                  {confirmId === session.id ? (
+                    <div className="flex border-t border-gray-100">
+                      <button
+                        onClick={() => setConfirmId(null)}
+                        className="flex-1 py-2.5 text-xs font-bold text-gray-400 hover:bg-gray-50 transition-colors"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={() => deleteSession(session.id)}
+                        disabled={deletingId === session.id}
+                        className="flex-1 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 transition-colors border-l border-gray-100"
+                      >
+                        {deletingId === session.id ? 'Suppression...' : 'Confirmer'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmId(session.id)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-gray-100 text-[11px] font-bold text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={11} />
+                      Supprimer
+                    </button>
+                  )}
+                </div>
               )
             })}
           </div>
