@@ -384,7 +384,7 @@ export default function DashboardPage() {
             : `${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1,3)}. – ${monthEnd.charAt(0).toUpperCase() + monthEnd.slice(1,3)}.`
 
           return (
-            <div className="bg-white rounded-2xl px-3 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+            <div className="bg-white -mx-4 px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-2">{monthDisplay}</p>
               <div className="flex items-center gap-1">
                 <button
