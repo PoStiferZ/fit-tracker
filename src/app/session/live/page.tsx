@@ -108,6 +108,10 @@ function RestTimer({
     setRemaining(prev => {
       const next = Math.max(0, prev + delta)
       setTotal(t => Math.max(t, next))
+      if (next === 0 && !doneCalledRef.current) {
+        doneCalledRef.current = true
+        setTimeout(onDone, 400)
+      }
       return next
     })
   }
@@ -138,14 +142,12 @@ function RestTimer({
   const secs = remaining % 60
 
   // SVG ring — same style as exercise phase
-  const RADIUS = 120
-  const STROKE = 10
-  const circumference = 2 * Math.PI * RADIUS
+  const RING_R = 100
+  const RING_STROKE = 9
+  const RING_SIZE = RING_R * 2 + RING_STROKE * 2 + 4
+  const circumference = 2 * Math.PI * RING_R
   const dashOffset = circumference * (1 - progress)
 
-  // Next set info
-  const isNextNewExercise = nextSet && nextExercise &&
-    (nextSet.exerciseIndex !== (nextSet.setIndex > 0 ? nextSet.exerciseIndex : -99))
   const nextLabel = nextSet
     ? nextSet.setType === 'warmup'
       ? `Échauffement ${nextSet.setIndex + 1}`
@@ -159,40 +161,25 @@ function RestTimer({
 
       {/* Ring timer */}
       <div className="flex-1 flex flex-col items-center justify-center gap-6">
-        <div className="relative" style={{ width: RADIUS * 2 + STROKE * 2 + 8, height: RADIUS * 2 + STROKE * 2 + 8 }}>
-          <svg
-            width={RADIUS * 2 + STROKE * 2 + 8}
-            height={RADIUS * 2 + STROKE * 2 + 8}
-            className="-rotate-90"
-            viewBox={`0 0 ${RADIUS * 2 + STROKE * 2 + 8} ${RADIUS * 2 + STROKE * 2 + 8}`}
-          >
-            {/* Track */}
+        <div className="relative" style={{ width: RING_SIZE, height: RING_SIZE }}>
+          <svg width={RING_SIZE} height={RING_SIZE} className="-rotate-90" viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
+            <circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R} fill="none" stroke="#e5e7eb" strokeWidth={RING_STROKE} />
             <circle
-              cx={(RADIUS * 2 + STROKE * 2 + 8) / 2}
-              cy={(RADIUS * 2 + STROKE * 2 + 8) / 2}
-              r={RADIUS}
-              fill="none"
-              stroke="#e5e7eb"
-              strokeWidth={STROKE}
-            />
-            {/* Progress — animates over total duration */}
-            <circle
-              cx={(RADIUS * 2 + STROKE * 2 + 8) / 2}
-              cy={(RADIUS * 2 + STROKE * 2 + 8) / 2}
-              r={RADIUS}
-              fill="none"
-              stroke="#6366f1"
-              strokeWidth={STROKE}
+              cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R}
+              fill="none" stroke="#111827" strokeWidth={RING_STROKE}
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={dashOffset}
               style={{ transition: 'stroke-dashoffset 1s linear' }}
             />
           </svg>
-          {/* Center: time + label */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Repos</span>
-            <span className="font-mono text-5xl font-black text-gray-950 tabular-nums leading-none">
+          {/* Center — dark circle with white text, same as exercise ring */}
+          <div
+            className="absolute bg-gray-950 flex flex-col items-center justify-center shadow-xl"
+            style={{ width: RING_R * 2 - 10, height: RING_R * 2 - 10, borderRadius: '50%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+          >
+            <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">repos</span>
+            <span className="font-mono text-4xl font-black text-white tabular-nums leading-none">
               {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
             </span>
           </div>
@@ -793,7 +780,7 @@ function LiveSessionInner() {
 
       {/* ── Top bar ── */}
       <div className="shrink-0 flex items-center justify-between px-4 bg-white"
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingBottom: 8 }}>
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)', paddingBottom: 4 }}>
         <button
           onClick={() => setAbandonConfirm(true)}
           className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
@@ -802,23 +789,23 @@ function LiveSessionInner() {
         </button>
         {/* Total session time */}
         <div className="flex flex-col items-center">
-          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Séance totale</span>
-          <span className="font-mono text-base font-black text-gray-950 tabular-nums leading-none">
+          <span className="font-mono text-xl font-black text-gray-950 tabular-nums leading-none">
             {String(elapsedMins).padStart(2, '0')}:{String(elapsedSecs).padStart(2, '0')}
           </span>
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Séance totale</span>
         </div>
         {/* Exercise progress */}
         <div className="flex flex-col items-end">
-          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Exercice</span>
-          <span className="text-sm font-black text-gray-700">{currentExIdx + 1}/{totalEx}</span>
+          <span className="text-base font-black text-gray-700">{currentExIdx + 1}/{totalEx}</span>
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Exercice</span>
         </div>
       </div>
 
       {/* ── Set badge + exercise name ── */}
-      <div className="shrink-0 flex flex-col items-center gap-1 px-5 pb-1">
+      <div className="shrink-0 flex flex-col items-center gap-2 px-5 pt-3 pb-2">
         {currentSet && (
           <span className={cn(
-            'text-[11px] font-bold px-3 py-0.5 rounded-full',
+            'text-sm font-bold px-4 py-1 rounded-full',
             currentSetType === 'warmup' ? 'bg-amber-100 text-amber-700' :
             currentSetType === 'cardio' ? 'bg-green-100 text-green-700' :
             'bg-indigo-100 text-indigo-700'
@@ -826,7 +813,7 @@ function LiveSessionInner() {
             {getSetLabel(currentSet)}
           </span>
         )}
-        <h1 className="text-lg font-black text-gray-950 text-center leading-tight line-clamp-1">
+        <h1 className="text-2xl font-black text-gray-950 text-center leading-tight line-clamp-1">
           {currentEx?.name}
         </h1>
       </div>
