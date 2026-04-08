@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
 import type { AnyExercise, MuscleGroup, Program, Workout, WorkoutExercise } from '@/types'
@@ -47,6 +47,77 @@ const MUSCLE_LABELS: Record<MuscleGroup, string> = {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── SwipeableWorkoutCard ─────────────────────────────────────────────────────
+function SwipeableWorkoutCard({
+  children,
+  onAddExercise,
+  onDelete,
+}: {
+  children: React.ReactNode
+  onAddExercise: () => void
+  onDelete: () => void
+}) {
+  const [offset, setOffset] = useState(0)
+  const [open, setOpen] = useState(false)
+  const startX = useRef<number | null>(null)
+  const ACTION_WIDTH = 130 // px revealed on swipe
+
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    if (startX.current === null) return
+    const dx = e.touches[0].clientX - startX.current
+    const newOffset = Math.max(-ACTION_WIDTH, Math.min(0, (open ? -ACTION_WIDTH : 0) + dx))
+    setOffset(newOffset)
+  }
+  function onTouchEnd() {
+    startX.current = null
+    if (offset < -ACTION_WIDTH / 2) {
+      setOffset(-ACTION_WIDTH)
+      setOpen(true)
+    } else {
+      setOffset(0)
+      setOpen(false)
+    }
+  }
+  function close() { setOffset(0); setOpen(false) }
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* Action buttons revealed on swipe */}
+      <div
+        className="absolute right-0 top-0 bottom-0 flex items-stretch"
+        style={{ width: ACTION_WIDTH }}
+      >
+        <button
+          onClick={() => { close(); onAddExercise() }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 bg-gray-900 text-white active:opacity-80 transition-opacity"
+        >
+          <Plus size={18} />
+          <span className="text-[10px] font-bold">Ajouter</span>
+        </button>
+        <button
+          onClick={() => { close(); onDelete() }}
+          className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white active:opacity-80 transition-opacity"
+        >
+          <Trash2 size={18} />
+          <span className="text-[10px] font-bold">Supprimer</span>
+        </button>
+      </div>
+      {/* Sliding card */}
+      <div
+        style={{ transform: `translateX(${offset}px)`, transition: startX.current === null ? 'transform 0.25s ease' : 'none' }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<ProgramWithWorkouts[]>([])
   const [loading, setLoading] = useState(true)
@@ -713,9 +784,9 @@ export default function ProgramsPage() {
       if (total === 0) return ''
       const m = Math.floor(total / 60)
       const s = total % 60
-      if (m === 0) return `${s}s de repos`
-      if (s === 0) return `~${m}min de repos`
-      return `~${m}min${s}s de repos`
+      if (m === 0) return `${s}s`
+      if (s === 0) return `~${m}min`
+      return `~${m}min ${s}s`
     }
 
     function toggleWorkout(id: string) {
@@ -755,65 +826,60 @@ export default function ProgramsPage() {
             </div>
           ) : prog.workouts.map(w => {
             const expanded = expandedWorkouts.has(w.id)
+            const wIdx = prog.workouts.indexOf(w)
+            const muscles = [...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 4)
+            const restLabel = calcRestTime(w.workout_exercises)
             return (
-              <div key={w.id} className="bg-white rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
+              <SwipeableWorkoutCard
+                key={w.id}
+                onAddExercise={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
+                onDelete={() => setDeleteWorkoutConfirm(w.id)}
+              >
+              <div className="bg-white rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
                 {/* Workout header */}
                 <div className="flex items-center gap-2 px-4 py-3.5">
                   {/* Reorder buttons */}
                   <div className="flex flex-col gap-0.5 shrink-0">
                     <button
                       onClick={() => reorderWorkout(w.id, 'up')}
-                      disabled={prog.workouts.indexOf(w) === 0}
+                      disabled={wIdx === 0}
                       className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
                     >
                       <ArrowUp size={11} className="text-gray-400" />
                     </button>
                     <button
                       onClick={() => reorderWorkout(w.id, 'down')}
-                      disabled={prog.workouts.indexOf(w) === prog.workouts.length - 1}
+                      disabled={wIdx === prog.workouts.length - 1}
                       className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-20"
                     >
                       <ArrowDown size={11} className="text-gray-400" />
                     </button>
                   </div>
-                  {/* Expand toggle — takes most space */}
+                  {/* Expand toggle */}
                   <button onClick={() => toggleWorkout(w.id)} className="flex-1 flex items-center gap-2 text-left min-w-0">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-900 text-sm">{w.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-xs text-gray-400">
-                          {w.workout_exercises.length} exercice{w.workout_exercises.length !== 1 ? 's' : ''}
-                        </span>
-                        {calcRestTime(w.workout_exercises) !== '' && (
-                          <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">
-                            ⏱ {calcRestTime(w.workout_exercises)}
-                          </span>
-                        )}
-                      </div>
-                      {w.enriched.length > 0 && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {[...new Set(w.enriched.flatMap(e => e.info?.muscles_primary ?? []))].slice(0, 3)
-                            .map(m => MUSCLE_LABELS[m]).join(', ')}
-                        </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {w.workout_exercises.length} exercice{w.workout_exercises.length !== 1 ? 's' : ''}
+                      </p>
+                      {/* Muscles + rest pills */}
+                      {(muscles.length > 0 || restLabel) && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {muscles.map(m => (
+                            <span key={m} className="text-[10px] font-bold bg-orange-50 text-orange-500 px-2 py-0.5 rounded-full">
+                              {MUSCLE_LABELS[m]}
+                            </span>
+                          ))}
+                          {restLabel && (
+                            <span className="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">
+                              ⏱ {restLabel}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     <ChevronDown size={18} className={cn('text-gray-400 transition-transform shrink-0', expanded && 'rotate-180')} />
                   </button>
-                  {/* Add exercise + delete workout buttons */}
-                  <div className="flex items-center gap-1 shrink-0 ml-1">
-                    <button
-                      onClick={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
-                      className="flex items-center gap-1 bg-gray-950 text-white px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition-transform"
-                    >
-                      <Plus size={13} /> Ajouter
-                    </button>
-                    <button
-                      onClick={() => setDeleteWorkoutConfirm(w.id)}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 size={14} className="text-red-400" />
-                    </button>
-                  </div>
                 </div>
 
                 {/* Expanded: exercises */}
@@ -911,6 +977,7 @@ export default function ProgramsPage() {
                   </div>
                 )}
               </div>
+              </SwipeableWorkoutCard>
             )
           })}
         </div>
@@ -971,14 +1038,20 @@ export default function ProgramsPage() {
           </div>
         )}
 
-        {/* Floating "Ajouter une séance" button */}
-        <button
-          onClick={() => setDetailNewWorkoutSheet({ open: true, name: '' })}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-gray-950 text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-[0_4px_20px_rgba(0,0,0,0.25)] active:scale-95 transition-transform z-30"
-        >
-          <Plus size={16} />
-          Ajouter une séance
-        </button>
+        {/* Floating bottom bar */}
+        <div className="fixed bottom-8 right-5 flex items-center gap-3 z-30">
+          <div className="bg-white border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.08)] rounded-2xl px-4 py-3 flex flex-col items-center">
+            <span className="text-xl font-black text-gray-950 leading-none">{prog.workouts.length}</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">séance{prog.workouts.length !== 1 ? 's' : ''}</span>
+          </div>
+          <button
+            onClick={() => setDetailNewWorkoutSheet({ open: true, name: '' })}
+            className="flex items-center gap-2 bg-gray-950 text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-[0_4px_20px_rgba(0,0,0,0.25)] active:scale-95 transition-transform"
+          >
+            <Plus size={16} />
+            Ajouter une séance
+          </button>
+        </div>
 
       </div>
     )
