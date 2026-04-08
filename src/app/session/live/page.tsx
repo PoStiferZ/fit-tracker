@@ -84,6 +84,117 @@ function Stepper({
   )
 }
 
+// ─── Exercise Drawer ──────────────────────────────────────────────────────────
+
+function ExerciseDrawer({
+  exercises,
+  sets,
+  currentExIdx,
+  onJumpTo,
+}: {
+  exercises: ExerciseWithName[]
+  sets: LiveSetState[]
+  currentExIdx: number
+  onJumpTo: (exIdx: number) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const touchStartYRef = useRef<number | null>(null)
+
+  // Build per-exercise status
+  const exerciseItems = exercises.map((ex, exIdx) => {
+    const workSets = sets.filter(s => s.exerciseIndex === exIdx && s.setType === 'work')
+    const cardioPlusSets = sets.filter(s => s.exerciseIndex === exIdx && (s.setType === 'cardio' || s.setType === 'work' || s.setType === 'warmup'))
+    // Count relevant sets (work + cardio — not warmup for completion check)
+    const relevantSets = sets.filter(s => s.exerciseIndex === exIdx && (s.setType === 'work' || s.setType === 'cardio'))
+    const allWorkSetsCompleted =
+      relevantSets.length > 0 &&
+      relevantSets.every(s => s.completed && !s.skipped)
+    const isCurrent = exIdx === currentExIdx
+    const totalSets = cardioPlusSets.length
+    return { ex, exIdx, allWorkSetsCompleted, isCurrent, totalSets }
+  })
+
+  const completedCount = exerciseItems.filter(e => e.allWorkSetsCompleted).length
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartYRef.current = e.touches[0].clientY
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartYRef.current === null) return
+    const delta = touchStartYRef.current - e.changedTouches[0].clientY
+    if (delta > 20) setExpanded(true)
+    else if (delta < -20) setExpanded(false)
+    touchStartYRef.current = null
+  }
+
+  return (
+    <div
+      className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-4px_30px_rgba(0,0,0,0.12)] overflow-hidden z-20"
+      style={{
+        height: expanded ? 'min(72vh, 520px)' : '56px',
+        transition: 'height 0.3s ease',
+      }}
+    >
+      {/* Handle / collapsed bar */}
+      <div
+        className="flex flex-col items-center cursor-pointer select-none"
+        onClick={() => setExpanded(v => !v)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-2" />
+        <p className="text-xs font-bold text-gray-500 pb-1">
+          {completedCount}/{exercises.length} exercices
+        </p>
+      </div>
+
+      {/* Scrollable list */}
+      {expanded && (
+        <div className="overflow-y-auto px-4 pb-6" style={{ maxHeight: 'calc(min(72vh, 520px) - 56px)' }}>
+          {exerciseItems.map(({ ex, exIdx, allWorkSetsCompleted, isCurrent, totalSets }) => {
+            const notStarted = !allWorkSetsCompleted && !isCurrent
+            const allSets = sets.filter(s => s.exerciseIndex === exIdx)
+            const nSets = allSets.filter(s => s.setType === 'work' || s.setType === 'cardio').length || totalSets
+            return (
+              <button
+                key={ex.id}
+                onClick={() => { onJumpTo(exIdx); setExpanded(false) }}
+                className="w-full flex items-center gap-3 py-3 border-b border-gray-100 last:border-0 active:bg-gray-50 transition-colors text-left"
+              >
+                {/* Status icon */}
+                <div className="shrink-0 w-7 h-7 flex items-center justify-center">
+                  {allWorkSetsCompleted ? (
+                    <span className="text-green-500 text-lg">✅</span>
+                  ) : isCurrent ? (
+                    <span className="text-indigo-600 text-base">▶</span>
+                  ) : (
+                    <span className="text-gray-300 text-base">○</span>
+                  )}
+                </div>
+                {/* Name + sets count */}
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    'font-bold text-sm truncate',
+                    allWorkSetsCompleted ? 'text-green-600' :
+                    isCurrent ? 'text-indigo-600' :
+                    'text-gray-500'
+                  )}>
+                    {ex.name}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {nSets} série{nSets > 1 ? 's' : ''}
+                  </p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Rest Timer ───────────────────────────────────────────────────────────────
 
 function RestTimer({
@@ -684,6 +795,18 @@ function LiveSessionInner() {
     advanceToNext(currentFlatIdx)
   }
 
+  function jumpToExercise(exIdx: number) {
+    const firstUncompleted = sets.findIndex(s => s.exerciseIndex === exIdx && !s.completed)
+    const target = firstUncompleted !== -1
+      ? sets[firstUncompleted]
+      : sets.find(s => s.exerciseIndex === exIdx)
+    if (!target) return
+    setCurrentExIdx(target.exerciseIndex)
+    setCurrentSetIdx(target.setIndex)
+    setCurrentSetType(target.setType)
+    setPhase('exercise')
+  }
+
   const elapsedMins = Math.floor(elapsed / 60)
   const elapsedSecs = elapsed % 60
 
@@ -720,7 +843,7 @@ function LiveSessionInner() {
     const nextExercise = nextSet ? (exercises[nextSet.exerciseIndex] ?? null) : null
 
     return (
-      <div className="h-[100dvh] flex flex-col bg-white overflow-hidden">
+      <div className="h-[100dvh] flex flex-col bg-white overflow-hidden relative">
         {/* Top bar */}
         <div className="shrink-0 flex items-center justify-between px-5 bg-white"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
@@ -745,6 +868,12 @@ function LiveSessionInner() {
           onSkip={onRestSkip}
           nextSet={nextSet}
           nextExercise={nextExercise}
+        />
+        <ExerciseDrawer
+          exercises={exercises}
+          sets={sets}
+          currentExIdx={currentExIdx}
+          onJumpTo={jumpToExercise}
         />
       {abandonConfirm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
@@ -776,7 +905,7 @@ function LiveSessionInner() {
   const exSecs = exElapsed % 60
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-white overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-white overflow-hidden relative">
 
       {/* ── Top bar ── */}
       <div className="shrink-0 flex items-center justify-between px-4 bg-white"
@@ -939,6 +1068,14 @@ function LiveSessionInner() {
           />
         </>
       )}
+
+      {/* ── Exercise Drawer ── */}
+      <ExerciseDrawer
+        exercises={exercises}
+        sets={sets}
+        currentExIdx={currentExIdx}
+        onJumpTo={jumpToExercise}
+      />
 
       {/* ── Abandon confirmation modal ── */}
       {abandonConfirm && (
