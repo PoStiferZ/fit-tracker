@@ -4,8 +4,9 @@ import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ChevronLeft } from 'lucide-react'
 import type { LiveSession, LiveSessionSet, WorkoutExercise, MuscleGroup } from '@/types'
-import { MUSCLE_IMAGE } from '@/lib/muscles'
+import { MUSCLE_IMAGE, getMuscleLabel } from '@/lib/muscles'
 import Image from 'next/image'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface SessionWithWorkout extends LiveSession {
   workouts: {
@@ -27,26 +28,6 @@ interface WorkoutExerciseWithExercise extends WorkoutExercise {
     muscles_primary: MuscleGroup[]
     exercise_type: string
   } | null
-}
-
-const MUSCLE_LABELS: Record<string, string> = {
-  chest: 'Pectoraux',
-  back: 'Dos',
-  shoulders: 'Épaules',
-  rear_delts: 'Delts post.',
-  biceps: 'Biceps',
-  triceps: 'Triceps',
-  forearms: 'Avant-bras',
-  traps: 'Trapèzes',
-  core: 'Abdos',
-  quads: 'Quadriceps',
-  hamstrings: 'Ischio',
-  glutes: 'Fessiers',
-  calves: 'Mollets',
-  inner_thighs: 'Adducteurs',
-  outer_thighs: 'Abducteurs',
-  cardio: 'Cardio',
-  neck: 'Cou',
 }
 
 function formatDate(dateStr: string): string {
@@ -75,6 +56,7 @@ export default function HistoryDetailPage() {
   const router = useRouter()
   const params = useParams()
   const id = params?.id as string
+  const { lang, t } = useLanguage()
 
   const [session, setSession] = useState<SessionWithWorkout | null>(null)
   const [sets, setSets] = useState<LiveSessionSet[]>([])
@@ -150,7 +132,7 @@ export default function HistoryDetailPage() {
             <ChevronLeft size={18} />
           </button>
           <h1 className="font-black text-gray-950 text-base flex-1 truncate">
-            {loading ? '…' : (session?.workouts?.name ?? 'Séance')}
+            {loading ? '…' : (session?.workouts?.name ?? t('workout_details'))}
           </h1>
         </div>
       </header>
@@ -166,7 +148,7 @@ export default function HistoryDetailPage() {
             </div>
           ) : !session ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <p className="font-bold text-gray-700">Séance introuvable</p>
+              <p className="font-bold text-gray-700">{t('workout_details')}</p>
             </div>
           ) : (
             <>
@@ -180,7 +162,7 @@ export default function HistoryDetailPage() {
                     ⏱ {formatDuration(session.started_at, session.finished_at)}
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                    ✅ {completedSets.length} série{completedSets.length !== 1 ? 's' : ''}
+                    ✅ {completedSets.length} {completedSets.length !== 1 ? t('sets_plural') : t('set_singular')}
                   </span>
                   {session.workouts?.programs?.name && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
@@ -203,7 +185,7 @@ export default function HistoryDetailPage() {
                     const exName = info?.name ?? 'Exercice inconnu'
                     const muscles = info?.muscles_primary ?? []
                     const exerciseType = info?.exercise_type ?? 'strength'
-                    const muscleLabels = muscles.map(m => MUSCLE_LABELS[m] ?? m).join(' · ') // kept for fallback
+                    const muscleLabels = muscles.map(m => getMuscleLabel(m as import('@/types').MuscleGroup, lang)).join(' · ') // kept for fallback
 
                     // Separate warmup and work sets
                     const warmupSets = exSets.filter(s => s.set_type === 'warmup')
@@ -222,7 +204,7 @@ export default function HistoryDetailPage() {
                               {muscles.slice(0, 3).map(m => (
                                 <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-50 text-orange-500 px-1.5 py-0.5 rounded-full">
                                   {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
-                                  {MUSCLE_LABELS[m] ?? m}
+                                  {getMuscleLabel(m as import('@/types').MuscleGroup, lang)}
                                 </span>
                               ))}
                             </div>
@@ -236,7 +218,7 @@ export default function HistoryDetailPage() {
                               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50"
                             >
                               <span className="text-[10px] font-bold text-amber-500 w-7 flex-shrink-0">
-                                E{idx + 1}
+                                {lang === 'en' ? 'W' : 'É'}{idx + 1}
                               </span>
                               <span className="text-xs font-semibold text-amber-600">
                                 {formatSetDisplay(set, exerciseType)}

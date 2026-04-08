@@ -7,8 +7,9 @@ import BottomSheet from '@/components/BottomSheet'
 import { SpeedPickerSheet, InclinePickerSheet } from '@/components/Pickers'
 import { Search, Plus, Check, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MUSCLE_IMAGE } from '@/lib/muscles'
+import { MUSCLE_IMAGE, getMuscleLabel } from '@/lib/muscles'
 import Image from 'next/image'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 // ─── Rest helpers ─────────────────────────────────────────────────────────────
 function formatRest(s: number): string {
@@ -818,14 +819,16 @@ export function ExerciseConfigForm({
 }
 
 // ─── Muscle groups for Par Muscle tab ────────────────────────────────────────
-const MUSCLE_GROUPS_TAB: { section: string; muscles: MuscleGroup[] }[] = [
-  { section: 'Torse', muscles: ['chest', 'back', 'shoulders', 'rear_delts', 'traps', 'core', 'neck'] },
-  { section: 'Bras', muscles: ['biceps', 'triceps', 'forearms'] },
-  { section: 'Bas du Corps', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'inner_thighs', 'outer_thighs'] },
+// sections are keyed so the component can translate them
+const MUSCLE_GROUPS_TAB_DEF: { sectionKey: string; muscles: MuscleGroup[] }[] = [
+  { sectionKey: 'torso', muscles: ['chest', 'back', 'shoulders', 'rear_delts', 'traps', 'core', 'neck'] },
+  { sectionKey: 'arms', muscles: ['biceps', 'triceps', 'forearms'] },
+  { sectionKey: 'lower_body', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'inner_thighs', 'outer_thighs'] },
 ]
 
 // ─── Main ExerciseLibrary ─────────────────────────────────────────────────────
 export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }: ExerciseLibraryProps) {
+  const { lang, t } = useLanguage()
   const [exercises, setExercises] = useState<AnyExercise[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -956,7 +959,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
       <div className="relative">
         <input
           type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher un exercice..."
+          placeholder={t('search_exercise')}
           className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-900 transition-all"
         />
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -965,9 +968,9 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
       {/* 3-tab segmented control */}
       <div className="flex bg-gray-100 rounded-2xl p-1 gap-1">
         {([
-          { key: 'all', label: 'Tout' },
-          { key: 'muscle', label: 'Par Muscle' },
-          { key: 'category', label: 'Catégorie' },
+          { key: 'all', labelKey: 'all' },
+          { key: 'muscle', labelKey: 'by_muscle' },
+          { key: 'category', labelKey: 'category' },
         ] as const).map(tab => (
           <button
             key={tab.key}
@@ -986,7 +989,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
                 : 'text-gray-500'
             )}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -996,10 +999,10 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
         <>
           {/* My exercises header */}
           <div className="flex items-center justify-between">
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider">Mes exercices</p>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-wider">{t('my_exercises')}</p>
             <button onClick={() => setCreateOpen(true)}
               className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
-              <Plus size={12} /> Créer
+              <Plus size={12} /> {t('create')}
             </button>
           </div>
 
@@ -1020,7 +1023,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
 
               {libraryExs.length > 0 && (
                 <>
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-wider pt-2">Bibliothèque</p>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-wider pt-2">{t('library')}</p>
                   <div className="space-y-1.5">
                     {libraryExs.map(ex => <ExerciseItem key={`lib-${ex.id}`} ex={ex} />)}
                   </div>
@@ -1028,7 +1031,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
               )}
 
               {filtered.length === 0 && (
-                <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
+                <p className="text-gray-400 text-sm text-center py-6">{t('no_results')}</p>
               )}
             </div>
           )}
@@ -1041,18 +1044,19 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
           {/* Liste des muscles (quand aucun filtre actif) */}
           {muscleFilter === 'all' && (
             <div className="space-y-1">
-              {MUSCLE_GROUPS_TAB.map(group => (
-                <div key={group.section}>
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-wider py-2">{group.section}</p>
+              {MUSCLE_GROUPS_TAB_DEF.map(group => (
+                <div key={group.sectionKey}>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-wider py-2">{t(group.sectionKey)}</p>
                   {group.muscles.map(muscle => {
                     const img = MUSCLE_IMAGE[muscle]
                     const count = exercises.filter(ex => ex.muscles_primary.includes(muscle)).length
+                    const muscleLabel = getMuscleLabel(muscle, lang)
                     return (
                       <button
                         key={muscle}
                         onClick={() => {
                           setMuscleFilter(muscle)
-                          setFilterLabel(MUSCLE_LABELS[muscle])
+                          setFilterLabel(muscleLabel)
                         }}
                         className="w-full flex items-center gap-4 px-1 py-4 border-b border-gray-100 active:bg-gray-50 transition-colors"
                       >
@@ -1060,7 +1064,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
                           {img && <Image src={img} alt={muscle} width={64} height={64} className="object-contain p-1" />}
                         </div>
                         <div className="flex-1 text-left">
-                          <p className="text-base font-semibold text-gray-900">{MUSCLE_LABELS[muscle]}</p>
+                          <p className="text-base font-semibold text-gray-900">{muscleLabel}</p>
                           <p className="text-xs text-gray-400">{count} exercice{count !== 1 ? 's' : ''}</p>
                         </div>
                         <ChevronRight size={18} className="text-gray-400 shrink-0" />
@@ -1083,7 +1087,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
               </button>
               <div className="space-y-1.5">
                 {filtered.length === 0
-                  ? <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
+                  ? <p className="text-gray-400 text-sm text-center py-6">{t('no_results')}</p>
                   : filtered.map(ex => <ExerciseItem key={`${ex.source}-${ex.id}`} ex={ex} />)
                 }
               </div>
@@ -1106,7 +1110,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
               </button>
               <div className="space-y-1.5">
                 {filtered.length === 0
-                  ? <p className="text-gray-400 text-sm text-center py-6">Aucun résultat</p>
+                  ? <p className="text-gray-400 text-sm text-center py-6">{t('no_results')}</p>
                   : filtered.map(ex => <ExerciseItem key={`${ex.source}-${ex.id}`} ex={ex} />)
                 }
               </div>

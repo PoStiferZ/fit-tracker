@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import type { WorkoutExercise, LiveSession, LiveSessionSet } from '@/types'
 import { ChevronLeft, Check, SkipForward, Plus, Minus } from 'lucide-react'
 import { WeightPickerSheet, RepsPickerSheet, DurationPickerSheet, SpeedPickerSheet, InclinePickerSheet } from '@/components/Pickers'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,7 @@ function ExerciseDrawer({
   onJumpTo: (exIdx: number) => void
   onToggleSkip: (exIdx: number) => void
 }) {
+  const { t } = useLanguage()
   const [expanded, setExpanded] = useState(false)
   const touchStartYRef = useRef<number | null>(null)
 
@@ -211,7 +213,7 @@ function ExerciseDrawer({
                         : 'text-red-400 bg-red-50'
                     )}
                   >
-                    {isPendingSkip ? 'Annuler' : 'Passer'}
+                    {isPendingSkip ? t('cancel') : t('skip')}
                   </button>
                 )}
               </div>
@@ -238,6 +240,7 @@ function RestTimer({
   nextSet: LiveSetState | null
   nextExercise: ExerciseWithName | null
 }) {
+  const { t } = useLanguage()
   const [remaining, setRemaining] = useState(initialSeconds)
   const [total, setTotal] = useState(initialSeconds)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -292,10 +295,10 @@ function RestTimer({
 
   const nextLabel = nextSet
     ? nextSet.setType === 'warmup'
-      ? `Échauffement ${nextSet.setIndex + 1}`
+      ? `${t('warmup')} ${nextSet.setIndex + 1}`
       : nextSet.setType === 'cardio'
-        ? `Cardio ${nextSet.setIndex + 1}`
-        : `Série ${nextSet.setIndex + 1}`
+        ? `${t('cardio')} ${nextSet.setIndex + 1}`
+        : `${t('set_singular')} ${nextSet.setIndex + 1}`
     : null
 
   return (
@@ -320,7 +323,7 @@ function RestTimer({
             className="absolute bg-gray-950 flex flex-col items-center justify-center shadow-xl"
             style={{ width: RING_R * 2 - 10, height: RING_R * 2 - 10, borderRadius: '50%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
           >
-            <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">repos</span>
+            <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{t('rest')}</span>
             <span className="font-mono text-4xl font-black text-white tabular-nums leading-none">
               {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
             </span>
@@ -343,7 +346,7 @@ function RestTimer({
       {/* Next up card */}
       {nextSet && nextExercise && (
         <div className="w-full bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-4 mb-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Prochaine série</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{t('next_set')}</p>
           <div className="flex items-center gap-3">
             <div className={cn(
               'px-2.5 py-1 rounded-xl text-xs font-bold shrink-0',
@@ -376,7 +379,7 @@ function RestTimer({
       <button onClick={onSkip}
         className="w-full bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[44px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm mb-2">
         <SkipForward size={14} />
-        Passer le repos
+        {t('skip_rest')}
       </button>
     </div>
   )
@@ -399,6 +402,7 @@ function FinishedScreen({
   profileWeight: number
   onReturn: () => void
 }) {
+  const { t } = useLanguage()
   const exerciseSeconds = totalSeconds - restSeconds
 
   const formatDuration = (s: number) => {
@@ -427,7 +431,7 @@ function FinishedScreen({
       <div className="flex-1 overflow-y-auto px-5 pt-12 pb-32">
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🎉</div>
-          <h1 className="text-3xl font-black text-gray-950">Séance terminée !</h1>
+          <h1 className="text-3xl font-black text-gray-950">{t('session_done')}</h1>
         </div>
 
         {/* Stats */}
@@ -482,7 +486,7 @@ function FinishedScreen({
           onClick={onReturn}
           className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[64px] flex items-center justify-center gap-2 text-base active:scale-[0.97] transition-transform"
         >
-          Retour au dashboard
+          {t('return_dashboard')}
         </button>
       </div>
     </div>
@@ -495,6 +499,7 @@ function LiveSessionInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('id')
+  const { t } = useLanguage()
 
   const [liveSession, setLiveSession] = useState<LiveSession | null>(null)
   const [exercises, setExercises] = useState<ExerciseWithName[]>([])
@@ -749,9 +754,9 @@ function LiveSessionInner() {
     const exSetsOfType = sets.filter(ss => ss.exerciseIndex === s.exerciseIndex && ss.setType === s.setType)
     const idx = exSetsOfType.findIndex(ss => ss.setIndex === s.setIndex)
     const total = exSetsOfType.length
-    if (s.setType === 'warmup') return `Éch. ${idx + 1}/${total}`
-    if (s.setType === 'cardio') return `Cardio ${idx + 1}/${total}`
-    return `Série ${idx + 1}/${total}`
+    if (s.setType === 'warmup') return `${t('warmup')} ${idx + 1}/${total}`
+    if (s.setType === 'cardio') return `${t('cardio')} ${idx + 1}/${total}`
+    return `${t('set_singular')} ${idx + 1}/${total}`
   }
 
   const updateSet = (flatIdx: number, field: keyof LiveSetState, value: number) => {
@@ -996,14 +1001,14 @@ function LiveSessionInner() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
           <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="text-center space-y-1">
-              <p className="text-xl font-black text-gray-950">Abandonner la séance ?</p>
-              <p className="text-sm text-gray-400">Ta progression sera perdue et ne sera pas sauvegardée.</p>
+              <p className="text-xl font-black text-gray-950">{t('abandon_session')}</p>
+              <p className="text-sm text-gray-400">{t('abandon_warning')}</p>
             </div>
             <button onClick={abandonSession} className="w-full bg-red-500 text-white font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all">
-              Oui, abandonner
+              {t('yes_abandon')}
             </button>
             <button onClick={() => setAbandonConfirm(false)} className="w-full bg-gray-100 text-gray-700 font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all">
-              Continuer la séance
+              {t('continue_session')}
             </button>
           </div>
         </div>
@@ -1103,21 +1108,21 @@ function LiveSessionInner() {
           >
             {isCardio ? (
               <>
-                <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">cardio</span>
+                <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{t('cardio')}</span>
                 <span className="font-mono text-2xl font-black text-white tabular-nums leading-none">
                   {String(cardioMins).padStart(2, '0')}:{String(cardioSecs).padStart(2, '0')}
                 </span>
                 <Check size={18} strokeWidth={3} className="mt-1.5" />
-                <span className="text-xs font-black mt-0.5">Terminer</span>
+                <span className="text-xs font-black mt-0.5">{t('finish')}</span>
               </>
             ) : (
               <>
-                <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">exercice</span>
+                <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{t('live_workout')}</span>
                 <span className="font-mono text-2xl font-black text-white tabular-nums leading-none">
                   {String(exMins).padStart(2, '0')}:{String(exSecs).padStart(2, '0')}
                 </span>
                 <Check size={18} strokeWidth={3} className="mt-1.5" />
-                <span className="text-xs font-black mt-0.5">Terminer</span>
+                <span className="text-xs font-black mt-0.5">{t('finish')}</span>
               </>
             )}
           </button>
@@ -1174,7 +1179,7 @@ function LiveSessionInner() {
           <button onClick={() => completeCurrentSet(true)}
             className="w-full bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[44px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm">
             <SkipForward size={14} />
-            Passer la série
+            {t('skip_set')}
           </button>
         </div>
       )}
@@ -1231,20 +1236,20 @@ function LiveSessionInner() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
           <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="text-center space-y-1">
-              <p className="text-xl font-black text-gray-950">Abandonner la séance ?</p>
-              <p className="text-sm text-gray-400">Ta progression sera perdue et ne sera pas sauvegardée.</p>
+              <p className="text-xl font-black text-gray-950">{t('abandon_session')}</p>
+              <p className="text-sm text-gray-400">{t('abandon_warning')}</p>
             </div>
             <button
               onClick={abandonSession}
               className="w-full bg-red-500 text-white font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
             >
-              Oui, abandonner
+              {t('yes_abandon')}
             </button>
             <button
               onClick={() => setAbandonConfirm(false)}
               className="w-full bg-gray-100 text-gray-700 font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
             >
-              Continuer la séance
+              {t('continue_session')}
             </button>
           </div>
         </div>

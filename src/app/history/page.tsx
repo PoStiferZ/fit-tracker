@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar'
 import { ChevronRight, History } from 'lucide-react'
 import { SwipeToDelete } from '@/components/SwipeToDelete'
 import type { LiveSession } from '@/types'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface SessionWithWorkout extends LiveSession {
   workouts: {
@@ -33,6 +34,7 @@ function formatDuration(start: string, end: string | null): string {
 
 export default function HistoryPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [sessions, setSessions] = useState<SessionWithWorkout[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -101,8 +103,8 @@ export default function HistoryPage() {
             <History size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-950">Historique</h1>
-            <p className="text-xs text-gray-400">Séances terminées</p>
+            <h1 className="text-xl font-black text-gray-950">{t('history')}</h1>
+            <p className="text-xs text-gray-400">{t('no_workouts_yet')}</p>
           </div>
         </div>
 
@@ -115,8 +117,7 @@ export default function HistoryPage() {
         ) : sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="text-5xl mb-4">🏋️</div>
-            <p className="font-bold text-gray-700 text-lg">Aucune séance terminée</p>
-            <p className="text-sm text-gray-400 mt-1">Tes séances apparaîtront ici une fois terminées.</p>
+            <p className="font-bold text-gray-700 text-lg">{t('no_workouts_yet')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -144,7 +145,7 @@ export default function HistoryPage() {
                         ⏱ {formatDuration(session.started_at, session.finished_at)}
                       </span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                        ✅ {session.completedSets} série{session.completedSets !== 1 ? 's' : ''}
+                        ✅ {session.completedSets} {session.completedSets !== 1 ? t('workouts_plural') : t('workout_singular')}
                       </span>
                     </div>
                   </button>
@@ -160,21 +161,20 @@ export default function HistoryPage() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
           <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="text-center space-y-1">
-              <p className="text-xl font-black text-gray-950">Supprimer cet historique de séance ?</p>
-              <p className="text-sm text-gray-400">Cette action est irréversible.</p>
+              <p className="text-xl font-black text-gray-950">{t('delete')} ?</p>
             </div>
             <button
               onClick={() => deleteSession(confirmId)}
               disabled={!!deletingId}
               className="w-full bg-red-500 text-white font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
             >
-              {deletingId ? 'Suppression...' : 'Oui, supprimer'}
+              {t('delete')}
             </button>
             <button
               onClick={() => setConfirmId(null)}
               className="w-full bg-gray-100 text-gray-700 font-bold rounded-2xl min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
             >
-              Annuler
+              {t('cancel')}
             </button>
           </div>
         </div>

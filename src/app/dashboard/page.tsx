@@ -602,7 +602,7 @@ export default function DashboardPage() {
       </BottomSheet>
 
       {/* Bottom sheet — associate a program */}
-      <BottomSheet isOpen={programSheet} onClose={() => setProgramSheet(false)} title="Programme de la semaine">
+      <BottomSheet isOpen={programSheet} onClose={() => setProgramSheet(false)} title={t('weekly_program')}>
         <div className="space-y-3 pb-4">
           {/* Liste programmes */}
           <div className="space-y-2">
@@ -671,7 +671,7 @@ export default function DashboardPage() {
           {selectingProgramId && (
             <button onClick={saveActiveProgram} disabled={savingActiveProgram}
               className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]">
-              {savingActiveProgram ? 'Enregistrement...' : '✓ Confirmer'}
+              {savingActiveProgram ? t('saving') : `✓ ${t('confirm')}`}
             </button>
           )}
         </div>

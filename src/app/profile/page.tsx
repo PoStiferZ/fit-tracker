@@ -10,15 +10,9 @@ import ProfileAvatar from '@/components/ProfileAvatar'
 import BottomSheet from '@/components/BottomSheet'
 import { Scale, Plus, Check, LogOut, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MUSCLE_IMAGE } from '@/lib/muscles'
+import { MUSCLE_IMAGE, getMuscleLabel } from '@/lib/muscles'
 import Image from 'next/image'
-
-const MUSCLE_LABELS: Record<MuscleGroup, string> = {
-  chest: 'Pectoraux', back: 'Dos', shoulders: 'Épaules', rear_delts: 'Delts arr.',
-  biceps: 'Biceps', triceps: 'Triceps', forearms: 'Avant-bras', traps: 'Trapèzes',
-  core: 'Abdos', quads: 'Quadriceps', hamstrings: 'Ischio', glutes: 'Fessiers',
-  calves: 'Mollets', inner_thighs: 'Adducteurs', outer_thighs: 'Abducteurs', cardio: 'Cardio', neck: 'Cou',
-}
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface StatsData {
   totalSessions: number
@@ -43,6 +37,7 @@ const HISTORY_COUNT = 30
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { lang, setLang, t } = useLanguage()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [weights, setWeights] = useState<BodyWeightEntry[]>([])
   const [stats, setStats] = useState<StatsData | null>(null)
@@ -263,9 +258,9 @@ export default function ProfilePage() {
 
           <div className="relative grid grid-cols-3 gap-2 mt-4">
             {[
-              { label: 'Âge', value: `${calculateAge(profile!.birth_date)} ans` },
-              { label: 'Taille', value: `${profile!.height_cm} cm` },
-              { label: 'Poids init.', value: `${profile!.weight_kg} kg` },
+              { label: t('age'), value: `${calculateAge(profile!.birth_date)} ${t('age_unit')}` },
+              { label: t('height'), value: `${profile!.height_cm} cm` },
+              { label: t('weight'), value: `${profile!.weight_kg} kg` },
             ].map(({ label, value }) => (
               <div key={label} className="bg-white/10 rounded-2xl p-3 text-center">
                 <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{label}</p>
@@ -281,9 +276,9 @@ export default function ProfilePage() {
             {/* 3 KPI cards */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'Séances totales', value: stats.totalSessions, unit: '' },
-                { label: 'Ce mois', value: stats.monthSessions, unit: '' },
-                { label: 'Durée moy.', value: stats.avgDurationMin, unit: 'min' },
+                { label: lang === 'en' ? 'Total sessions' : 'Séances totales', value: stats.totalSessions, unit: '' },
+                { label: t('sessions_this_month'), value: stats.monthSessions, unit: '' },
+                { label: t('avg_duration'), value: stats.avgDurationMin, unit: t('min') },
               ].map(({ label, value, unit }) => (
                 <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] px-2 py-3 flex flex-col items-center justify-center text-center gap-1 min-h-[76px]">
                   <div className="flex items-baseline gap-0.5 justify-center">
@@ -302,7 +297,7 @@ export default function ProfilePage() {
               {stats.setsByMuscle.length === 0 ? (
                 <>
                   <p className="text-sm text-gray-300 italic text-center py-3">Aucune séance cette semaine</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mt-1">Séries par muscle · semaine</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mt-1">{t('sets_by_muscle_week')}</p>
                 </>
               ) : (
                 <>
@@ -316,10 +311,10 @@ export default function ProfilePage() {
                               {MUSCLE_IMAGE[muscle] ? (
                                 <Image src={MUSCLE_IMAGE[muscle]!} alt={muscle} width={18} height={18} className="object-contain shrink-0" />
                               ) : <span>❤️</span>}
-                              {MUSCLE_LABELS[muscle]}
+                              {getMuscleLabel(muscle, lang)}
                             </span>
                             <span className="text-xs font-black text-gray-950 tabular-nums">
-                              {sets} série{sets > 1 ? 's' : ''}
+                              {sets} {lang === 'en' ? (sets > 1 ? 'sets' : 'set') : (sets > 1 ? 'séries' : 'série')}
                             </span>
                           </div>
                           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -332,7 +327,7 @@ export default function ProfilePage() {
                       ))
                     })()}
                   </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mt-3">Séries par muscle · semaine</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mt-3">{t('sets_by_muscle_week')}</p>
                 </>
               )}
             </div>
@@ -528,12 +523,37 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Profile actions */}
+        {/* Settings */}
         <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 overflow-hidden">
+          {/* Language toggle */}
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-700">{t('language')}</span>
+            <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+              <button
+                onClick={() => setLang('fr')}
+                className={cn(
+                  'px-3 py-1 rounded-lg text-xs font-bold transition-all',
+                  lang === 'fr' ? 'bg-white shadow text-gray-900' : 'text-gray-400'
+                )}
+              >
+                🇫🇷 FR
+              </button>
+              <button
+                onClick={() => setLang('en')}
+                className={cn(
+                  'px-3 py-1 rounded-lg text-xs font-bold transition-all',
+                  lang === 'en' ? 'bg-white shadow text-gray-900' : 'text-gray-400'
+                )}
+              >
+                🇬🇧 EN
+              </button>
+            </div>
+          </div>
+          {/* Sign out */}
           <button onClick={() => { clearProfileId(); router.replace('/') }}
             className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 transition-colors">
             <span className="w-8 text-center"><LogOut size={18} className="text-red-400 mx-auto" /></span>
-            <span className="flex-1 text-left text-sm font-semibold text-red-500">Déconnexion</span>
+            <span className="flex-1 text-left text-sm font-semibold text-red-500">{t('sign_out')}</span>
           </button>
         </div>
 
@@ -541,23 +561,23 @@ export default function ProfilePage() {
       </main>
 
       {/* Edit profile sheet */}
-      <BottomSheet isOpen={editSheet} onClose={() => setEditSheet(false)} title="Modifier le profil">
+      <BottomSheet isOpen={editSheet} onClose={() => setEditSheet(false)} title={t('edit')}>
         <div className="space-y-4 pb-4">
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Taille (cm)</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{t('height')} (cm)</label>
             <input type="number" inputMode="numeric" value={editForm.height_cm || ''}
               onChange={e => setEditForm(f => ({ ...f, height_cm: parseInt(e.target.value) || 0 }))}
               className={inputField} placeholder="175" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Poids de référence (kg)</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{t('weight')} (kg)</label>
             <input type="number" inputMode="decimal" step="0.1" value={editForm.weight_kg || ''}
               onChange={e => setEditForm(f => ({ ...f, weight_kg: parseFloat(e.target.value) || 0 }))}
               className={inputField} placeholder="75" />
           </div>
           <button onClick={saveProfile} disabled={savingProfile}
             className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] disabled:opacity-40">
-            {savingProfile ? 'Enregistrement...' : 'Mettre à jour'}
+            {savingProfile ? t('saving') : t('update')}
           </button>
         </div>
       </BottomSheet>
