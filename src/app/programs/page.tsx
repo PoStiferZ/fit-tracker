@@ -719,12 +719,6 @@ export default function ProgramsPage() {
               <Pencil size={13} className="text-gray-400" />
             </button>
           </div>
-          <button
-            onClick={() => setDetailNewWorkoutSheet({ open: true, name: '' })}
-            className="flex items-center gap-1.5 bg-gray-950 text-white px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform shrink-0"
-          >
-            <Plus size={13} /> Séance
-          </button>
         </div>
 
         {/* Workout list with expand */}
@@ -934,6 +928,15 @@ export default function ProgramsPage() {
             </div>
           </div>
         )}
+
+        {/* Floating "Ajouter une séance" button */}
+        <button
+          onClick={() => setDetailNewWorkoutSheet({ open: true, name: '' })}
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-gray-950 text-white px-5 py-3.5 rounded-2xl font-bold text-sm shadow-[0_4px_20px_rgba(0,0,0,0.25)] active:scale-95 transition-transform z-30"
+        >
+          <Plus size={16} />
+          Ajouter une séance
+        </button>
 
       </div>
     )
