@@ -170,7 +170,7 @@ export default function HistoryPage() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
           <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="text-center space-y-1">
-              <p className="text-xl font-black text-gray-950">Supprimer cette séance ?</p>
+              <p className="text-xl font-black text-gray-950">Supprimer cet historique de séance ?</p>
               <p className="text-sm text-gray-400">Cette action est irréversible.</p>
             </div>
             <button
