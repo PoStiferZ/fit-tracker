@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('semaine')
   const [weekOffset, setWeekOffset] = useState(0)
+  const [suppDayOffset, setSuppDayOffset] = useState(0)
   const [launching, setLaunching] = useState(false)
 
   // Active program
@@ -269,95 +270,118 @@ export default function DashboardPage() {
     <div className="md:pl-60 pb-28 md:pb-8 bg-white min-h-screen">
       <Navbar />
 
-      {/* ── Sticky week header ── */}
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="max-w-lg mx-auto px-4 md:px-6">
+      {/* ── Sticky header ── */}
+      {(() => {
+        const todayDate = new Date(); todayDate.setHours(0,0,0,0)
 
-          {/* Tabs — centred */}
-          <div className="flex justify-center gap-1 pt-3 pb-2">
-            {([
-              { key: 'semaine', label: '🗓 Semaine' },
-              { key: 'complements', label: '💊 Compléments' },
-            ] as const).map(t => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={cn(
-                  'px-4 py-2 rounded-xl text-sm font-bold transition-all',
-                  activeTab === t.key ? 'bg-gray-950 text-white' : 'text-gray-400'
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        // Build 7 day objects for the current view
+        const isSemaine = activeTab === 'semaine'
+        const days7 = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(viewMonday); d.setDate(d.getDate() + i); return d
+        })
+        // For compléments: anchor is today + suppDayOffset, show 7 days around it
+        const suppAnchor = new Date(todayDate); suppAnchor.setDate(suppAnchor.getDate() + suppDayOffset)
+        const suppWeekMonday = getMonday(suppAnchor)
+        const suppDays7 = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(suppWeekMonday); d.setDate(d.getDate() + i); return d
+        })
 
-          {/* Week nav with day pills — only in semaine tab */}
-          {activeTab === 'semaine' && (() => {
-            const days7 = Array.from({ length: 7 }, (_, i) => {
-              const d = new Date(viewMonday)
-              d.setDate(d.getDate() + i)
-              return d
-            })
-            const monthLabel = days7[0].toLocaleDateString('fr-FR', { month: 'long' })
-            const monthEnd = days7[6].toLocaleDateString('fr-FR', { month: 'long' })
-            const monthDisplay = monthLabel === monthEnd
-              ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
-              : `${monthLabel.slice(0,4)}. – ${monthEnd.slice(0,4)}.`
-            const todayDate = new Date()
-            return (
-              <div className="pb-3">
-                {/* Month label */}
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-2">{monthDisplay}</p>
-                {/* Arrows + pills row */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setWeekOffset(o => o - 1)}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all shrink-0"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="15 18 9 12 15 6"/></svg>
-                  </button>
-                  <div className="flex-1 flex justify-between gap-1">
-                    {days7.map((d, i) => {
-                      const isToday = d.toDateString() === todayDate.toDateString()
-                      const dayEntry = weekPlan.find(wp => wp.day_of_week === i + 1)
-                      const hasWorkout = !!dayEntry?.workout_id
-                      const done = !!dayEntry?.completed
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <span className="text-[9px] font-bold text-gray-400 uppercase">
-                            {['L','M','M','J','V','S','D'][i]}
-                          </span>
-                          <div className={cn(
-                            'w-full aspect-square max-w-[34px] rounded-xl flex items-center justify-center text-xs font-bold transition-all',
-                            isToday && !done ? 'bg-gray-950 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]' :
-                            done ? 'bg-green-500 text-white shadow-[0_2px_6px_rgba(34,197,94,0.35)]' :
-                            hasWorkout ? 'bg-orange-100 text-orange-600' :
-                            'bg-gray-100 text-gray-400'
-                          )}>
-                            {done
-                              ? <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="2.5,8.5 6.5,12.5 13.5,4.5"/></svg>
-                              : d.getDate()
+        const activeDays = isSemaine ? days7 : suppDays7
+        const monthLabel = activeDays[0].toLocaleDateString('fr-FR', { month: 'long' })
+        const monthEnd = activeDays[6].toLocaleDateString('fr-FR', { month: 'long' })
+        const monthDisplay = monthLabel === monthEnd
+          ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+          : `${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1,3)}. – ${monthEnd.charAt(0).toUpperCase() + monthEnd.slice(1,3)}.`
+
+        return (
+          <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100"
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="max-w-lg mx-auto px-4 md:px-6 pt-3 pb-3">
+
+              {/* Month */}
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-2">{monthDisplay}</p>
+
+              {/* Arrows + pills */}
+              <div className="flex items-center gap-1 mb-3">
+                <button
+                  onClick={() => isSemaine ? setWeekOffset(o => o - 1) : setSuppDayOffset(o => o - 7)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all shrink-0"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div className="flex-1 flex justify-between gap-1">
+                  {activeDays.map((d, i) => {
+                    const isToday = d.toDateString() === todayDate.toDateString()
+                    // Semaine: highlight if workout planned/done
+                    const dayEntry = isSemaine ? weekPlan.find(wp => wp.day_of_week === i + 1) : null
+                    const hasWorkout = isSemaine && !!dayEntry?.workout_id
+                    const done = isSemaine && !!dayEntry?.completed
+                    // Compléments: selected day
+                    const isSuppSelected = !isSemaine && d.toDateString() === suppAnchor.toDateString()
+
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase">
+                          {['L','M','M','J','V','S','D'][i]}
+                        </span>
+                        <button
+                          disabled={isSemaine || d > todayDate}
+                          onClick={() => {
+                            if (!isSemaine) {
+                              const diff = Math.round((d.getTime() - todayDate.getTime()) / 86400000)
+                              setSuppDayOffset(diff)
                             }
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <button
-                    onClick={() => setWeekOffset(o => Math.min(0, o + 1))}
-                    disabled={isCurrentWeek}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-20 shrink-0"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="9 18 15 12 9 6"/></svg>
-                  </button>
+                          }}
+                          className={cn(
+                            'w-full aspect-square max-w-[34px] rounded-xl flex items-center justify-center text-xs font-bold transition-all',
+                            isSemaine
+                              ? (done ? 'bg-green-500 text-white ring-2 ring-green-300' :
+                                 isToday ? 'bg-gray-950 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]' :
+                                 hasWorkout ? 'bg-orange-100 text-orange-600' :
+                                 'bg-gray-100 text-gray-400')
+                              : (isSuppSelected ? 'bg-gray-950 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]' :
+                                 isToday ? 'bg-gray-200 text-gray-700' :
+                                 d > todayDate ? 'bg-gray-50 text-gray-300' :
+                                 'bg-gray-100 text-gray-500 active:bg-gray-200')
+                          )}
+                        >
+                          {d.getDate()}
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
+                <button
+                  onClick={() => isSemaine ? setWeekOffset(o => Math.min(0, o + 1)) : setSuppDayOffset(o => Math.min(0, o + 7))}
+                  disabled={isSemaine ? isCurrentWeek : suppDayOffset >= 0}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-20 shrink-0"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
               </div>
-            )
-          })()}
-        </div>
-      </div>
+
+              {/* Tabs — centred */}
+              <div className="flex justify-center gap-1">
+                {([
+                  { key: 'semaine', label: '🗓 Semaine' },
+                  { key: 'complements', label: '💊 Compléments' },
+                ] as const).map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveTab(t.key)}
+                    className={cn(
+                      'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                      activeTab === t.key ? 'bg-gray-950 text-white' : 'text-gray-400'
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       <main className="max-w-lg mx-auto px-4 md:px-6 pt-4 space-y-3">
 
@@ -449,7 +473,7 @@ export default function DashboardPage() {
 
         {/* ── Compléments tab ── */}
         <div className={cn(activeTab !== 'complements' && 'hidden')}>
-          <SupplementsTab />
+          <SupplementsTab dayOffset={suppDayOffset} onDayOffsetChange={setSuppDayOffset} />
         </div>
       </main>
 

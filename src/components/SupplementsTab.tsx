@@ -21,8 +21,19 @@ function formatDayLabel(date: Date): string {
 // Module-level cache so supplements survive tab switches
 let cachedSupplements: Supplement[] | null = null
 
-export default function SupplementsTab() {
-  const [dayOffset, setDayOffset] = useState(0)
+interface SupplementsTabProps {
+  dayOffset?: number
+  onDayOffsetChange?: (offset: number) => void
+}
+
+export default function SupplementsTab({ dayOffset: externalOffset, onDayOffsetChange }: SupplementsTabProps = {}) {
+  const [internalOffset, setInternalOffset] = useState(0)
+  const dayOffset = externalOffset !== undefined ? externalOffset : internalOffset
+  const setDayOffset = (fn: ((o: number) => number) | number) => {
+    const next = typeof fn === 'function' ? fn(dayOffset) : fn
+    if (onDayOffsetChange) onDayOffsetChange(next)
+    else setInternalOffset(next)
+  }
   const [supplements, setSupplements] = useState<Supplement[]>(cachedSupplements ?? [])
   const [logs, setLogs] = useState<SupplementLog[]>([])
   // Only show spinner on first-ever load, not on tab switches
@@ -147,13 +158,15 @@ export default function SupplementsTab() {
 
   return (
     <div className="space-y-3">
-      {/* Day navigator */}
-      <DayNav
-        dayOffset={dayOffset}
-        onPrev={() => setDayOffset(o => o - 1)}
-        onNext={() => setDayOffset(o => Math.min(0, o + 1))}
-        dateLabel={formatDayLabel(viewDate)}
-      />
+      {/* Day navigator — only shown when not controlled by parent */}
+      {externalOffset === undefined && (
+        <DayNav
+          dayOffset={dayOffset}
+          onPrev={() => setDayOffset(o => o - 1)}
+          onNext={() => setDayOffset(o => Math.min(0, o + 1))}
+          dateLabel={formatDayLabel(viewDate)}
+        />
+      )}
 
       {/* Readonly banner */}
       {isPast && (
