@@ -138,21 +138,7 @@ export default function DashboardPage() {
       }
     }
     setWeekPlan(plan)
-    if (isCurrent) {
-      const curTodayNum = new Date().getDay() === 0 ? 7 : new Date().getDay()
-      await autoMarkMissedRaw(plan, curTodayNum)
-    }
   }, [])
-
-  async function autoMarkMissedRaw(plan: WeeklyPlan[], currentTodayNum: number) {
-    const toMark = plan.filter(d =>
-      d.workout_id && !d.completed && !d.missed && d.day_of_week < currentTodayNum
-    )
-    if (toMark.length === 0) return
-    const ids = toMark.map(d => d.id)
-    await supabase.from('weekly_plan').update({ missed: true }).in('id', ids)
-    setWeekPlan(prev => prev.map(d => ids.includes(d.id) ? { ...d, missed: true } : d))
-  }
 
   useEffect(() => { loadBase() }, [loadBase])
   useEffect(() => {
@@ -261,17 +247,7 @@ export default function DashboardPage() {
     else setWeekPlan(prev => prev.map(d => d.id === entry.id ? { ...d, missed: entry.missed } : d))
   }
 
-  // Auto-mark past days with a workout as missed if not completed
-  async function autoMarkMissed(plan: WeeklyPlan[], ws: string, currentTodayNum: number) {
-    if (weekOffset !== 0) return // only for current week
-    const toMark = plan.filter(d =>
-      d.workout_id && !d.completed && !d.missed && d.day_of_week < currentTodayNum
-    )
-    if (toMark.length === 0) return
-    const ids = toMark.map(d => d.id)
-    await supabase.from('weekly_plan').update({ missed: true }).in('id', ids)
-    setWeekPlan(prev => prev.map(d => ids.includes(d.id) ? { ...d, missed: true } : d))
-  }
+
 
   function openAssignSheet(day: number) {
     if (!activeProgram) {
