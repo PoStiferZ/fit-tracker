@@ -720,7 +720,7 @@ function LiveSessionInner() {
     const nextExercise = nextSet ? (exercises[nextSet.exerciseIndex] ?? null) : null
 
     return (
-      <div className="h-[100dvh] flex flex-col bg-white">
+      <div className="h-[100dvh] flex flex-col bg-white overflow-hidden">
         {/* Top bar */}
         <div className="shrink-0 flex items-center justify-between px-5 bg-white"
           style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>

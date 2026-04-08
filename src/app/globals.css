@@ -6,6 +6,7 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
@@ -13,6 +14,7 @@ body {
   background: #f8f8fb;
   font-family: system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  height: 100%;
 }
 
 /* Custom scrollbar */
