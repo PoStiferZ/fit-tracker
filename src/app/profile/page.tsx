@@ -301,33 +301,43 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <>
-                  <div className="space-y-2.5">
-                    {(() => {
-                      const max = stats.setsByMuscle[0]?.sets || 1
-                      return stats.setsByMuscle.map(({ muscle, sets }) => (
-                        <div key={muscle}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                              {MUSCLE_IMAGE[muscle] ? (
-                                <Image src={MUSCLE_IMAGE[muscle]!} alt={muscle} width={18} height={18} className="object-contain shrink-0" />
-                              ) : <span>❤️</span>}
-                              {getMuscleLabel(muscle, lang)}
-                            </span>
-                            <span className="text-xs font-black text-gray-950 tabular-nums">
-                              {sets} {lang === 'en' ? (sets > 1 ? 'sets' : 'set') : (sets > 1 ? 'séries' : 'série')}
-                            </span>
-                          </div>
-                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gray-950 rounded-full transition-all"
-                              style={{ width: `${(sets / max) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    })()}
-                  </div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mt-3">{t('sets_by_muscle_week')}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-4">{t('sets_by_muscle_week')}</p>
+                  {(() => {
+                    const max = stats.setsByMuscle[0]?.sets || 1
+                    const BAR_MAX_H = 100 // px
+                    return (
+                      <div className="flex items-end justify-around gap-1">
+                        {stats.setsByMuscle.map(({ muscle, sets }) => {
+                          const pct = sets / max
+                          const barH = Math.max(12, Math.round(pct * BAR_MAX_H))
+                          return (
+                            <div key={muscle} className="flex flex-col items-center gap-1.5 flex-1">
+                              {/* Image au sommet */}
+                              <div className="w-7 h-7 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                                {MUSCLE_IMAGE[muscle]
+                                  ? <Image src={MUSCLE_IMAGE[muscle]!} alt={muscle} width={18} height={18} className="object-contain" />
+                                  : <span className="text-xs">💪</span>
+                                }
+                              </div>
+                              {/* Nombre */}
+                              <span className="text-[10px] font-black text-gray-950 tabular-nums leading-none">{sets}</span>
+                              {/* Barre */}
+                              <div className="w-full rounded-full bg-gray-100 flex items-end overflow-hidden" style={{ height: BAR_MAX_H }}>
+                                <div
+                                  className="w-full bg-gray-950 rounded-full transition-all duration-500"
+                                  style={{ height: barH }}
+                                />
+                              </div>
+                              {/* Label muscle */}
+                              <span className="text-[9px] font-bold text-gray-400 text-center leading-tight line-clamp-2 w-full">
+                                {getMuscleLabel(muscle, lang)}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                 </>
               )}
             </div>
