@@ -304,6 +304,7 @@ const MUSCLE_FILTERS: { key: MuscleGroup | 'all'; label: string }[] = [
   { key: 'glutes', label: 'Glutes' },
   { key: 'calves', label: 'Calves' },
   { key: 'inner_thighs', label: 'Inner Thighs' },
+  { key: 'outer_thighs', label: 'Outer Thighs' },
   { key: 'neck', label: 'Neck' },
   { key: 'cardio', label: 'Cardio' },
 ]
@@ -322,7 +323,7 @@ const MUSCLE_LABELS: Record<MuscleGroup, string> = {
   chest: 'Pectoraux', back: 'Dos', shoulders: 'Épaules', rear_delts: 'Delts arr.',
   biceps: 'Biceps', triceps: 'Triceps', forearms: 'Avant-bras', traps: 'Trapèzes',
   core: 'Abdos', quads: 'Quadriceps', hamstrings: 'Ischio', glutes: 'Fessiers',
-  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio', neck: 'Cou',
+  calves: 'Mollets', inner_thighs: 'Adducteurs', outer_thighs: 'Abducteurs', cardio: 'Cardio', neck: 'Cou',
 }
 
 const EQUIPMENT_LABELS: Record<Equipment, string> = {
@@ -397,7 +398,7 @@ function CreateCustomSheet({
   const MUSCLES: MuscleGroup[] = [
     'chest', 'back', 'shoulders', 'rear_delts', 'biceps', 'triceps',
     'forearms', 'traps', 'core', 'quads', 'hamstrings', 'glutes',
-    'calves', 'inner_thighs', 'neck', 'cardio',
+    'calves', 'inner_thighs', 'outer_thighs', 'neck', 'cardio',
   ]
 
   async function handleCreate() {
@@ -819,7 +820,7 @@ export function ExerciseConfigForm({
 const MUSCLE_GROUPS_TAB: { section: string; muscles: MuscleGroup[] }[] = [
   { section: 'Torse', muscles: ['chest', 'back', 'shoulders', 'rear_delts', 'traps', 'core', 'neck'] },
   { section: 'Bras', muscles: ['biceps', 'triceps', 'forearms'] },
-  { section: 'Bas du Corps', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'inner_thighs'] },
+  { section: 'Bas du Corps', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'inner_thighs', 'outer_thighs'] },
 ]
 
 // ─── Main ExerciseLibrary ─────────────────────────────────────────────────────

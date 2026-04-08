@@ -15,6 +15,7 @@ export const MUSCLE_LABELS: Record<MuscleGroup, string> = {
   glutes: 'Fessiers',
   calves: 'Mollets',
   inner_thighs: 'Adducteurs',
+  outer_thighs: 'Abducteurs',
   cardio: 'Cardio',
   neck: 'Cou',
 }
@@ -34,6 +35,7 @@ export const MUSCLE_LABELS_EN: Record<MuscleGroup, string> = {
   glutes: 'Glutes',
   calves: 'Calves',
   inner_thighs: 'Inner Thighs',
+  outer_thighs: 'Outer Thighs',
   cardio: 'Cardio',
   neck: 'Neck',
 }
@@ -55,6 +57,7 @@ export const MUSCLE_IMAGE: Record<MuscleGroup, string | null> = {
   glutes: '/muscles/glutes.png',
   calves: '/muscles/calves.png',
   inner_thighs: '/muscles/inner_thighs.png',
+  outer_thighs: '/muscles/outer_thighs.png',
   cardio: null,
   neck: '/muscles/neck.png',
 }
@@ -62,5 +65,5 @@ export const MUSCLE_IMAGE: Record<MuscleGroup, string | null> = {
 export const ALL_MUSCLES: MuscleGroup[] = [
   'chest', 'back', 'shoulders', 'rear_delts', 'biceps', 'triceps',
   'forearms', 'traps', 'core', 'quads', 'hamstrings', 'glutes',
-  'calves', 'inner_thighs', 'neck', 'cardio',
+  'calves', 'inner_thighs', 'outer_thighs', 'neck', 'cardio',
 ]

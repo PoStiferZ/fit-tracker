@@ -42,6 +42,7 @@ const MUSCLE_LABELS: Record<string, string> = {
   glutes: 'Fessiers',
   calves: 'Mollets',
   inner_thighs: 'Adducteurs',
+  outer_thighs: 'Abducteurs',
   cardio: 'Cardio',
   neck: 'Cou',
 }

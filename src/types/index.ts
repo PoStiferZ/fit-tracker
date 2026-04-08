@@ -13,7 +13,7 @@ export type ExerciseType = 'strength' | 'cardio'
 export type MuscleGroup =
   | 'chest' | 'back' | 'shoulders' | 'rear_delts' | 'biceps' | 'triceps'
   | 'forearms' | 'traps' | 'core' | 'quads' | 'hamstrings' | 'glutes'
-  | 'calves' | 'inner_thighs' | 'cardio' | 'neck'
+  | 'calves' | 'inner_thighs' | 'outer_thighs' | 'cardio' | 'neck'
 
 export interface LibraryExercise {
   id: string
