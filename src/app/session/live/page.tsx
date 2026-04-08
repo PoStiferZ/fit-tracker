@@ -287,6 +287,9 @@ function RestTimer({
   const circumference = 2 * Math.PI * RING_R
   const dashOffset = circumference * (1 - progress)
 
+  // Countdown color: orange→red when <= 10s
+  const restRingColor = remaining <= 10 ? (remaining <= 5 ? '#ef4444' : '#f97316') : '#111827'
+
   const nextLabel = nextSet
     ? nextSet.setType === 'warmup'
       ? `Échauffement ${nextSet.setIndex + 1}`
@@ -305,11 +308,11 @@ function RestTimer({
             <circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R} fill="none" stroke="#e5e7eb" strokeWidth={RING_STROKE} />
             <circle
               cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R}
-              fill="none" stroke="#111827" strokeWidth={RING_STROKE}
+              fill="none" stroke={restRingColor} strokeWidth={RING_STROKE}
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={dashOffset}
-              style={{ transition: 'stroke-dashoffset 1s linear' }}
+              style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease' }}
             />
           </svg>
           {/* Center — dark circle with white text, same as exercise ring */}
@@ -371,8 +374,8 @@ function RestTimer({
 
       {/* Skip */}
       <button onClick={onSkip}
-        className="w-full flex items-center justify-center gap-2 text-gray-500 text-sm font-semibold bg-white border border-gray-200 rounded-2xl min-h-[52px] active:scale-[0.98] transition-all mb-2">
-        <SkipForward size={16} />
+        className="w-full bg-red-50 border border-red-100 text-red-500 font-bold rounded-2xl min-h-[44px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm mb-2">
+        <SkipForward size={14} />
         Passer le repos
       </button>
     </div>
@@ -507,6 +510,7 @@ function LiveSessionInner() {
   const [profileWeight, setProfileWeight] = useState(75)
   const [restDuration, setRestDuration] = useState(60)
   const [cycleSeconds, setCycleSeconds] = useState(0)
+  const [cardioRemaining, setCardioRemaining] = useState(0)
 
   // Per-exercise timer (resets when exercise changes)
   const [exElapsed, setExElapsed] = useState(0)
@@ -553,6 +557,41 @@ function LiveSessionInner() {
     }, 1000)
     return () => clearInterval(iv)
   }, [currentExIdx])
+
+  // Cardio countdown — runs when currentSet is a cardio set
+  const currentFlatIdxForEffect = sets.findIndex(
+    s => s.exerciseIndex === currentExIdx && s.setIndex === currentSetIdx && s.setType === currentSetType
+  )
+  const currentSetForEffect = sets[currentFlatIdxForEffect]
+  const isCardioPhase = phase === 'exercise' && currentSetForEffect?.setType === 'cardio'
+  const cardioAutoCompleteRef = useRef(false)
+
+  useEffect(() => {
+    if (!isCardioPhase || !currentSetForEffect) return
+    cardioAutoCompleteRef.current = false
+    setCardioRemaining(currentSetForEffect.durationSeconds)
+    const iv = setInterval(() => {
+      setCardioRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(iv)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(iv)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentExIdx, currentSetIdx, currentSetType, isCardioPhase])
+
+  // Auto-complete cardio when countdown hits 0
+  useEffect(() => {
+    if (!isCardioPhase || cardioAutoCompleteRef.current) return
+    if (cardioRemaining === 0 && currentSetForEffect && currentSetForEffect.durationSeconds > 0) {
+      cardioAutoCompleteRef.current = true
+      completeCurrentSet(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardioRemaining, isCardioPhase])
 
   // Build sets from workout_exercises
   const buildSets = useCallback((exs: ExerciseWithName[]): LiveSetState[] => {
@@ -982,6 +1021,13 @@ function LiveSessionInner() {
   const exMins = Math.floor(exElapsed / 60)
   const exSecs = exElapsed % 60
 
+  // Cardio ring progress and color
+  const cardioDuration = currentSet?.durationSeconds ?? 1
+  const cardioProgress = cardioDuration > 0 ? cardioRemaining / cardioDuration : 0
+  const cardioRingColor = cardioRemaining <= 10 ? (cardioRemaining <= 5 ? '#ef4444' : '#f97316') : '#f97316'
+  const cardioMins = Math.floor(cardioRemaining / 60)
+  const cardioSecs = cardioRemaining % 60
+
   return (
     <div className="h-[100dvh] flex flex-col bg-white overflow-hidden relative">
 
@@ -1008,48 +1054,72 @@ function LiveSessionInner() {
         </div>
       </div>
 
-      {/* ── Set badge + exercise name ── */}
-      <div className="shrink-0 flex flex-col items-center gap-2 px-5 pt-3 pb-2">
-        {currentSet && (
-          <span className={cn(
-            'text-sm font-bold px-4 py-1 rounded-full',
-            currentSetType === 'warmup' ? 'bg-amber-100 text-amber-700' :
-            currentSetType === 'cardio' ? 'bg-green-100 text-green-700' :
-            'bg-indigo-100 text-indigo-700'
-          )}>
-            {getSetLabel(currentSet)}
-          </span>
-        )}
-        <h1 className="text-2xl font-black text-gray-950 text-center leading-tight line-clamp-1">
-          {currentEx?.name}
-        </h1>
-      </div>
-
-      {/* ── Main circle — flex-1 but capped ── */}
-      <div className="flex-1 flex items-center justify-center min-h-0 py-2">
+      {/* ── Main circle — flex-1 with badge + name above SVG ── */}
+      <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2 gap-2">
+        {/* Badge + nom JUSTE au-dessus du cercle */}
+        <div className="flex flex-col items-center gap-1">
+          {currentSet && (
+            <span className={cn(
+              'text-sm font-bold px-4 py-1 rounded-full',
+              currentSetType === 'warmup' ? 'bg-amber-100 text-amber-700' :
+              currentSetType === 'cardio' ? 'bg-green-100 text-green-700' :
+              'bg-indigo-100 text-indigo-700'
+            )}>
+              {getSetLabel(currentSet)}
+            </span>
+          )}
+          <h1 className="text-xl font-black text-gray-950 text-center leading-tight line-clamp-1 px-4">
+            {currentEx?.name}
+          </h1>
+        </div>
+        {/* Cercle SVG */}
         <div className="relative" style={{ width: RING_SIZE, height: RING_SIZE }}>
           <svg width={RING_SIZE} height={RING_SIZE} className="-rotate-90" viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
             <circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R} fill="none" stroke="#e5e7eb" strokeWidth={RING_STROKE} />
-            <circle
-              cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R}
-              fill="none" stroke="#111827" strokeWidth={RING_STROKE}
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={circumference * (1 - cycleSeconds / 60)}
-              style={{ transition: 'stroke-dashoffset 0.9s linear' }}
-            />
+            {isCardio ? (
+              <circle
+                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R}
+                fill="none" stroke={cardioRingColor} strokeWidth={RING_STROKE}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - cardioProgress)}
+                style={{ transition: 'stroke-dashoffset 0.9s linear, stroke 0.5s ease' }}
+              />
+            ) : (
+              <circle
+                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R}
+                fill="none" stroke="#111827" strokeWidth={RING_STROKE}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - cycleSeconds / 60)}
+                style={{ transition: 'stroke-dashoffset 0.9s linear' }}
+              />
+            )}
           </svg>
           <button
             onClick={() => completeCurrentSet(false)}
             className="absolute bg-gray-950 text-white font-black flex flex-col items-center justify-center active:scale-95 transition-transform shadow-xl"
             style={{ width: RING_R * 2 - 10, height: RING_R * 2 - 10, borderRadius: '50%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
           >
-            <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">exercice</span>
-            <span className="font-mono text-2xl font-black text-white tabular-nums leading-none">
-              {String(exMins).padStart(2, '0')}:{String(exSecs).padStart(2, '0')}
-            </span>
-            <Check size={18} strokeWidth={3} className="mt-1.5" />
-            <span className="text-xs font-black mt-0.5">Terminer</span>
+            {isCardio ? (
+              <>
+                <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">cardio</span>
+                <span className="font-mono text-2xl font-black text-white tabular-nums leading-none">
+                  {String(cardioMins).padStart(2, '0')}:{String(cardioSecs).padStart(2, '0')}
+                </span>
+                <Check size={18} strokeWidth={3} className="mt-1.5" />
+                <span className="text-xs font-black mt-0.5">Terminer</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">exercice</span>
+                <span className="font-mono text-2xl font-black text-white tabular-nums leading-none">
+                  {String(exMins).padStart(2, '0')}:{String(exSecs).padStart(2, '0')}
+                </span>
+                <Check size={18} strokeWidth={3} className="mt-1.5" />
+                <span className="text-xs font-black mt-0.5">Terminer</span>
+              </>
+            )}
           </button>
         </div>
       </div>

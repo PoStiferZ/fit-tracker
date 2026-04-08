@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
 import type { AnyExercise, MuscleGroup, Equipment, ExerciseType, WorkoutExercise } from '@/types'
 import BottomSheet from '@/components/BottomSheet'
+import { SpeedPickerSheet, InclinePickerSheet } from '@/components/Pickers'
 import { Search, Plus, Check, ChevronLeft, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -490,6 +491,7 @@ function ExerciseConfigForm({
   const isCardio = cfg.exercise.exercise_type === 'cardio'
   const [restPickerOpen, setRestPickerOpen] = useState<{ setType: 'work' | 'warmup' | 'cardio'; index: number } | null>(null)
   const [numPickerOpen, setNumPickerOpen] = useState<{ setType: 'work' | 'warmup'; field: 'reps' | 'kg'; index: number } | null>(null)
+  const [cardioPickerOpen, setCardioPickerOpen] = useState<{ type: 'duration' | 'speed' | 'incline'; index: number } | null>(null)
 
   // ── Propagation helper: update index i and cascade to i+1, i+2...
   function propagate<T>(arr: T[], index: number, value: T): T[] {
@@ -599,37 +601,28 @@ function ExerciseConfigForm({
             </div>
           </div>
           {Array(cfg.cardioSets).fill(0).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl p-3 space-y-2">
-              <p className="text-xs font-bold text-gray-400">Set {i + 1}</p>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <p className="text-[10px] text-gray-400 mb-1">Durée (min)</p>
-                  <input type="number" min={1} value={cfg.cardioDurations[i] ?? 20}
-                    onChange={e => { const d = [...cfg.cardioDurations]; d[i] = parseInt(e.target.value) || 0; onChange({ ...cfg, cardioDurations: d }) }}
-                    className="w-full bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 text-gray-900 text-xs font-bold text-center focus:outline-none" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 mb-1">Inclinaison</p>
-                  <input type="number" min={0} value={cfg.cardioInclines[i] ?? 0}
-                    onChange={e => { const d = [...cfg.cardioInclines]; d[i] = parseInt(e.target.value) || 0; onChange({ ...cfg, cardioInclines: d }) }}
-                    className="w-full bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 text-gray-900 text-xs font-bold text-center focus:outline-none" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 mb-1">Vitesse</p>
-                  <input type="number" min={0} step={0.5} value={cfg.cardioSpeeds[i] ?? 8}
-                    onChange={e => { const d = [...cfg.cardioSpeeds]; d[i] = parseFloat(e.target.value) || 0; onChange({ ...cfg, cardioSpeeds: d }) }}
-                    className="w-full bg-orange-50 border border-orange-200 rounded-lg px-2 py-1.5 text-gray-900 text-xs font-bold text-center focus:outline-none" />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="text-[10px] text-gray-400">Repos :</p>
-                <button
-                  onClick={() => setRestPickerOpen({ setType: 'cardio', index: i })}
-                  className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap"
-                >
-                  {formatRest(cfg.cardioRestSeconds[i] ?? 60)}
-                </button>
-              </div>
+            <div key={i} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2.5">
+              <span className="text-xs font-black text-green-500 w-6">C{i + 1}</span>
+              {/* Durée en minutes */}
+              <button onClick={() => setCardioPickerOpen({ type: 'duration', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[48px] text-center">
+                {cfg.cardioDurations[i] ?? 20}min
+              </button>
+              {/* Vitesse */}
+              <button onClick={() => setCardioPickerOpen({ type: 'speed', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[48px] text-center">
+                {cfg.cardioSpeeds[i] ?? 8}km/h
+              </button>
+              {/* Inclinaison */}
+              <button onClick={() => setCardioPickerOpen({ type: 'incline', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap min-w-[40px] text-center">
+                {cfg.cardioInclines[i] ?? 0}%
+              </button>
+              {/* Repos */}
+              <button onClick={() => setRestPickerOpen({ setType: 'cardio', index: i })}
+                className="bg-orange-50 border border-orange-200 rounded-xl px-2 py-1.5 text-xs font-bold text-orange-600 whitespace-nowrap flex-1 text-center">
+                {formatRest(cfg.cardioRestSeconds[i] ?? 60)}
+              </button>
             </div>
           ))}
         </div>
@@ -735,6 +728,77 @@ function ExerciseConfigForm({
           value={currentRestValue}
           onClose={() => setRestPickerOpen(null)}
           onConfirm={handleRestConfirm}
+        />
+      )}
+
+      {/* Cardio: duration picker (stepper in minutes) */}
+      {cardioPickerOpen?.type === 'duration' && (
+        <BottomSheet isOpen={true} onClose={() => setCardioPickerOpen(null)} title="Durée">
+          <div className="space-y-6 pb-4">
+            <div className="flex flex-col items-center gap-4">
+              <span className="text-4xl font-black text-gray-950 tabular-nums">
+                {cfg.cardioDurations[cardioPickerOpen.index] ?? 20}
+                <span className="text-lg font-bold text-gray-400 ml-1">min</span>
+              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => {
+                    const idx = cardioPickerOpen.index
+                    const d = [...cfg.cardioDurations]
+                    d[idx] = Math.max(1, (d[idx] ?? 20) - 1)
+                    onChange({ ...cfg, cardioDurations: d })
+                  }}
+                  className="w-14 h-14 rounded-2xl bg-gray-100 text-gray-700 font-bold text-xl flex items-center justify-center active:bg-gray-200">
+                  −
+                </button>
+                <button
+                  onClick={() => {
+                    const idx = cardioPickerOpen.index
+                    const d = [...cfg.cardioDurations]
+                    d[idx] = Math.min(120, (d[idx] ?? 20) + 1)
+                    onChange({ ...cfg, cardioDurations: d })
+                  }}
+                  className="w-14 h-14 rounded-2xl bg-gray-100 text-gray-700 font-bold text-xl flex items-center justify-center active:bg-gray-200">
+                  +
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => setCardioPickerOpen(null)}
+              className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)]">
+              Valider
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* Cardio: speed picker */}
+      {cardioPickerOpen?.type === 'speed' && (
+        <SpeedPickerSheet
+          isOpen={true}
+          value={cfg.cardioSpeeds[cardioPickerOpen.index] ?? 8}
+          onClose={() => setCardioPickerOpen(null)}
+          onConfirm={kmh => {
+            const d = [...cfg.cardioSpeeds]
+            d[cardioPickerOpen.index] = kmh
+            onChange({ ...cfg, cardioSpeeds: d })
+            setCardioPickerOpen(null)
+          }}
+        />
+      )}
+
+      {/* Cardio: incline picker */}
+      {cardioPickerOpen?.type === 'incline' && (
+        <InclinePickerSheet
+          isOpen={true}
+          value={cfg.cardioInclines[cardioPickerOpen.index] ?? 0}
+          onClose={() => setCardioPickerOpen(null)}
+          onConfirm={pct => {
+            const d = [...cfg.cardioInclines]
+            d[cardioPickerOpen.index] = pct
+            onChange({ ...cfg, cardioInclines: d })
+            setCardioPickerOpen(null)
+          }}
         />
       )}
     </div>
