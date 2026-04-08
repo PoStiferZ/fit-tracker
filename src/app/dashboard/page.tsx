@@ -6,14 +6,14 @@ import { getProfileId } from '@/lib/cookies'
 import { calculateAge, getMonday, formatDateISO, cn } from '@/lib/utils'
 import { fetchStreak } from '@/lib/streak'
 import { DAYS } from '@/lib/constants'
-import type { Profile, Program, Workout, WeeklyPlan } from '@/types'
+import type { Profile, Program, Workout, WeeklyPlan, ActiveProgram } from '@/types'
 import Navbar from '@/components/Navbar'
 import DayCard from '@/components/DayCard'
 import BottomSheet from '@/components/BottomSheet'
 import ProgressRing from '@/components/ProgressRing'
 import SupplementsTab from '@/components/SupplementsTab'
 import WeekNav from '@/components/WeekNav'
-import { Check, Lock, ChevronRight } from 'lucide-react'
+import { Check, Lock, Pencil } from 'lucide-react'
 
 type Tab = 'semaine' | 'complements'
 
@@ -42,10 +42,15 @@ export default function DashboardPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [launching, setLaunching] = useState(false)
 
+  // Active program
+  const [activeProgram, setActiveProgram] = useState<ActiveProgram | null>(null)
+  const [programSheet, setProgramSheet] = useState(false)
+  const [selectingProgramId, setSelectingProgramId] = useState('')
+  const [selectingRecurrence, setSelectingRecurrence] = useState<number>(1)
+  const [savingActiveProgram, setSavingActiveProgram] = useState(false)
+
   // Assignment sheet
   const [editDay, setEditDay] = useState<number | null>(null)
-  const [assignStep, setAssignStep] = useState<'program' | 'workout'>('program')
-  const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>('')
 
   const todayMonday = getMonday(new Date())
@@ -76,6 +81,12 @@ export default function DashboardPage() {
         .order('order_index')
       setWorkouts(wks || [])
     }
+    const { data: apData } = await supabase
+      .from('active_program')
+      .select('*')
+      .eq('profile_id', profileId)
+      .single()
+    setActiveProgram(apData || null)
     const s = await fetchStreak()
     setStreak(s)
     setLoading(false)
@@ -142,6 +153,24 @@ export default function DashboardPage() {
   const workoutsForProgram = (programId: string) =>
     workouts.filter(w => w.program_id === programId).sort((a, b) => a.order_index - b.order_index)
 
+  async function saveActiveProgram() {
+    const profileId = getProfileId()!
+    setSavingActiveProgram(true)
+    const row = {
+      profile_id: profileId,
+      program_id: selectingProgramId,
+      recurrence_months: selectingRecurrence,
+      started_at: formatDateISO(new Date()),
+    }
+    const { data } = await supabase
+      .from('active_program')
+      .upsert(row, { onConflict: 'profile_id' })
+      .select().single()
+    if (data) setActiveProgram(data)
+    setSavingActiveProgram(false)
+    setProgramSheet(false)
+  }
+
   async function toggleCompleted(dayOfWeek: number, current: boolean) {
     if (isPastWeek) return
     const entry = weekPlan.find(d => d.day_of_week === dayOfWeek)
@@ -155,47 +184,39 @@ export default function DashboardPage() {
   }
 
   function openAssignSheet(day: number) {
+    if (!activeProgram) {
+      setSelectingProgramId('')
+      setSelectingRecurrence(1)
+      setProgramSheet(true)
+      return
+    }
     const entry = getDayEntry(day)
     setEditDay(day)
-    setSelectedProgramId(entry?.program_id || '')
     setSelectedWorkoutId(entry?.workout_id || '')
-    setAssignStep('program')
   }
 
   async function assignWorkout() {
     const profileId = getProfileId()!
-    const programId = selectedProgramId || null
+    const programId = activeProgram?.program_id || null
     const workoutId = selectedWorkoutId || null
     const existing = weekPlan.find(d => d.day_of_week === editDay)
     let result
     if (existing) {
-      result = await supabase
-        .from('weekly_plan')
+      result = await supabase.from('weekly_plan')
         .update({ program_id: programId, workout_id: workoutId, completed: false })
-        .eq('id', existing.id)
-        .select()
-        .single()
+        .eq('id', existing.id).select().single()
     } else {
-      result = await supabase
-        .from('weekly_plan')
-        .insert({
-          day_of_week: editDay,
-          program_id: programId,
-          workout_id: workoutId,
-          completed: false,
-          week_start: weekStart,
-          profile_id: profileId,
-          is_override: false,
-        })
-        .select()
-        .single()
+      result = await supabase.from('weekly_plan')
+        .insert({ day_of_week: editDay, program_id: programId, workout_id: workoutId,
+          completed: false, week_start: weekStart, profile_id: profileId, is_override: false })
+        .select().single()
     }
     if (result.data) setWeekPlan(prev => [...prev.filter(d => d.day_of_week !== editDay), result.data])
     setEditDay(null)
   }
 
   async function clearDay() {
-    // "Repos" = no workout assigned, auto-completed
+    // "Repos" = no workout assigned
     const profileId = getProfileId()!
     const existing = weekPlan.find(d => d.day_of_week === editDay)
     if (existing) {
@@ -299,7 +320,6 @@ export default function DashboardPage() {
                         ? 'Aucune séance planifiée'
                         : `${scheduledCount - completedCount} séance${scheduledCount - completedCount > 1 ? 's' : ''} restante${scheduledCount - completedCount > 1 ? 's' : ''}`}
                   </p>
-
                 </div>
                 {isCurrentWeek && streak > 0 && (
                   <div className="inline-flex items-center gap-1.5 bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-500/20">
@@ -321,6 +341,38 @@ export default function DashboardPage() {
               onNext={() => setWeekOffset(o => Math.min(0, o + 1))}
               weekLabel={formatWeekLabel(viewMonday)}
             />
+
+            {/* Active program card */}
+            {!activeProgram ? (
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-400">Aucun programme associé</p>
+                  <p className="text-xs text-gray-300 mt-0.5">Associe un programme pour planifier ta semaine</p>
+                </div>
+                <button
+                  onClick={() => { setSelectingProgramId(''); setSelectingRecurrence(1); setProgramSheet(true) }}
+                  className="bg-gray-950 text-white text-xs font-bold px-3 py-2 rounded-xl"
+                >
+                  Associer →
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)] flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-0.5">Programme actif</p>
+                  <p className="text-sm font-black text-gray-950">{programs.find(p => p.id === activeProgram.program_id)?.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    🔄 {activeProgram.recurrence_months} mois · depuis {new Date(activeProgram.started_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setProgramSheet(true) }}
+                  className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  <Pencil size={14} className="text-gray-500" />
+                </button>
+              </div>
+            )}
 
             {/* Readonly banner for past weeks */}
             {isPastWeek && (
@@ -363,106 +415,115 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* Bottom sheet — assign workout (step 1: choose program) */}
+      {/* Bottom sheet — assign workout (choose session from active program) */}
       <BottomSheet
-        isOpen={editDay !== null && assignStep === 'program'}
+        isOpen={editDay !== null}
         onClose={() => setEditDay(null)}
-        title={`${editDay ? DAYS[editDay - 1] : ''} — Choisir un programme`}
-      >
-        <div className="space-y-2.5 pb-2">
-          {/* Rest option */}
-          <button
-            onClick={clearDay}
-            className={cn(
-              'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all text-sm font-semibold min-h-[56px]',
-              !getDayEntry(editDay ?? 0)?.workout_id
-                ? 'border-gray-950 bg-gray-950 text-white'
-                : 'border-gray-100 bg-gray-50 text-gray-700'
-            )}
-          >
-            🧘 Repos
-          </button>
-
-          {programs.map(p => {
-            const wks = workoutsForProgram(p.id)
-            return (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setSelectedProgramId(p.id)
-                  setSelectedWorkoutId('')
-                  setAssignStep('workout')
-                }}
-                className={cn(
-                  'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all min-h-[56px] flex items-center justify-between',
-                  selectedProgramId === p.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
-                )}
-              >
-                <div>
-                  <p className="text-sm font-semibold">{p.name}</p>
-                  <p className={cn('text-xs mt-0.5', selectedProgramId === p.id ? 'text-white/50' : 'text-gray-400')}>
-                    {wks.length} séance{wks.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <ChevronRight size={16} className={selectedProgramId === p.id ? 'text-white/50' : 'text-gray-300'} />
-              </button>
-            )
-          })}
-
-          {programs.length === 0 && (
-            <p className="text-gray-400 text-sm text-center py-6">Crée d&apos;abord un programme dans l&apos;onglet Programmes</p>
-          )}
-        </div>
-      </BottomSheet>
-
-      {/* Bottom sheet — assign workout (step 2: choose workout) */}
-      <BottomSheet
-        isOpen={editDay !== null && assignStep === 'workout'}
-        onClose={() => setAssignStep('program')}
         title={`${editDay ? DAYS[editDay - 1] : ''} — Choisir une séance`}
       >
         <div className="space-y-2.5 pb-2">
-          <button
-            onClick={() => setAssignStep('program')}
-            className="flex items-center gap-1.5 text-sm font-bold text-gray-400 hover:text-gray-900 mb-2 transition-colors"
-          >
-            ← {programs.find(p => p.id === selectedProgramId)?.name}
-          </button>
+          {activeProgram ? (
+            <>
+              {/* Rest option */}
+              <button
+                onClick={clearDay}
+                className={cn(
+                  'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all text-sm font-semibold min-h-[56px]',
+                  !getDayEntry(editDay ?? 0)?.workout_id
+                    ? 'border-gray-950 bg-gray-950 text-white'
+                    : 'border-gray-100 bg-gray-50 text-gray-700'
+                )}
+              >
+                🧘 Repos
+              </button>
 
-          {workoutsForProgram(selectedProgramId).map((w, i) => (
-            <button
-              key={w.id}
-              onClick={() => setSelectedWorkoutId(w.id)}
-              className={cn(
-                'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all text-sm font-semibold min-h-[56px] flex items-center gap-3',
-                selectedWorkoutId === w.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
+              {workoutsForProgram(activeProgram.program_id).map((w, i) => (
+                <button
+                  key={w.id}
+                  onClick={() => setSelectedWorkoutId(w.id)}
+                  className={cn(
+                    'w-full text-left px-4 py-4 rounded-2xl border-2 transition-all text-sm font-semibold min-h-[56px] flex items-center gap-3',
+                    selectedWorkoutId === w.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
+                  )}
+                >
+                  <span className={cn('text-xs font-black w-5', selectedWorkoutId === w.id ? 'text-white/50' : 'text-gray-300')}>
+                    {i + 1}.
+                  </span>
+                  {w.name}
+                  {selectedWorkoutId === w.id && <Check size={16} className="ml-auto text-white" />}
+                </button>
+              ))}
+
+              {workoutsForProgram(activeProgram.program_id).length === 0 && (
+                <p className="text-gray-400 text-sm text-center py-6">
+                  Ce programme n&apos;a pas encore de séances. Modifie-le d&apos;abord.
+                </p>
               )}
-            >
-              <span className={cn('text-xs font-black w-5', selectedWorkoutId === w.id ? 'text-white/50' : 'text-gray-300')}>
-                {i + 1}.
-              </span>
-              {w.name}
-              {selectedWorkoutId === w.id && <Check size={16} className="ml-auto text-white" />}
-            </button>
-          ))}
 
-          {workoutsForProgram(selectedProgramId).length === 0 && (
+              {selectedWorkoutId && (
+                <button
+                  onClick={assignWorkout}
+                  className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] mt-2"
+                >
+                  <Check size={18} /> Confirmer
+                </button>
+              )}
+            </>
+          ) : (
             <p className="text-gray-400 text-sm text-center py-6">
-              Ce programme n&apos;a pas encore de séances. Modifie-le d&apos;abord.
+              Associe d&apos;abord un programme pour planifier tes séances.
             </p>
-          )}
-
-          {selectedWorkoutId && (
-            <button
-              onClick={assignWorkout}
-              className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-[0_4px_14px_rgba(0,0,0,0.20)] mt-2"
-            >
-              <Check size={18} /> Confirmer
-            </button>
           )}
         </div>
       </BottomSheet>
 
+      {/* Bottom sheet — associate a program */}
+      <BottomSheet isOpen={programSheet} onClose={() => setProgramSheet(false)} title="Programme de la semaine">
+        <div className="space-y-3 pb-4">
+          {/* Liste programmes */}
+          <div className="space-y-2">
+            {programs.map(p => (
+              <button key={p.id} onClick={() => setSelectingProgramId(p.id)}
+                className={cn('w-full text-left px-4 py-3.5 rounded-2xl border-2 transition-all text-sm font-semibold',
+                  selectingProgramId === p.id ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
+                )}>
+                {p.name}
+                <span className={cn('text-xs ml-2', selectingProgramId === p.id ? 'text-white/50' : 'text-gray-400')}>
+                  {workoutsForProgram(p.id).length} séances
+                </span>
+              </button>
+            ))}
+            {programs.length === 0 && (
+              <p className="text-gray-400 text-sm text-center py-6">Crée d&apos;abord un programme dans l&apos;onglet Programmes</p>
+            )}
+          </div>
+
+          {/* Récurrence */}
+          {selectingProgramId && (
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Récurrence</p>
+              <div className="grid grid-cols-5 gap-2">
+                {[1, 2, 3, 4, 6].map(m => (
+                  <button key={m} onClick={() => setSelectingRecurrence(m)}
+                    className={cn('py-3 rounded-xl text-sm font-black border-2 transition-all',
+                      selectingRecurrence === m ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-100 bg-gray-50 text-gray-700'
+                    )}>
+                    {m}m
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Confirmer */}
+          {selectingProgramId && (
+            <button onClick={saveActiveProgram} disabled={savingActiveProgram}
+              className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]">
+              {savingActiveProgram ? 'Enregistrement...' : '✓ Confirmer'}
+            </button>
+          )}
+        </div>
+      </BottomSheet>
 
     </div>
   )

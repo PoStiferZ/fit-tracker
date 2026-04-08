@@ -159,6 +159,15 @@ export interface LiveSessionSet {
   created_at: string
 }
 
+export interface ActiveProgram {
+  id: string
+  profile_id: string
+  program_id: string
+  recurrence_months: number
+  started_at: string
+  created_at: string
+}
+
 // ─── Legacy v1 types (kept for session page compat) ─────────────────────────
 export interface Exercise {
   id: string
