@@ -91,11 +91,13 @@ function ExerciseDrawer({
   sets,
   currentExIdx,
   onJumpTo,
+  onSkipExercise,
 }: {
   exercises: ExerciseWithName[]
   sets: LiveSetState[]
   currentExIdx: number
   onJumpTo: (exIdx: number) => void
+  onSkipExercise: (exIdx: number) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const touchStartYRef = useRef<number | null>(null)
@@ -157,36 +159,50 @@ function ExerciseDrawer({
             const allSets = sets.filter(s => s.exerciseIndex === exIdx)
             const nSets = allSets.filter(s => s.setType === 'work' || s.setType === 'cardio').length || totalSets
             return (
-              <button
+              <div
                 key={ex.id}
-                onClick={() => { onJumpTo(exIdx); setExpanded(false) }}
-                className="w-full flex items-center gap-3 py-3 border-b border-gray-100 last:border-0 active:bg-gray-50 transition-colors text-left"
+                className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0"
               >
-                {/* Status icon */}
-                <div className="shrink-0 w-7 h-7 flex items-center justify-center">
-                  {allWorkSetsCompleted ? (
-                    <span className="text-green-500 text-lg">✅</span>
-                  ) : isCurrent ? (
-                    <span className="text-indigo-600 text-base">▶</span>
-                  ) : (
-                    <span className="text-gray-300 text-base">○</span>
-                  )}
-                </div>
-                {/* Name + sets count */}
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    'font-bold text-sm truncate',
-                    allWorkSetsCompleted ? 'text-green-600' :
-                    isCurrent ? 'text-indigo-600' :
-                    'text-gray-500'
-                  )}>
-                    {ex.name}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {nSets} série{nSets > 1 ? 's' : ''}
-                  </p>
-                </div>
-              </button>
+                {/* Tap zone: jump to exercise */}
+                <button
+                  onClick={() => { onJumpTo(exIdx); setExpanded(false) }}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
+                >
+                  {/* Status icon */}
+                  <div className="shrink-0 w-7 h-7 flex items-center justify-center">
+                    {allWorkSetsCompleted ? (
+                      <span className="text-green-500 text-lg">✅</span>
+                    ) : isCurrent ? (
+                      <span className="text-indigo-600 text-base">▶</span>
+                    ) : (
+                      <span className="text-gray-300 text-base">○</span>
+                    )}
+                  </div>
+                  {/* Name + sets count */}
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      'font-bold text-sm truncate',
+                      allWorkSetsCompleted ? 'text-green-600' :
+                      isCurrent ? 'text-indigo-600' :
+                      'text-gray-500'
+                    )}>
+                      {ex.name}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {nSets} série{nSets > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </button>
+                {/* Skip exercise button — only if not already completed */}
+                {!allWorkSetsCompleted && (
+                  <button
+                    onClick={() => { onSkipExercise(exIdx); setExpanded(false) }}
+                    className="shrink-0 text-[10px] font-bold text-red-400 bg-red-50 px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform"
+                  >
+                    Passer
+                  </button>
+                )}
+              </div>
             )
           })}
         </div>
@@ -759,17 +775,42 @@ function LiveSessionInner() {
   }
 
   function advanceToNext(fromFlatIdx: number) {
-    const next = sets.findIndex((s, i) => i > fromFlatIdx && !s.completed)
-    if (next === -1) {
-      // All done
-      finishSession()
-      setPhase('finished')
-    } else {
-      setCurrentExIdx(sets[next].exerciseIndex)
-      setCurrentSetIdx(sets[next].setIndex)
-      setCurrentSetType(sets[next].setType)
-      setPhase('exercise')
+    // Use the latest sets state directly to account for the just-completed set
+    setSets(prevSets => {
+      // Find next uncompleted set after current index (in order)
+      let next = prevSets.findIndex((s, i) => i > fromFlatIdx && !s.completed)
+      if (next === -1) {
+        // Wrap around: look for any uncompleted set anywhere
+        next = prevSets.findIndex(s => !s.completed)
+      }
+      if (next === -1) {
+        // Truly all done
+        finishSession()
+        setPhase('finished')
+      } else {
+        setCurrentExIdx(prevSets[next].exerciseIndex)
+        setCurrentSetIdx(prevSets[next].setIndex)
+        setCurrentSetType(prevSets[next].setType)
+        setPhase('exercise')
+      }
+      return prevSets
+    })
+  }
+
+  // Skip all remaining sets of the current exercise
+  async function skipCurrentExercise() {
+    if (!liveSession) return
+    const toSkip = sets.filter(s => s.exerciseIndex === currentExIdx && !s.completed)
+    for (const s of toSkip) {
+      const flatIdx = sets.findIndex(ss =>
+        ss.exerciseIndex === s.exerciseIndex && ss.setIndex === s.setIndex && ss.setType === s.setType
+      )
+      if (flatIdx !== -1) await saveSet(flatIdx, true)
     }
+    // After skipping, advance
+    const lastSkippedIdx = sets.reduce((last, s, i) =>
+      s.exerciseIndex === currentExIdx ? i : last, -1)
+    advanceToNext(lastSkippedIdx)
   }
 
   async function completeCurrentSet(skipped = false) {
@@ -832,9 +873,12 @@ function LiveSessionInner() {
   const currentEx = exercises[currentExIdx]
   const isCardio = currentEx?.exercise_type === 'cardio'
 
-  // Progress: exercises done vs total
-  const uniqueExDone = new Set(sets.filter(s => s.completed).map(s => s.exerciseIndex)).size
+  // Progress: exercises truly done (all work/cardio sets completed or skipped)
   const totalEx = exercises.length
+  const uniqueExDone = exercises.filter((_, exIdx) => {
+    const relevantSets = sets.filter(s => s.exerciseIndex === exIdx && (s.setType === 'work' || s.setType === 'cardio'))
+    return relevantSets.length > 0 && relevantSets.every(s => s.completed)
+  }).length
 
   if (phase === 'rest') {
     // Find next incomplete set
@@ -854,7 +898,7 @@ function LiveSessionInner() {
             <ChevronLeft size={22} className="text-gray-600" />
           </button>
           <div className="text-center">
-            <p className="text-xs font-bold text-gray-400">Exercice {currentExIdx + 1}/{totalEx}</p>
+            <p className="text-xs font-bold text-gray-400">Exercice {uniqueExDone}/{totalEx}</p>
             <p className="font-mono text-sm font-bold text-gray-600">
               {String(elapsedMins).padStart(2, '0')}:{String(elapsedSecs).padStart(2, '0')}
             </p>
@@ -874,6 +918,7 @@ function LiveSessionInner() {
           sets={sets}
           currentExIdx={currentExIdx}
           onJumpTo={jumpToExercise}
+          onSkipExercise={skipCurrentExercise}
         />
       {abandonConfirm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8">
@@ -925,7 +970,7 @@ function LiveSessionInner() {
         </div>
         {/* Exercise progress */}
         <div className="flex flex-col items-end">
-          <span className="text-base font-black text-gray-700">{currentExIdx + 1}/{totalEx}</span>
+          <span className="text-base font-black text-gray-700">{uniqueExDone}/{totalEx}</span>
           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Exercice</span>
         </div>
       </div>
@@ -978,8 +1023,7 @@ function LiveSessionInner() {
 
       {/* ── Bottom controls ── */}
       {currentSet && (
-        <div className="shrink-0 px-4 space-y-2"
-          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
+        <div className="shrink-0 px-4 space-y-2 pb-[72px]">
 
           {!isCardio ? (
             /* ── Strength: poids + reps ── */
@@ -1075,6 +1119,7 @@ function LiveSessionInner() {
         sets={sets}
         currentExIdx={currentExIdx}
         onJumpTo={jumpToExercise}
+        onSkipExercise={skipCurrentExercise}
       />
 
       {/* ── Abandon confirmation modal ── */}
