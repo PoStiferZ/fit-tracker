@@ -590,7 +590,8 @@ export function ExerciseConfigForm({
           <p className="font-bold text-gray-900 text-sm">{cfg.exercise.name}</p>
           <div className="flex gap-1 mt-1 flex-wrap">
             {cfg.exercise.muscles_primary.slice(0, 2).map(m => (
-              <span key={m} className="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+              <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
                 {MUSCLE_LABELS[m]}
               </span>
             ))}
@@ -931,8 +932,8 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
               <span key={m} className={cn('flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
                 sel ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600'
               )}>
-                {MUSCLE_IMAGE[m] && !sel && (
-                  <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />
+                {MUSCLE_IMAGE[m] && (
+                  <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className={cn('object-contain shrink-0', sel ? 'brightness-0 invert' : '')} />
                 )}
                 {MUSCLE_LABELS[m]}
               </span>

@@ -9,6 +9,8 @@ import BottomSheet from '@/components/BottomSheet'
 import ExerciseLibrary, { ExerciseConfigForm, ConfiguredExercise } from '@/components/ExerciseLibrary'
 import { Plus, ClipboardList, Trash2, Pencil, ChevronLeft, ChevronDown, ChevronRight, Dumbbell, GripVertical, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MUSCLE_IMAGE } from '@/lib/muscles'
+import Image from 'next/image'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type View = 'list' | 'program-detail' | 'program-name' | 'workouts' | 'exercise-library' | 'exercise-edit'
@@ -907,7 +909,8 @@ export default function ProgramsPage() {
                       {(muscles.length > 0 || restLabel) && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {muscles.map(m => (
-                            <span key={m} className="text-[10px] font-bold bg-orange-50 text-orange-500 px-2 py-0.5 rounded-full">
+                            <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-50 text-orange-500 px-1.5 py-0.5 rounded-full">
+                              {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
                               {MUSCLE_LABELS[m]}
                             </span>
                           ))}
@@ -970,7 +973,8 @@ export default function ProgramsPage() {
                             </p>
                             <div className="flex gap-1 mt-0.5 flex-wrap">
                               {(info?.muscles_primary ?? []).slice(0, 2).map(m => (
-                                <span key={m} className="text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                                <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+                                  {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
                                   {MUSCLE_LABELS[m]}
                                 </span>
                               ))}

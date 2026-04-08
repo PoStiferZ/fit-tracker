@@ -4,6 +4,8 @@ import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ChevronLeft } from 'lucide-react'
 import type { LiveSession, LiveSessionSet, WorkoutExercise, MuscleGroup } from '@/types'
+import { MUSCLE_IMAGE } from '@/lib/muscles'
+import Image from 'next/image'
 
 interface SessionWithWorkout extends LiveSession {
   workouts: {
@@ -201,7 +203,7 @@ export default function HistoryDetailPage() {
                     const exName = info?.name ?? 'Exercice inconnu'
                     const muscles = info?.muscles_primary ?? []
                     const exerciseType = info?.exercise_type ?? 'strength'
-                    const muscleLabels = muscles.map(m => MUSCLE_LABELS[m] ?? m).join(' · ')
+                    const muscleLabels = muscles.map(m => MUSCLE_LABELS[m] ?? m).join(' · ') // kept for fallback
 
                     // Separate warmup and work sets
                     const warmupSets = exSets.filter(s => s.set_type === 'warmup')
@@ -215,8 +217,15 @@ export default function HistoryDetailPage() {
                       >
                         <div className="mb-3">
                           <p className="font-bold text-gray-900 text-sm">{exName}</p>
-                          {muscleLabels && (
-                            <p className="text-[11px] text-gray-400 mt-0.5">{muscleLabels}</p>
+                          {muscles.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {muscles.slice(0, 3).map(m => (
+                                <span key={m} className="flex items-center gap-1 text-[10px] font-bold bg-orange-50 text-orange-500 px-1.5 py-0.5 rounded-full">
+                                  {MUSCLE_IMAGE[m] && <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />}
+                                  {MUSCLE_LABELS[m] ?? m}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
 
