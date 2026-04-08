@@ -63,6 +63,16 @@ export default function DashboardPage() {
   const todayJS = new Date().getDay()
   const todayNum = todayJS === 0 ? 7 : todayJS
 
+  // Min week offset based on profile creation date
+  const profileCreatedAt = profile?.created_at ? new Date(profile.created_at) : new Date()
+  const createdMonday = getMonday(profileCreatedAt)
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const minWeekOffset = Math.round((createdMonday.getTime() - todayMonday.getTime()) / msPerWeek)
+  // Min day offset for supplements
+  const createdDate = new Date(profileCreatedAt); createdDate.setHours(0,0,0,0)
+  const today0 = new Date(); today0.setHours(0,0,0,0)
+  const minDayOffset = Math.round((createdDate.getTime() - today0.getTime()) / 86400000)
+
   // ── Initial load (profile + programs + workouts) — runs once ──
   const loadBase = useCallback(async () => {
     const profileId = getProfileId()
@@ -305,7 +315,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-1 mb-3">
                 <button
                   onClick={() => isSemaine ? setWeekOffset(o => o - 1) : setSuppDayOffset(o => o - 7)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all shrink-0"
+                  disabled={isSemaine ? weekOffset <= minWeekOffset : suppDayOffset - 7 < minDayOffset}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-20 shrink-0"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
@@ -325,7 +336,7 @@ export default function DashboardPage() {
                           {['L','M','M','J','V','S','D'][i]}
                         </span>
                         <button
-                          disabled={isSemaine || d > todayDate}
+                          disabled={isSemaine || d > todayDate || (!isSemaine && d < createdDate)}
                           onClick={() => {
                             if (!isSemaine) {
                               const diff = Math.round((d.getTime() - todayDate.getTime()) / 86400000)
