@@ -260,7 +260,7 @@ function RestPickerSheet({
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface ConfiguredExercise {
+export interface ConfiguredExercise {
   exercise: AnyExercise
   workSets: number
   workRepsPerSet: number[]
@@ -327,7 +327,7 @@ const EQUIPMENT_LABELS: Record<Equipment, string> = {
   machine: 'Machine', bodyweight: 'Bodyweight', cardio: 'Cardio',
 }
 
-function makeConfig(exercise: AnyExercise): ConfiguredExercise {
+export function makeConfig(exercise: AnyExercise): ConfiguredExercise {
   const isCardio = exercise.exercise_type === 'cardio'
   return {
     exercise,
@@ -348,7 +348,7 @@ function makeConfig(exercise: AnyExercise): ConfiguredExercise {
   }
 }
 
-function configToWorkoutExercise(
+export function configToWorkoutExercise(
   cfg: ConfiguredExercise,
   orderIndex: number
 ): Omit<WorkoutExercise, 'id' | 'workout_id' | 'created_at' | 'updated_at'> {
@@ -481,7 +481,7 @@ function CreateCustomSheet({
 }
 
 // ─── Exercise Config Form ─────────────────────────────────────────────────────
-function ExerciseConfigForm({
+export function ExerciseConfigForm({
   cfg,
   onChange,
 }: {

@@ -5,12 +5,12 @@ import { getProfileId } from '@/lib/cookies'
 import type { AnyExercise, MuscleGroup, Program, Workout, WorkoutExercise } from '@/types'
 import Navbar from '@/components/Navbar'
 import BottomSheet from '@/components/BottomSheet'
-import ExerciseLibrary from '@/components/ExerciseLibrary'
+import ExerciseLibrary, { ExerciseConfigForm, ConfiguredExercise } from '@/components/ExerciseLibrary'
 import { Plus, ClipboardList, Trash2, Pencil, ChevronLeft, ChevronDown, ChevronRight, Dumbbell, GripVertical, ArrowUp, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type View = 'list' | 'program-detail' | 'program-name' | 'workouts' | 'exercise-library'
+type View = 'list' | 'program-detail' | 'program-name' | 'workouts' | 'exercise-library' | 'exercise-edit'
 
 interface WorkoutDraft {
   id: string | null
@@ -77,16 +77,8 @@ export default function ProgramsPage() {
   // Add exercises to a workout in detail view (without going through full editor)
   const [detailAddWorkoutId, setDetailAddWorkoutId] = useState<string | null>(null)
 
-  // Exercise edit sheet (in detail view)
-  const [editExSheet, setEditExSheet] = useState<{
-    open: boolean
-    workoutId: string
-    exerciseId: string
-    workRepsPerSet: number[]
-    workLoadsPerSet: number[]
-    warmupRepsPerSet: number[]
-    warmupLoadsPerSet: number[]
-  } | null>(null)
+  // Exercise edit full page (in detail view)
+  const [editExConfig, setEditExConfig] = useState<{ workoutId: string; exerciseId: string; cfg: ConfiguredExercise } | null>(null)
 
   useEffect(() => { loadPrograms() }, [])
 
@@ -247,6 +239,70 @@ export default function ProgramsPage() {
     setDeleteWorkoutConfirm(null)
   }
 
+  // ── Detail view: exercise full edit ─────────────────────────────────────────
+  function workoutExerciseToConfig(we: WorkoutExercise, info: AnyExercise): ConfiguredExercise {
+    return {
+      exercise: info,
+      workSets: we.work_sets,
+      workRepsPerSet: [...we.work_reps_per_set],
+      workLoadsPerSet: [...we.work_loads],
+      workRestSeconds: [...we.work_rest_seconds],
+      warmupEnabled: we.warmup_sets > 0,
+      warmupSets: we.warmup_sets || 2,
+      warmupRepsPerSet: we.warmup_sets > 0 ? [...we.warmup_reps_per_set] : Array(2).fill(10),
+      warmupLoadsPerSet: we.warmup_sets > 0 ? [...we.warmup_loads] : Array(2).fill(0),
+      warmupRestSeconds: we.warmup_sets > 0 ? [...we.warmup_rest_seconds] : Array(2).fill(60),
+      cardioSets: we.cardio_sets,
+      cardioDurations: [...we.cardio_durations],
+      cardioInclines: [...we.cardio_inclines],
+      cardioSpeeds: [...we.cardio_speeds],
+      cardioRestSeconds: [...we.cardio_rest_seconds],
+    }
+  }
+
+  function openExerciseFullEdit(workoutId: string, we: WorkoutExercise, info: AnyExercise) {
+    const cfg = workoutExerciseToConfig(we, info)
+    setEditExConfig({ workoutId, exerciseId: we.id, cfg })
+    setView('exercise-edit')
+  }
+
+  async function saveFullExerciseEdit() {
+    if (!editExConfig || !selectedProgram) return
+    setSaving(true)
+    const { workoutId, exerciseId, cfg } = editExConfig
+    const payload = {
+      work_sets: cfg.workSets,
+      work_reps_per_set: cfg.workRepsPerSet,
+      work_loads: cfg.workLoadsPerSet,
+      work_rest_seconds: cfg.workRestSeconds,
+      warmup_sets: cfg.warmupEnabled ? cfg.warmupSets : 0,
+      warmup_reps_per_set: cfg.warmupEnabled ? cfg.warmupRepsPerSet : [],
+      warmup_loads: cfg.warmupEnabled ? cfg.warmupLoadsPerSet : [],
+      warmup_rest_seconds: cfg.warmupEnabled ? cfg.warmupRestSeconds : [],
+      cardio_sets: cfg.cardioSets,
+      cardio_durations: cfg.cardioDurations,
+      cardio_inclines: cfg.cardioInclines,
+      cardio_speeds: cfg.cardioSpeeds,
+      cardio_rest_seconds: cfg.cardioRestSeconds,
+    }
+    await supabase.from('workout_exercises').update(payload).eq('id', exerciseId)
+    // Update local state
+    const updateEx = (we: WorkoutExercise) => we.id !== exerciseId ? we : { ...we, ...payload }
+    setSelectedProgram(p => {
+      if (!p) return p
+      return {
+        ...p,
+        workouts: p.workouts.map(w => w.id !== workoutId ? w : {
+          ...w,
+          workout_exercises: w.workout_exercises.map(updateEx),
+          enriched: w.enriched.map(e => ({ ...e, workoutExercise: updateEx(e.workoutExercise) })),
+        }),
+      }
+    })
+    setSaving(false)
+    setView('program-detail')
+  }
+
   // ── Detail view: exercise actions ───────────────────────────────────────────
   async function removeExerciseFromWorkout(workoutId: string, exerciseId: string) {
     await supabase.from('workout_exercises').delete().eq('id', exerciseId)
@@ -373,34 +429,6 @@ export default function ProgramsPage() {
     ))
   }
 
-  async function saveExerciseEdit() {
-    if (!editExSheet) return
-    const { workoutId, exerciseId, workRepsPerSet, workLoadsPerSet, warmupRepsPerSet, warmupLoadsPerSet } = editExSheet
-    await supabase.from('workout_exercises').update({
-      work_reps_per_set: workRepsPerSet,
-      work_loads: workLoadsPerSet,
-      warmup_reps_per_set: warmupRepsPerSet,
-      warmup_loads: warmupLoadsPerSet,
-    }).eq('id', exerciseId)
-
-    // Update local state
-    const updateEx = (we: WorkoutExercise) =>
-      we.id !== exerciseId ? we : { ...we, work_reps_per_set: workRepsPerSet, work_loads: workLoadsPerSet, warmup_reps_per_set: warmupRepsPerSet, warmup_loads: warmupLoadsPerSet }
-
-    setSelectedProgram(p => {
-      if (!p) return p
-      return {
-        ...p,
-        workouts: p.workouts.map(w => w.id !== workoutId ? w : {
-          ...w,
-          workout_exercises: w.workout_exercises.map(updateEx),
-          enriched: w.enriched.map(e => ({ ...e, workoutExercise: updateEx(e.workoutExercise) })),
-        }),
-      }
-    })
-    setEditExSheet(null)
-  }
-
   // ── Save program ─────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!draft.name.trim()) return
@@ -451,6 +479,38 @@ export default function ProgramsPage() {
     await supabase.from('programs').delete().eq('id', id)
     setPrograms(prev => prev.filter(p => p.id !== id))
     setDeleteConfirm(null)
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // VIEW: exercise-edit
+  // ────────────────────────────────────────────────────────────────────────────
+  if (view === 'exercise-edit' && editExConfig) {
+    return (
+      <div className="h-[100dvh] bg-white flex flex-col">
+        {/* Header */}
+        <div className="shrink-0 flex items-center gap-3 px-4 bg-white border-b border-gray-100"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', paddingBottom: 12 }}>
+          <button onClick={() => setView('program-detail')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
+            <ChevronLeft size={20} className="text-gray-700" />
+          </button>
+          <h1 className="font-black text-gray-900 text-lg flex-1 truncate">Modifier l&apos;exercice</h1>
+          <button
+            onClick={saveFullExerciseEdit}
+            disabled={saving}
+            className="bg-gray-950 text-white px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-40"
+          >
+            {saving ? '...' : 'Sauvegarder'}
+          </button>
+        </div>
+        {/* Config form */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <ExerciseConfigForm
+            cfg={editExConfig.cfg}
+            onChange={cfg => setEditExConfig(prev => prev ? { ...prev, cfg } : prev)}
+          />
+        </div>
+      </div>
+    )
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -756,16 +816,9 @@ export default function ProgramsPage() {
                           <div className="flex gap-1 shrink-0">
                             {/* Edit button */}
                             <button
-                              onClick={() => setEditExSheet({
-                                open: true,
-                                workoutId: w.id,
-                                exerciseId: we.id,
-                                workRepsPerSet: [...we.work_reps_per_set],
-                                workLoadsPerSet: [...we.work_loads],
-                                warmupRepsPerSet: [...we.warmup_reps_per_set],
-                                warmupLoadsPerSet: [...we.warmup_loads],
-                              })}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                              onClick={() => info && openExerciseFullEdit(w.id, we, info)}
+                              disabled={!info}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-30"
                             >
                               <Pencil size={13} className="text-gray-400" />
                             </button>
@@ -879,77 +932,6 @@ export default function ProgramsPage() {
           </div>
         )}
 
-        {/* Exercise edit sheet */}
-        {editExSheet && (
-          <BottomSheet isOpen={editExSheet.open} onClose={() => setEditExSheet(null)} title="Modifier l'exercice">
-            <div className="space-y-4 pb-4">
-              {/* Work sets */}
-              {editExSheet.workRepsPerSet.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Séries de travail</p>
-                  {editExSheet.workRepsPerSet.map((reps, i) => (
-                    <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-                      <span className="text-xs font-black text-gray-400 w-6">S{i + 1}</span>
-                      {/* Reps */}
-                      <div className="flex items-center gap-1.5 flex-1">
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.workRepsPerSet]; r[i] = Math.max(1, r[i] - 1); return { ...s, workRepsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">−</button>
-                        <span className="text-sm font-black text-gray-900 w-8 text-center tabular-nums">{reps}r</span>
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.workRepsPerSet]; r[i] = r[i] + 1; return { ...s, workRepsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">+</button>
-                      </div>
-                      {/* Load */}
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.workLoadsPerSet]; r[i] = Math.max(0, +(r[i] - 2.5).toFixed(2)); return { ...s, workLoadsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">−</button>
-                        <span className="text-sm font-black text-orange-500 w-12 text-center tabular-nums">{editExSheet.workLoadsPerSet[i] ?? 0}kg</span>
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.workLoadsPerSet]; r[i] = +(r[i] + 2.5).toFixed(2); return { ...s, workLoadsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-gray-100">+</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {/* Warmup sets */}
-              {editExSheet.warmupRepsPerSet.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Échauffement</p>
-                  {editExSheet.warmupRepsPerSet.map((reps, i) => (
-                    <div key={i} className="flex items-center gap-2 bg-amber-50 rounded-xl px-3 py-2.5">
-                      <span className="text-xs font-black text-amber-400 w-6">É{i + 1}</span>
-                      <div className="flex items-center gap-1.5 flex-1">
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.warmupRepsPerSet]; r[i] = Math.max(1, r[i] - 1); return { ...s, warmupRepsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">−</button>
-                        <span className="text-sm font-black text-gray-900 w-8 text-center tabular-nums">{reps}r</span>
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.warmupRepsPerSet]; r[i] = r[i] + 1; return { ...s, warmupRepsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">+</button>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.warmupLoadsPerSet]; r[i] = Math.max(0, +(r[i] - 2.5).toFixed(2)); return { ...s, warmupLoadsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">−</button>
-                        <span className="text-sm font-black text-orange-500 w-12 text-center tabular-nums">{editExSheet.warmupLoadsPerSet[i] ?? 0}kg</span>
-                        <button onClick={() => setEditExSheet(s => {
-                          if (!s) return s; const r = [...s.warmupLoadsPerSet]; r[i] = +(r[i] + 2.5).toFixed(2); return { ...s, warmupLoadsPerSet: r }
-                        })} className="w-7 h-7 rounded-lg bg-white border border-amber-200 text-gray-700 font-bold text-sm flex items-center justify-center active:bg-amber-100">+</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button onClick={saveExerciseEdit}
-                className="w-full bg-gray-950 text-white rounded-2xl font-bold min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2)]">
-                Enregistrer
-              </button>
-            </div>
-          </BottomSheet>
-        )}
       </div>
     )
   }
