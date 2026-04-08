@@ -30,7 +30,7 @@ interface StatsData {
   totalSessions: number
   monthSessions: number
   avgDurationMin: number
-  volumeByMuscle: { muscle: MuscleGroup; volume: number }[]
+  setsByMuscle: { muscle: MuscleGroup; sets: number }[]
 }
 
 const inputField = 'w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-base placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:bg-white transition-all'
@@ -130,7 +130,7 @@ export default function ProfilePage() {
 
         const muscleMap = new Map<MuscleGroup, number>()
         setsData.forEach((set: { weight_kg: number | null; reps: number | null; set_type: string; workout_exercise_id: string }) => {
-          if (set.set_type !== 'work' || !set.weight_kg || !set.reps) return
+          if (set.set_type !== 'work') return
           const we = (weData || []).find((w: { id: string }) => w.id === set.workout_exercise_id)
           if (!we) return
           const muscles: MuscleGroup[] = (
@@ -138,8 +138,7 @@ export default function ProfilePage() {
             (we.custom_ex as unknown as { muscles_primary: MuscleGroup[] } | null)?.muscles_primary ||
             []
           )
-          const vol = set.weight_kg * set.reps
-          muscles.forEach(m => muscleMap.set(m, (muscleMap.get(m) || 0) + vol))
+          muscles.forEach(m => muscleMap.set(m, (muscleMap.get(m) || 0) + 1))
         })
         volumeByMuscle = Array.from(muscleMap.entries())
           .map(([muscle, volume]) => ({ muscle, volume }))
@@ -148,7 +147,7 @@ export default function ProfilePage() {
       }
     }
 
-    setStats({ totalSessions, monthSessions, avgDurationMin, volumeByMuscle })
+    setStats({ totalSessions, monthSessions, avgDurationMin, setsByMuscle: volumeByMuscle.map(v => ({ muscle: v.muscle, sets: v.volume })) })
     setLoading(false)
   }, [router])
 
@@ -263,50 +262,57 @@ export default function ProfilePage() {
             {/* 3 KPI cards */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'Séances total', value: stats.totalSessions, unit: '' },
+                { label: 'Séances totales', value: stats.totalSessions, unit: '' },
                 { label: 'Ce mois', value: stats.monthSessions, unit: '' },
                 { label: 'Durée moy.', value: stats.avgDurationMin, unit: 'min' },
               ].map(({ label, value, unit }) => (
-                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] p-3 text-center">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-tight mb-1">{label}</p>
-                  <p className="text-2xl font-black text-gray-950 tabular-nums leading-none">
-                    {value > 0 ? value : '—'}
-                  </p>
-                  {unit && value > 0 && <p className="text-[10px] font-bold text-gray-400 mt-0.5">{unit}</p>}
+                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] px-2 py-3 flex flex-col items-center justify-center text-center gap-1 min-h-[76px]">
+                  <div className="flex items-baseline gap-0.5 justify-center">
+                    <span className="text-2xl font-black text-gray-950 tabular-nums leading-none">
+                      {value > 0 ? value : '—'}
+                    </span>
+                    {unit && value > 0 && <span className="text-[10px] font-bold text-gray-400 ml-0.5">{unit}</span>}
+                  </div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-tight">{label}</p>
                 </div>
               ))}
             </div>
 
-            {/* Volume par groupe musculaire cette semaine */}
+            {/* Séries par groupe musculaire cette semaine */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] p-4">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Volume cette semaine · kg·reps</p>
-              {stats.volumeByMuscle.length === 0 ? (
-                <p className="text-sm text-gray-300 italic text-center py-3">Aucune séance cette semaine</p>
+              {stats.setsByMuscle.length === 0 ? (
+                <>
+                  <p className="text-sm text-gray-300 italic text-center py-3">Aucune séance cette semaine</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mt-1">Séries par muscle · semaine</p>
+                </>
               ) : (
-                <div className="space-y-2.5">
-                  {(() => {
-                    const max = stats.volumeByMuscle[0]?.volume || 1
-                    return stats.volumeByMuscle.map(({ muscle, volume }) => (
-                      <div key={muscle}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                            <span>{MUSCLE_EMOJI[muscle] ?? '💪'}</span>
-                            {MUSCLE_LABELS[muscle]}
-                          </span>
-                          <span className="text-xs font-black text-gray-950 tabular-nums">
-                            {volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : volume}
-                          </span>
+                <>
+                  <div className="space-y-2.5">
+                    {(() => {
+                      const max = stats.setsByMuscle[0]?.sets || 1
+                      return stats.setsByMuscle.map(({ muscle, sets }) => (
+                        <div key={muscle}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                              <span>{MUSCLE_EMOJI[muscle] ?? '💪'}</span>
+                              {MUSCLE_LABELS[muscle]}
+                            </span>
+                            <span className="text-xs font-black text-gray-950 tabular-nums">
+                              {sets} série{sets > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gray-950 rounded-full transition-all"
+                              style={{ width: `${(sets / max) * 100}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gray-950 rounded-full transition-all"
-                            style={{ width: `${(volume / max) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  })()}
-                </div>
+                      ))
+                    })()}
+                  </div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mt-3">Séries par muscle · semaine</p>
+                </>
               )}
             </div>
           </div>
