@@ -451,18 +451,20 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Tabs — centred */}
-              <div className="flex justify-center gap-1">
+              {/* Tabs — deux gros blocs */}
+              <div className="grid grid-cols-2 gap-2">
                 {([
-                  { key: 'semaine', label: '🗓 Semaine' },
+                  { key: 'semaine', label: '🏋️ Entraînement' },
                   { key: 'complements', label: '💊 Compléments' },
                 ] as const).map(t => (
                   <button
                     key={t.key}
                     onClick={() => setActiveTab(t.key)}
                     className={cn(
-                      'px-4 py-2 rounded-xl text-sm font-bold transition-all',
-                      activeTab === t.key ? 'bg-gray-950 text-white' : 'text-gray-400'
+                      'py-2.5 rounded-2xl text-sm font-bold transition-all',
+                      activeTab === t.key
+                        ? 'bg-gray-950 text-white shadow-[0_2px_10px_rgba(0,0,0,0.2)]'
+                        : 'bg-gray-100 text-gray-400'
                     )}
                   >
                     {t.label}
