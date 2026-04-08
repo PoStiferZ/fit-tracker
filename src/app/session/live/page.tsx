@@ -296,7 +296,7 @@ function RestTimer({
     : null
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-between px-5 pb-[env(safe-area-inset-bottom,20px)]">
+    <div className="flex-1 flex flex-col items-center justify-between px-5 pb-[72px]">
 
       {/* Ring timer */}
       <div className="flex-1 flex flex-col items-center justify-center gap-6">
@@ -788,60 +788,61 @@ function LiveSessionInner() {
     router.replace('/dashboard')
   }
 
-  function advanceToNext(fromFlatIdx: number) {
+  async function advanceToNext(fromFlatIdx: number) {
     const pending = pendingSkipRef.current
-    setSets(prevSets => {
-      // Next uncompleted set that is NOT in a pending-skip exercise
-      let next = prevSets.findIndex((s, i) => i > fromFlatIdx && !s.completed && !pending.has(s.exerciseIndex))
-      if (next === -1) {
-        // Wrap around — still skip pending exercises
-        next = prevSets.findIndex(s => !s.completed && !pending.has(s.exerciseIndex))
+    const currentSets = sets
+
+    // Next uncompleted set after current, ignoring pending-skip exercises
+    let next = currentSets.findIndex((s, i) => i > fromFlatIdx && !s.completed && !pending.has(s.exerciseIndex))
+    if (next === -1) {
+      // Wrap around
+      next = currentSets.findIndex(s => !s.completed && !pending.has(s.exerciseIndex))
+    }
+
+    if (next === -1) {
+      // No real sets left — flush pending skips then finish
+      for (const exIdx of pending) {
+        const toSkip = currentSets.filter(s => s.exerciseIndex === exIdx && !s.completed)
+        for (const s of toSkip) {
+          const flatIdx = currentSets.findIndex(ss =>
+            ss.exerciseIndex === s.exerciseIndex && ss.setIndex === s.setIndex && ss.setType === s.setType
+          )
+          if (flatIdx !== -1) await saveSet(flatIdx, true)
+        }
       }
-      if (next === -1) {
-        // Only pending-skipped exercises remain — flush them then finish
-        ;(async () => {
-          for (const exIdx of pending) {
-            const toSkip = prevSets.filter(s => s.exerciseIndex === exIdx && !s.completed)
-            for (const s of toSkip) {
-              const flatIdx = prevSets.findIndex(ss =>
-                ss.exerciseIndex === s.exerciseIndex && ss.setIndex === s.setIndex && ss.setType === s.setType
-              )
-              if (flatIdx !== -1) await saveSet(flatIdx, true)
-            }
-          }
-          pendingSkipRef.current = new Set()
-          setPendingSkipExIdx(new Set())
-          finishSession()
-          setPhase('finished')
-        })()
-      } else {
-        setCurrentExIdx(prevSets[next].exerciseIndex)
-        setCurrentSetIdx(prevSets[next].setIndex)
-        setCurrentSetType(prevSets[next].setType)
-        setPhase('exercise')
-      }
-      return prevSets
-    })
+      pendingSkipRef.current = new Set()
+      setPendingSkipExIdx(new Set())
+      await finishSession()
+      setPhase('finished')
+    } else {
+      setCurrentExIdx(currentSets[next].exerciseIndex)
+      setCurrentSetIdx(currentSets[next].setIndex)
+      setCurrentSetType(currentSets[next].setType)
+      setPhase('exercise')
+    }
   }
 
   // Toggle pending-skip for an exercise (no DB write yet)
   function togglePendingSkip(exIdx: number) {
-    setPendingSkipExIdx(prev => {
-      const next = new Set(prev)
-      if (next.has(exIdx)) {
-        next.delete(exIdx)
-        pendingSkipRef.current.delete(exIdx)
+    const isRemoving = pendingSkipRef.current.has(exIdx)
+    if (isRemoving) {
+      pendingSkipRef.current.delete(exIdx)
+      setPendingSkipExIdx(prev => { const n = new Set(prev); n.delete(exIdx); return n })
+    } else {
+      pendingSkipRef.current.add(exIdx)
+      setPendingSkipExIdx(prev => new Set([...prev, exIdx]))
+      // If we're currently on this exercise, advance away
+      if (exIdx === currentExIdx) {
+        const lastIdx = sets.reduce((last, s, i) => s.exerciseIndex === exIdx ? i : last, -1)
+        advanceToNext(lastIdx)
       } else {
-        next.add(exIdx)
-        pendingSkipRef.current.add(exIdx)
-        // If we're currently on this exercise, advance away
-        if (exIdx === currentExIdx) {
-          const lastIdx = sets.reduce((last, s, i) => s.exerciseIndex === exIdx ? i : last, -1)
-          advanceToNext(lastIdx)
+        // Check if everything remaining is now pending-skip
+        const anyReal = sets.some(s => !s.completed && !pendingSkipRef.current.has(s.exerciseIndex))
+        if (!anyReal) {
+          advanceToNext(sets.length - 1)
         }
       }
-      return next
-    })
+    }
   }
 
   async function completeCurrentSet(skipped = false) {
