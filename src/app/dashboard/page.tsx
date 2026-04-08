@@ -13,7 +13,7 @@ import BottomSheet from '@/components/BottomSheet'
 import ProgressRing from '@/components/ProgressRing'
 import SupplementsTab from '@/components/SupplementsTab'
 import WeekNav from '@/components/WeekNav'
-import { Check, Lock, Pencil } from 'lucide-react'
+import { Check, Lock } from 'lucide-react'
 
 type Tab = 'semaine' | 'complements'
 
@@ -474,17 +474,12 @@ export default function DashboardPage() {
             <div className="relative flex-1 min-w-0 space-y-1.5">
               <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Programme</p>
               {activeProgram ? (
-                <div className="flex items-center gap-2">
-                  <span className="bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold px-2.5 py-1 rounded-full truncate max-w-[140px]">
-                    {programs.find(p => p.id === activeProgram.program_id)?.name}
-                  </span>
-                  <button
-                    onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setSelectingRestDays(activeProgram.rest_days ?? []); setProgramSheet(true) }}
-                    className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition-colors shrink-0"
-                  >
-                    <Pencil size={11} className="text-white/60" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setSelectingRestDays(activeProgram.rest_days ?? []); setProgramSheet(true) }}
+                  className="bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold px-2.5 py-1 rounded-full truncate max-w-[160px] text-left active:bg-indigo-500/30 transition-colors"
+                >
+                  {programs.find(p => p.id === activeProgram.program_id)?.name}
+                </button>
               ) : (
                 <button
                   onClick={() => { setSelectingProgramId(''); setSelectingRecurrence(1); setSelectingRestDays([]); setProgramSheet(true) }}
