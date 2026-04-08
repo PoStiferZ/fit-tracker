@@ -299,7 +299,7 @@ export default function DashboardPage() {
                         ? 'Aucune séance planifiée'
                         : `${scheduledCount - completedCount} séance${scheduledCount - completedCount > 1 ? 's' : ''} restante${scheduledCount - completedCount > 1 ? 's' : ''}`}
                   </p>
-                  <p className="text-white/40 text-xs mt-0.5">{completedCount}/{scheduledCount} séances</p>
+
                 </div>
                 {isCurrentWeek && streak > 0 && (
                   <div className="inline-flex items-center gap-1.5 bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-500/20">

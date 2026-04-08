@@ -33,10 +33,10 @@ export default function ProgressRing({ done, total, size = 96, strokeWidth = 8 }
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`text-2xl font-black leading-none ${isComplete ? 'text-green-500' : 'text-gray-900'}`}>
+        <span className={`text-2xl font-black leading-none ${isComplete ? 'text-green-400' : 'text-white'}`}>
           {done}
         </span>
-        <span className="text-xs font-medium text-gray-400 leading-none mt-0.5">/{total}</span>
+        <span className="text-xs font-medium text-white/50 leading-none mt-0.5">/{total}</span>
       </div>
     </div>
   )
