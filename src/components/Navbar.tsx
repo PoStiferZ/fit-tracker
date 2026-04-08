@@ -56,17 +56,20 @@ export default function Navbar() {
       </nav>
 
       {/* Mobile bottom bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white px-2 pb-[env(safe-area-inset-bottom,12px)]">
-        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100 flex px-1 py-1.5">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 px-2 pt-2 pb-[env(safe-area-inset-bottom,12px)]">
+        <div className="flex">
           {mobileLinks.map(({ href, label, icon: Icon }) => {
             const active = pathname === href
             return (
               <Link key={href} href={href} className={cn(
                 'flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all',
-                active ? 'bg-gray-950 text-white' : 'text-gray-400 hover:text-gray-700'
+                active ? 'text-gray-950' : 'text-gray-400 hover:text-gray-600'
               )}>
-                <Icon size={17} />
-                <span className="text-[9px] font-bold leading-none">{label.split(' ')[0]}</span>
+                <Icon size={18} strokeWidth={active ? 2.5 : 1.8} />
+                <span className={cn('text-[9px] font-bold leading-none', active ? 'text-gray-950' : 'text-gray-400')}>
+                  {label.split(' ')[0]}
+                </span>
+                {active && <div className="w-1 h-1 rounded-full bg-gray-950 mt-0.5" />}
               </Link>
             )
           })}
