@@ -47,35 +47,47 @@ const MUSCLE_LABELS: Record<MuscleGroup, string> = {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-// ─── SwipeableWorkoutCard ─────────────────────────────────────────────────────
-function SwipeableWorkoutCard({
+// ─── Generic swipeable card (left swipe → actions) ────────────────────────────
+function SwipeableCard({
   children,
-  onAddExercise,
-  onDelete,
+  actions,
+  actionWidth = 130,
+  onSwipeOpen,
 }: {
   children: React.ReactNode
-  onAddExercise: () => void
-  onDelete: () => void
+  actions: React.ReactNode | ((close: () => void) => React.ReactNode)
+  actionWidth?: number
+  onSwipeOpen?: () => void
 }) {
   const [offset, setOffset] = useState(0)
   const [open, setOpen] = useState(false)
   const startX = useRef<number | null>(null)
-  const ACTION_WIDTH = 130 // px revealed on swipe
+  const startY = useRef<number | null>(null)
+  const dragging = useRef(false)
 
   function onTouchStart(e: React.TouchEvent) {
     startX.current = e.touches[0].clientX
+    startY.current = e.touches[0].clientY
+    dragging.current = false
   }
   function onTouchMove(e: React.TouchEvent) {
-    if (startX.current === null) return
+    if (startX.current === null || startY.current === null) return
     const dx = e.touches[0].clientX - startX.current
-    const newOffset = Math.max(-ACTION_WIDTH, Math.min(0, (open ? -ACTION_WIDTH : 0) + dx))
+    const dy = e.touches[0].clientY - startY.current
+    // Only track horizontal swipe (not vertical scroll)
+    if (!dragging.current && Math.abs(dy) > Math.abs(dx)) { startX.current = null; return }
+    dragging.current = true
+    const newOffset = Math.max(-actionWidth, Math.min(0, (open ? -actionWidth : 0) + dx))
     setOffset(newOffset)
   }
   function onTouchEnd() {
     startX.current = null
-    if (offset < -ACTION_WIDTH / 2) {
-      setOffset(-ACTION_WIDTH)
-      setOpen(true)
+    startY.current = null
+    if (!dragging.current) return
+    dragging.current = false
+    if (offset < -actionWidth / 2) {
+      setOffset(-actionWidth)
+      if (!open) { setOpen(true); onSwipeOpen?.() }
     } else {
       setOffset(0)
       setOpen(false)
@@ -85,29 +97,11 @@ function SwipeableWorkoutCard({
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      {/* Action buttons revealed on swipe */}
-      <div
-        className="absolute right-0 top-0 bottom-0 flex items-stretch"
-        style={{ width: ACTION_WIDTH }}
-      >
-        <button
-          onClick={() => { close(); onAddExercise() }}
-          className="flex-1 flex flex-col items-center justify-center gap-1 bg-gray-900 text-white active:opacity-80 transition-opacity"
-        >
-          <Plus size={18} />
-          <span className="text-[10px] font-bold">Ajouter</span>
-        </button>
-        <button
-          onClick={() => { close(); onDelete() }}
-          className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white active:opacity-80 transition-opacity"
-        >
-          <Trash2 size={18} />
-          <span className="text-[10px] font-bold">Supprimer</span>
-        </button>
+      <div className="absolute right-0 top-0 bottom-0 flex items-stretch" style={{ width: actionWidth }}>
+        {typeof actions === 'function' ? (actions as (close: () => void) => React.ReactNode)(close) : actions}
       </div>
-      {/* Sliding card */}
       <div
-        style={{ transform: `translateX(${offset}px)`, transition: startX.current === null ? 'transform 0.25s ease' : 'none' }}
+        style={{ transform: `translateX(${offset}px)`, transition: dragging.current ? 'none' : 'transform 0.25s ease' }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -115,6 +109,85 @@ function SwipeableWorkoutCard({
         {children}
       </div>
     </div>
+  )
+}
+
+// ─── SwipeableWorkoutCard ─────────────────────────────────────────────────────
+function SwipeableWorkoutCard({
+  children,
+  expanded,
+  onCollapse,
+  onAddExercise,
+  onDelete,
+}: {
+  children: React.ReactNode
+  expanded: boolean
+  onCollapse: () => void
+  onAddExercise: () => void
+  onDelete: () => void
+}) {
+  return (
+    <SwipeableCard
+      actionWidth={130}
+      onSwipeOpen={expanded ? onCollapse : undefined}
+      actions={(close: () => void) => (
+        <>
+          <button
+            onClick={() => { close(); onAddExercise() }}
+            className="flex-1 flex flex-col items-center justify-center gap-1 bg-gray-900 text-white active:opacity-80 transition-opacity"
+          >
+            <Plus size={18} />
+            <span className="text-[10px] font-bold">Ajouter</span>
+          </button>
+          <button
+            onClick={() => { close(); onDelete() }}
+            className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white active:opacity-80 transition-opacity"
+          >
+            <Trash2 size={18} />
+            <span className="text-[10px] font-bold">Supprimer</span>
+          </button>
+        </>
+      )}
+    >
+      {children}
+    </SwipeableCard>
+  )
+}
+
+// ─── SwipeableProgramCard ─────────────────────────────────────────────────────
+function SwipeableProgramCard({
+  children,
+  onOpen,
+  onDelete,
+}: {
+  children: React.ReactNode
+  onOpen: () => void
+  onDelete: () => void
+}) {
+  return (
+    <SwipeableCard
+      actionWidth={130}
+      actions={(close: () => void) => (
+        <>
+          <button
+            onClick={() => { close(); onOpen() }}
+            className="flex-1 flex flex-col items-center justify-center gap-1 bg-gray-900 text-white active:opacity-80 transition-opacity"
+          >
+            <ChevronRight size={18} />
+            <span className="text-[10px] font-bold">Ouvrir</span>
+          </button>
+          <button
+            onClick={() => { close(); onDelete() }}
+            className="flex-1 flex flex-col items-center justify-center gap-1 bg-red-500 text-white active:opacity-80 transition-opacity"
+          >
+            <Trash2 size={18} />
+            <span className="text-[10px] font-bold">Supprimer</span>
+          </button>
+        </>
+      )}
+    >
+      {children}
+    </SwipeableCard>
   )
 }
 
@@ -832,6 +905,8 @@ export default function ProgramsPage() {
             return (
               <SwipeableWorkoutCard
                 key={w.id}
+                expanded={expanded}
+                onCollapse={() => setExpandedWorkouts(prev => { const n = new Set(prev); n.delete(w.id); return n })}
                 onAddExercise={() => { setDetailAddWorkoutId(w.id); setView('exercise-library') }}
                 onDelete={() => setDeleteWorkoutConfirm(w.id)}
               >
@@ -1090,49 +1165,48 @@ export default function ProgramsPage() {
         ) : (
           <div className="space-y-3">
             {programs.map(p => (
-              <button
+              <SwipeableProgramCard
                 key={p.id}
-                onClick={() => openProgramDetail(p)}
-                className="w-full bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4 text-left active:scale-[0.98] transition-transform"
+                onOpen={() => openProgramDetail(p)}
+                onDelete={() => setDeleteConfirm(p.id)}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-bold text-gray-900 text-base">{p.name}</p>
-                      {p.recurrence_weeks ? (
-                        <span className="text-[10px] font-black bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
-                          {p.recurrence_weeks} semaines
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-black bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
-                          Sans récurrence
-                        </span>
+                <button
+                  onClick={() => openProgramDetail(p)}
+                  className="w-full bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4 text-left active:scale-[0.98] transition-transform"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-gray-900 text-base">{p.name}</p>
+                        {p.recurrence_weeks ? (
+                          <span className="text-[10px] font-black bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
+                            {p.recurrence_weeks} semaines
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
+                            Sans récurrence
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5 font-medium">
+                        {p.workouts.length} séance{p.workouts.length !== 1 ? 's' : ''}
+                      </p>
+                      {p.workouts.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {p.workouts.map((w, i) => (
+                            <div key={w.id} className="flex items-center gap-2">
+                              <span className="text-[11px] font-black text-gray-300 w-5">{i + 1}.</span>
+                              <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{w.name || 'Séance sans nom'}</span>
+                              <span className="text-[10px] text-gray-400 font-medium">{w.workout_exercises.length} ex.</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5 font-medium">
-                      {p.workouts.length} séance{p.workouts.length !== 1 ? 's' : ''}
-                    </p>
-                    {p.workouts.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {p.workouts.map((w, i) => (
-                          <div key={w.id} className="flex items-center gap-2">
-                            <span className="text-[11px] font-black text-gray-300 w-5">{i + 1}.</span>
-                            <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{w.name || 'Séance sans nom'}</span>
-                            <span className="text-[10px] text-gray-400 font-medium">{w.workout_exercises.length} ex.</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <ChevronRight size={16} className="text-gray-300 self-center ml-1 shrink-0" />
                   </div>
-                  <div className="flex gap-1 shrink-0 mt-0.5" onClick={e => e.stopPropagation()}>
-                    <button onClick={e => { e.stopPropagation(); setDeleteConfirm(p.id) }}
-                      className="w-9 h-9 flex items-center justify-center hover:bg-red-50 rounded-xl transition-colors">
-                      <Trash2 size={14} className="text-red-400" />
-                    </button>
-                    <ChevronRight size={16} className="text-gray-300 self-center ml-1" />
-                  </div>
-                </div>
-              </button>
+                </button>
+              </SwipeableProgramCard>
             ))}
           </div>
         )}
