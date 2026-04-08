@@ -83,13 +83,9 @@ export default function DayCard({
               </p>
             )}
           </div>
-        ) : isRestDay ? (
+        ) : (
           <p className={cn('text-sm font-medium', isToday ? 'text-white/50' : 'text-gray-400')}>
             🧘 Repos
-          </p>
-        ) : (
-          <p className={cn('text-sm italic', isToday ? 'text-white/30' : 'text-gray-300')}>
-            {readonly ? '—' : 'Appuyer pour planifier'}
           </p>
         )}
       </div>
