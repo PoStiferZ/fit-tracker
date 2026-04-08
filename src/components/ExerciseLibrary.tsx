@@ -294,7 +294,6 @@ const MUSCLE_FILTERS: { key: MuscleGroup | 'all'; label: string }[] = [
   { key: 'chest', label: 'Chest' },
   { key: 'back', label: 'Back' },
   { key: 'shoulders', label: 'Shoulders' },
-  { key: 'rear_delts', label: 'Rear Delts' },
   { key: 'biceps', label: 'Biceps' },
   { key: 'triceps', label: 'Triceps' },
   { key: 'forearms', label: 'Forearms' },
@@ -397,7 +396,7 @@ function CreateCustomSheet({
   const [saving, setSaving] = useState(false)
 
   const MUSCLES: MuscleGroup[] = [
-    'chest', 'back', 'shoulders', 'rear_delts', 'biceps', 'triceps',
+    'chest', 'back', 'shoulders', 'biceps', 'triceps',
     'forearms', 'traps', 'core', 'quads', 'hamstrings', 'glutes',
     'calves', 'inner_thighs', 'outer_thighs', 'neck', 'cardio',
   ]
@@ -842,7 +841,7 @@ export function ExerciseConfigForm({
 // ─── Muscle groups for Par Muscle tab ────────────────────────────────────────
 // sections are keyed so the component can translate them
 const MUSCLE_GROUPS_TAB_DEF: { sectionKey: string; muscles: MuscleGroup[] }[] = [
-  { sectionKey: 'torso', muscles: ['chest', 'back', 'shoulders', 'rear_delts', 'traps', 'core', 'neck'] },
+  { sectionKey: 'torso', muscles: ['chest', 'back', 'shoulders', 'traps', 'core', 'neck'] },
   { sectionKey: 'arms', muscles: ['biceps', 'triceps', 'forearms'] },
   { sectionKey: 'lower_body', muscles: ['quads', 'hamstrings', 'glutes', 'calves', 'inner_thighs', 'outer_thighs'] },
 ]

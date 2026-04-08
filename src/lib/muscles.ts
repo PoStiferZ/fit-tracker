@@ -63,7 +63,7 @@ export const MUSCLE_IMAGE: Record<MuscleGroup, string | null> = {
 }
 
 export const ALL_MUSCLES: MuscleGroup[] = [
-  'chest', 'back', 'shoulders', 'rear_delts', 'biceps', 'triceps',
+  'chest', 'back', 'shoulders', 'biceps', 'triceps',
   'forearms', 'traps', 'core', 'quads', 'hamstrings', 'glutes',
   'calves', 'inner_thighs', 'outer_thighs', 'neck', 'cardio',
 ]
