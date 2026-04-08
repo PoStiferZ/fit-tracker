@@ -302,46 +302,6 @@ export default function DashboardPage() {
         {/* ── Semaine tab ── */}
         <div className={cn('space-y-3', activeTab !== 'semaine' && 'hidden')}>
 
-            {/* Progress card */}
-            <div className={cn(
-              'rounded-3xl p-5 flex items-center gap-5 shadow-[0_8px_30px_rgba(0,0,0,0.15)] relative overflow-hidden',
-              isPastWeek ? 'bg-gray-700' : 'bg-gray-950'
-            )}>
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)' }} />
-              <div className="relative">
-                <ProgressRing done={completedCount} total={scheduledCount} size={90} strokeWidth={8} />
-              </div>
-              <div className="flex-1 relative space-y-2">
-                <div>
-                  <p className="text-white font-bold text-base leading-tight">
-                    {completedCount === scheduledCount && scheduledCount > 0
-                      ? '🎉 Semaine complète !'
-                      : scheduledCount === 0
-                        ? 'Aucune séance planifiée'
-                        : `${scheduledCount - completedCount} séance${scheduledCount - completedCount > 1 ? 's' : ''} restante${scheduledCount - completedCount > 1 ? 's' : ''}`}
-                  </p>
-                </div>
-                {isCurrentWeek && streak > 0 && (
-                  <div className="inline-flex items-center gap-1.5 bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-500/20">
-                    🔥 {streak} semaine{streak > 1 ? 's' : ''} consécutive{streak > 1 ? 's' : ''}
-                  </div>
-                )}
-                {isPastWeek && (
-                  <div className="inline-flex items-center gap-1.5 bg-white/10 text-white/50 text-xs font-bold px-3 py-1.5 rounded-full">
-                    <Lock size={10} /> Historique
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Week navigator */}
-            <WeekNav
-              weekOffset={weekOffset}
-              onPrev={() => setWeekOffset(o => o - 1)}
-              onNext={() => setWeekOffset(o => Math.min(0, o + 1))}
-              weekLabel={formatWeekLabel(viewMonday)}
-            />
-
             {/* Active program card */}
             {!activeProgram ? (
               <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex items-center justify-between">
@@ -373,6 +333,46 @@ export default function DashboardPage() {
                 </button>
               </div>
             )}
+
+            {/* Week navigator */}
+            <WeekNav
+              weekOffset={weekOffset}
+              onPrev={() => setWeekOffset(o => o - 1)}
+              onNext={() => setWeekOffset(o => Math.min(0, o + 1))}
+              weekLabel={formatWeekLabel(viewMonday)}
+            />
+
+            {/* Progress card */}
+            <div className={cn(
+              'rounded-3xl p-5 flex items-center gap-5 shadow-[0_8px_30px_rgba(0,0,0,0.15)] relative overflow-hidden',
+              isPastWeek ? 'bg-gray-700' : 'bg-gray-950'
+            )}>
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, #818cf8 0%, transparent 60%)' }} />
+              <div className="relative">
+                <ProgressRing done={completedCount} total={scheduledCount} size={90} strokeWidth={8} />
+              </div>
+              <div className="flex-1 relative space-y-2">
+                <div>
+                  <p className="text-white font-bold text-base leading-tight">
+                    {completedCount === scheduledCount && scheduledCount > 0
+                      ? '🎉 Semaine complète !'
+                      : scheduledCount === 0
+                        ? 'Aucune séance planifiée'
+                        : `${scheduledCount - completedCount} séance${scheduledCount - completedCount > 1 ? 's' : ''} restante${scheduledCount - completedCount > 1 ? 's' : ''}`}
+                  </p>
+                </div>
+                {isCurrentWeek && streak > 0 && (
+                  <div className="inline-flex items-center gap-1.5 bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-500/20">
+                    🔥 {streak} semaine{streak > 1 ? 's' : ''} consécutive{streak > 1 ? 's' : ''}
+                  </div>
+                )}
+                {isPastWeek && (
+                  <div className="inline-flex items-center gap-1.5 bg-white/10 text-white/50 text-xs font-bold px-3 py-1.5 rounded-full">
+                    <Lock size={10} /> Historique
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Readonly banner for past weeks */}
             {isPastWeek && (
