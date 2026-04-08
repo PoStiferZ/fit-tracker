@@ -345,21 +345,28 @@ export default function ProfilePage() {
 
         {/* Consistency chart */}
         {consistency.length > 0 && (() => {
-          const svgW = 300, svgH = 80, padX = 8, padY = 8
-          const maxVal = Math.max(...consistency.map(c => Math.max(c.done, c.missed)), 1)
+          const svgW = 300, svgH = 100, padX = 12, padY = 14
           const n = consistency.length
-          const toPoints = (arr: number[]) =>
-            arr.map((v, i) => {
-              const x = padX + (i / (n - 1)) * (svgW - padX * 2)
-              const y = padY + (1 - v / maxVal) * (svgH - padY * 2)
-              return `${x.toFixed(1)},${y.toFixed(1)}`
-            }).join(' ')
-          const donePoints = toPoints(consistency.map(c => c.done))
-          const missedPoints = toPoints(consistency.map(c => c.missed))
+          // axes indépendants pour éviter superposition si done==missed
+          const maxDone = Math.max(...consistency.map(c => c.done), 1)
+          const maxMissed = Math.max(...consistency.map(c => c.missed), 1)
+          const toCoords = (vals: number[], maxV: number) =>
+            vals.map((v, i) => ({
+              x: padX + (n === 1 ? (svgW - padX * 2) / 2 : (i / (n - 1)) * (svgW - padX * 2)),
+              y: padY + (1 - v / maxV) * (svgH - padY * 2),
+              v,
+            }))
+          const doneCoords = toCoords(consistency.map(c => c.done), maxDone)
+          const missedCoords = toCoords(consistency.map(c => c.missed), maxMissed)
+          const toPolyline = (coords: { x: number; y: number }[]) =>
+            coords.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+          const donePoints = toPolyline(doneCoords)
+          const missedPoints = toPolyline(missedCoords)
           const monthLabels = consistency.map(c => {
-            const [y, m] = c.month.split('-')
-            return new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleDateString('fr-FR', { month: 'short' })
+            const [yr, mo] = c.month.split('-')
+            return new Date(parseInt(yr), parseInt(mo) - 1, 1).toLocaleDateString('fr-FR', { month: 'short' })
           })
+          const lastIdx = n - 1
           return (
             <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4">
               <div className="flex items-center justify-between mb-3">
@@ -378,36 +385,40 @@ export default function ProfilePage() {
               <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full" style={{ height: svgH }} aria-hidden>
                 <defs>
                   <linearGradient id="doneGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.15" />
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.18" />
                     <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
                   </linearGradient>
                   <linearGradient id="missedGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f87171" stopOpacity="0.15" />
+                    <stop offset="0%" stopColor="#f87171" stopOpacity="0.18" />
                     <stop offset="100%" stopColor="#f87171" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 {/* fill areas */}
-                <polygon
-                  points={`${padX},${svgH - padY} ${donePoints} ${svgW - padX},${svgH - padY}`}
-                  fill="url(#doneGrad)"
-                />
-                <polygon
-                  points={`${padX},${svgH - padY} ${missedPoints} ${svgW - padX},${svgH - padY}`}
-                  fill="url(#missedGrad)"
-                />
-                {/* lines */}
-                <polyline points={donePoints} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <polygon points={`${doneCoords[0].x.toFixed(1)},${svgH - padY} ${donePoints} ${doneCoords[lastIdx].x.toFixed(1)},${svgH - padY}`} fill="url(#doneGrad)" />
+                <polygon points={`${missedCoords[0].x.toFixed(1)},${svgH - padY} ${missedPoints} ${missedCoords[lastIdx].x.toFixed(1)},${svgH - padY}`} fill="url(#missedGrad)" />
+                {/* lines — missed en dessous, done au dessus */}
                 <polyline points={missedPoints} fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                {/* dots */}
-                {consistency.map((c, i) => {
-                  const x = padX + (i / (n - 1)) * (svgW - padX * 2)
-                  const yDone = padY + (1 - c.done / maxVal) * (svgH - padY * 2)
-                  const yMissed = padY + (1 - c.missed / maxVal) * (svgH - padY * 2)
-                  const isLast = i === n - 1
+                <polyline points={donePoints} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {/* dots + valeur sur le dernier point */}
+                {doneCoords.map((p, i) => {
+                  const isLast = i === lastIdx
                   return (
-                    <g key={c.month}>
-                      <circle cx={x} cy={yDone} r={isLast ? 4 : 2.5} fill={isLast ? '#22c55e' : '#86efac'} stroke="white" strokeWidth="1.5" />
-                      <circle cx={x} cy={yMissed} r={isLast ? 4 : 2.5} fill={isLast ? '#f87171' : '#fca5a5'} stroke="white" strokeWidth="1.5" />
+                    <g key={`done-${i}`}>
+                      <circle cx={p.x} cy={p.y} r={isLast ? 4 : 2.5} fill={isLast ? '#22c55e' : '#86efac'} stroke="white" strokeWidth="1.5" />
+                      {isLast && p.v > 0 && (
+                        <text x={p.x} y={p.y - 7} textAnchor="middle" fontSize="9" fontWeight="700" fill="#22c55e">{p.v}</text>
+                      )}
+                    </g>
+                  )
+                })}
+                {missedCoords.map((p, i) => {
+                  const isLast = i === lastIdx
+                  return (
+                    <g key={`missed-${i}`}>
+                      <circle cx={p.x} cy={p.y} r={isLast ? 4 : 2.5} fill={isLast ? '#f87171' : '#fca5a5'} stroke="white" strokeWidth="1.5" />
+                      {isLast && p.v > 0 && (
+                        <text x={p.x} y={p.y + 14} textAnchor="middle" fontSize="9" fontWeight="700" fill="#f87171">{p.v}</text>
+                      )}
                     </g>
                   )
                 })}
@@ -415,7 +426,7 @@ export default function ProfilePage() {
               {/* month labels */}
               <div className="flex justify-between mt-1 px-1">
                 {monthLabels.map((l, i) => (
-                  <span key={i} className="text-[9px] font-semibold text-gray-400 uppercase">{l}</span>
+                  <span key={i} className={cn('text-[9px] font-semibold uppercase', i === lastIdx ? 'text-gray-700' : 'text-gray-400')}>{l}</span>
                 ))}
               </div>
             </div>
