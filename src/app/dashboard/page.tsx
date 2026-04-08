@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [programSheet, setProgramSheet] = useState(false)
   const [selectingProgramId, setSelectingProgramId] = useState('')
   const [selectingRecurrence, setSelectingRecurrence] = useState<number>(1)
+  const [selectingRestDays, setSelectingRestDays] = useState<number[]>([])
   const [savingActiveProgram, setSavingActiveProgram] = useState(false)
 
   // Assignment sheet
@@ -167,19 +168,59 @@ export default function DashboardPage() {
   async function saveActiveProgram() {
     const profileId = getProfileId()!
     setSavingActiveProgram(true)
+    const startedAt = formatDateISO(new Date())
     const row = {
       profile_id: profileId,
       program_id: selectingProgramId,
       recurrence_months: selectingRecurrence,
-      started_at: formatDateISO(new Date()),
+      rest_days: selectingRestDays,
+      started_at: startedAt,
     }
-    const { data } = await supabase
+    const { data: apData } = await supabase
       .from('active_program')
       .upsert(row, { onConflict: 'profile_id' })
       .select().single()
-    if (data) setActiveProgram(data)
+    if (apData) {
+      setActiveProgram(apData)
+      // Auto-fill current week based on cycle
+      await autoFillWeek(profileId, apData, weekStart)
+      await loadWeekPlan(weekStart, isCurrentWeek, todayMonday)
+    }
     setSavingActiveProgram(false)
     setProgramSheet(false)
+  }
+
+  async function autoFillWeek(profileId: string, ap: ActiveProgram, ws: string) {
+    const progWorkouts = workoutsForProgram(ap.program_id)
+    if (progWorkouts.length === 0) return
+    const startedDate = new Date(ap.started_at)
+    startedDate.setHours(0, 0, 0, 0)
+    const restSet = new Set(ap.rest_days)
+    // Count training days from started_at up to (not including) monday of this week
+    const monday = new Date(ws)
+    let trainingDaysBefore = 0
+    for (let d = new Date(startedDate); d < monday; d.setDate(d.getDate() + 1)) {
+      const dow = d.getDay() === 0 ? 7 : d.getDay()
+      if (!restSet.has(dow)) trainingDaysBefore++
+    }
+    // Build rows for days 1–7
+    const rows = []
+    let counter = trainingDaysBefore
+    for (let i = 0; i < 7; i++) {
+      const dow = i + 1 // 1=Mon…7=Sun
+      if (restSet.has(dow)) {
+        rows.push({ profile_id: profileId, day_of_week: dow, program_id: ap.program_id,
+          workout_id: null as string|null, completed: false, week_start: ws, is_override: false })
+      } else {
+        const workout = progWorkouts[counter % progWorkouts.length]
+        rows.push({ profile_id: profileId, day_of_week: dow, program_id: ap.program_id,
+          workout_id: workout.id, completed: false, week_start: ws, is_override: false })
+        counter++
+      }
+    }
+    // Upsert all 7 days
+    await supabase.from('weekly_plan')
+      .upsert(rows, { onConflict: 'profile_id,week_start,day_of_week' })
   }
 
   async function toggleCompleted(dayOfWeek: number, current: boolean) {
@@ -198,6 +239,7 @@ export default function DashboardPage() {
     if (!activeProgram) {
       setSelectingProgramId('')
       setSelectingRecurrence(1)
+      setSelectingRestDays([])
       setProgramSheet(true)
       return
     }
@@ -415,7 +457,7 @@ export default function DashboardPage() {
                     {programs.find(p => p.id === activeProgram.program_id)?.name}
                   </span>
                   <button
-                    onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setProgramSheet(true) }}
+                    onClick={() => { setSelectingProgramId(activeProgram.program_id); setSelectingRecurrence(activeProgram.recurrence_months); setSelectingRestDays(activeProgram.rest_days ?? []); setProgramSheet(true) }}
                     className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition-colors shrink-0"
                   >
                     <Pencil size={11} className="text-white/60" />
@@ -423,7 +465,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <button
-                  onClick={() => { setSelectingProgramId(''); setSelectingRecurrence(1); setProgramSheet(true) }}
+                  onClick={() => { setSelectingProgramId(''); setSelectingRecurrence(1); setSelectingRestDays([]); setProgramSheet(true) }}
                   className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white/60 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
                 >
                   <span>+ Associer</span>
@@ -566,6 +608,34 @@ export default function DashboardPage() {
               <p className="text-gray-400 text-sm text-center py-6">Crée d&apos;abord un programme dans l&apos;onglet Programmes</p>
             )}
           </div>
+
+          {/* Jours de repos */}
+          {selectingProgramId && (
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Jours de repos</p>
+              <div className="grid grid-cols-7 gap-1.5">
+                {[['L',1],['M',2],['M',3],['J',4],['V',5],['S',6],['D',7]].map(([label, num]) => {
+                  const n = num as number
+                  const active = selectingRestDays.includes(n)
+                  return (
+                    <button key={n}
+                      onClick={() => setSelectingRestDays(prev => active ? prev.filter(d => d !== n) : [...prev, n])}
+                      className={cn(
+                        'py-3 rounded-xl text-sm font-black border-2 transition-all',
+                        active ? 'border-orange-400 bg-orange-50 text-orange-500' : 'border-gray-100 bg-gray-50 text-gray-700'
+                      )}>
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectingRestDays.length > 0 && (
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {workoutsForProgram(selectingProgramId).length} séances · {7 - selectingRestDays.length} jours d&apos;entraînement
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Récurrence */}
           {selectingProgramId && (

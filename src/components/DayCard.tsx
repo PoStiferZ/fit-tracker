@@ -50,8 +50,10 @@ export default function DayCard({
         !readonly && 'cursor-pointer active:scale-[0.98]',
         isToday
           ? 'bg-gray-950 shadow-[0_4px_20px_rgba(0,0,0,0.2)]'
-          : 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100',
-        isPast && !completed && !isToday && 'opacity-50',
+          : isPast && !completed
+            ? 'bg-gray-50 border border-gray-100'
+            : 'bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-gray-100',
+        isPast && !completed && !isToday && 'opacity-60',
       )}
     >
       {/* Day label */}

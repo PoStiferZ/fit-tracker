@@ -166,6 +166,7 @@ export interface ActiveProgram {
   recurrence_months: number
   started_at: string
   created_at: string
+  rest_days: number[]   // 1=Mon … 7=Sun
 }
 
 // ─── Legacy v1 types (kept for session page compat) ─────────────────────────
