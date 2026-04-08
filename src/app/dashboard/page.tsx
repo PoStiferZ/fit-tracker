@@ -404,6 +404,7 @@ export default function DashboardPage() {
                     const dayEntry = isSemaine ? weekPlan.find(wp => wp.day_of_week === i + 1) : null
                     const hasWorkout = isSemaine && !!dayEntry?.workout_id
                     const done = isSemaine && !!dayEntry?.completed
+                    const missed = isSemaine && !!dayEntry?.missed
                     // Compléments: selected day
                     const isSuppSelected = !isSemaine && d.toDateString() === suppAnchor.toDateString()
 
@@ -424,6 +425,7 @@ export default function DashboardPage() {
                             'w-full aspect-square max-w-[34px] rounded-xl flex items-center justify-center text-xs font-bold transition-all',
                             isSemaine
                               ? (done ? 'bg-green-500 text-white ring-2 ring-green-300' :
+                                 missed ? 'bg-red-500 text-white ring-2 ring-red-300' :
                                  isToday ? 'bg-gray-950 text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]' :
                                  hasWorkout ? 'bg-orange-100 text-orange-600' :
                                  'bg-gray-100 text-gray-400')
