@@ -3,13 +3,35 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getProfileId, clearProfileId } from '@/lib/cookies'
-import { calculateAge, formatDateISO } from '@/lib/utils'
-import type { Profile, BodyWeightEntry } from '@/types'
+import { calculateAge, formatDateISO, getMonday } from '@/lib/utils'
+import type { Profile, BodyWeightEntry, MuscleGroup } from '@/types'
 import Navbar from '@/components/Navbar'
 import ProfileAvatar from '@/components/ProfileAvatar'
 import BottomSheet from '@/components/BottomSheet'
 import { Scale, Plus, Check, LogOut, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+const MUSCLE_LABELS: Record<MuscleGroup, string> = {
+  chest: 'Pectoraux', back: 'Dos', shoulders: 'Épaules', rear_delts: 'Delts arr.',
+  biceps: 'Biceps', triceps: 'Triceps', forearms: 'Avant-bras', traps: 'Trapèzes',
+  core: 'Abdos', quads: 'Quadriceps', hamstrings: 'Ischio', glutes: 'Fessiers',
+  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio',
+}
+
+// muscle group → emoji
+const MUSCLE_EMOJI: Record<string, string> = {
+  chest: '🫁', back: '🔙', shoulders: '🏔️', rear_delts: '↩️',
+  biceps: '💪', triceps: '💪', forearms: '🤜', traps: '🦍',
+  core: '⚡', quads: '🦵', hamstrings: '🦵', glutes: '🍑',
+  calves: '🦿', inner_thighs: '🦵', cardio: '❤️',
+}
+
+interface StatsData {
+  totalSessions: number
+  monthSessions: number
+  avgDurationMin: number
+  volumeByMuscle: { muscle: MuscleGroup; volume: number }[]
+}
 
 const inputField = 'w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-4 text-gray-900 text-base placeholder:text-gray-400 focus:outline-none focus:border-gray-900 focus:bg-white transition-all'
 
@@ -29,6 +51,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [weights, setWeights] = useState<BodyWeightEntry[]>([])
+  const [stats, setStats] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Weight input
@@ -55,7 +78,77 @@ export default function ProfilePage() {
     ])
     if (!pRes.data) { router.replace('/'); return }
     setProfile(pRes.data)
-    setWeights((wRes.data || []).slice().reverse()) // ascending for chart
+    setWeights((wRes.data || []).slice().reverse())
+
+    // ── Stats ──────────────────────────────────────────────────────────────
+    const { data: sessions } = await supabase
+      .from('live_sessions')
+      .select('id, started_at, finished_at, workout_id')
+      .eq('profile_id', profileId)
+      .eq('status', 'finished')
+      .order('started_at', { ascending: false })
+
+    const finishedSessions = sessions || []
+    const totalSessions = finishedSessions.length
+
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    const monthSessions = finishedSessions.filter(s => s.started_at >= monthStart).length
+
+    const durationsMin = finishedSessions
+      .filter(s => s.finished_at)
+      .map(s => (new Date(s.finished_at).getTime() - new Date(s.started_at).getTime()) / 60000)
+      .filter(d => d > 0 && d < 300)
+    const avgDurationMin = durationsMin.length > 0
+      ? Math.round(durationsMin.reduce((a, b) => a + b, 0) / durationsMin.length)
+      : 0
+
+    // Volume par groupe musculaire — semaine courante
+    const weekStart = formatDateISO(getMonday(now))
+    const weekSessionIds = finishedSessions
+      .filter(s => s.started_at >= weekStart)
+      .map(s => s.id)
+
+    let volumeByMuscle: { muscle: MuscleGroup; volume: number }[] = []
+    if (weekSessionIds.length > 0) {
+      const { data: setsData } = await supabase
+        .from('live_session_sets')
+        .select('weight_kg, reps, set_type, workout_exercise_id')
+        .in('live_session_id', weekSessionIds)
+        .eq('skipped', false)
+
+      if (setsData && setsData.length > 0) {
+        const weIds = [...new Set(setsData.map((s: { workout_exercise_id: string }) => s.workout_exercise_id))]
+        const { data: weData } = await supabase
+          .from('workout_exercises')
+          .select(`
+            id,
+            library_ex:exercise_library(muscles_primary),
+            custom_ex:custom_exercises(muscles_primary)
+          `)
+          .in('id', weIds)
+
+        const muscleMap = new Map<MuscleGroup, number>()
+        setsData.forEach((set: { weight_kg: number | null; reps: number | null; set_type: string; workout_exercise_id: string }) => {
+          if (set.set_type !== 'work' || !set.weight_kg || !set.reps) return
+          const we = (weData || []).find((w: { id: string }) => w.id === set.workout_exercise_id)
+          if (!we) return
+          const muscles: MuscleGroup[] = (
+            (we.library_ex as unknown as { muscles_primary: MuscleGroup[] } | null)?.muscles_primary ||
+            (we.custom_ex as unknown as { muscles_primary: MuscleGroup[] } | null)?.muscles_primary ||
+            []
+          )
+          const vol = set.weight_kg * set.reps
+          muscles.forEach(m => muscleMap.set(m, (muscleMap.get(m) || 0) + vol))
+        })
+        volumeByMuscle = Array.from(muscleMap.entries())
+          .map(([muscle, volume]) => ({ muscle, volume }))
+          .sort((a, b) => b.volume - a.volume)
+          .slice(0, 6)
+      }
+    }
+
+    setStats({ totalSessions, monthSessions, avgDurationMin, volumeByMuscle })
     setLoading(false)
   }, [router])
 
@@ -163,6 +256,61 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
+
+        {/* Stats */}
+        {stats && (
+          <div className="space-y-3">
+            {/* 3 KPI cards */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Séances total', value: stats.totalSessions, unit: '' },
+                { label: 'Ce mois', value: stats.monthSessions, unit: '' },
+                { label: 'Durée moy.', value: stats.avgDurationMin, unit: 'min' },
+              ].map(({ label, value, unit }) => (
+                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] p-3 text-center">
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-tight mb-1">{label}</p>
+                  <p className="text-2xl font-black text-gray-950 tabular-nums leading-none">
+                    {value > 0 ? value : '—'}
+                  </p>
+                  {unit && value > 0 && <p className="text-[10px] font-bold text-gray-400 mt-0.5">{unit}</p>}
+                </div>
+              ))}
+            </div>
+
+            {/* Volume par groupe musculaire cette semaine */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.05)] p-4">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Volume cette semaine · kg·reps</p>
+              {stats.volumeByMuscle.length === 0 ? (
+                <p className="text-sm text-gray-300 italic text-center py-3">Aucune séance cette semaine</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {(() => {
+                    const max = stats.volumeByMuscle[0]?.volume || 1
+                    return stats.volumeByMuscle.map(({ muscle, volume }) => (
+                      <div key={muscle}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                            <span>{MUSCLE_EMOJI[muscle] ?? '💪'}</span>
+                            {MUSCLE_LABELS[muscle]}
+                          </span>
+                          <span className="text-xs font-black text-gray-950 tabular-nums">
+                            {volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : volume}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gray-950 rounded-full transition-all"
+                            style={{ width: `${(volume / max) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Weight tracking */}
         <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-50 p-4">
