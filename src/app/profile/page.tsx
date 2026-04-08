@@ -10,20 +10,14 @@ import ProfileAvatar from '@/components/ProfileAvatar'
 import BottomSheet from '@/components/BottomSheet'
 import { Scale, Plus, Check, LogOut, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MUSCLE_IMAGE } from '@/lib/muscles'
+import Image from 'next/image'
 
 const MUSCLE_LABELS: Record<MuscleGroup, string> = {
   chest: 'Pectoraux', back: 'Dos', shoulders: 'Épaules', rear_delts: 'Delts arr.',
   biceps: 'Biceps', triceps: 'Triceps', forearms: 'Avant-bras', traps: 'Trapèzes',
   core: 'Abdos', quads: 'Quadriceps', hamstrings: 'Ischio', glutes: 'Fessiers',
-  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio',
-}
-
-// muscle group → emoji
-const MUSCLE_EMOJI: Record<string, string> = {
-  chest: '🫁', back: '🔙', shoulders: '🏔️', rear_delts: '↩️',
-  biceps: '💪', triceps: '💪', forearms: '🤜', traps: '🦍',
-  core: '⚡', quads: '🦵', hamstrings: '🦵', glutes: '🍑',
-  calves: '🦿', inner_thighs: '🦵', cardio: '❤️',
+  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio', neck: 'Cou',
 }
 
 interface StatsData {
@@ -319,7 +313,9 @@ export default function ProfilePage() {
                         <div key={muscle}>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                              <span>{MUSCLE_EMOJI[muscle] ?? '💪'}</span>
+                              {MUSCLE_IMAGE[muscle] ? (
+                                <Image src={MUSCLE_IMAGE[muscle]!} alt={muscle} width={18} height={18} className="object-contain shrink-0" />
+                              ) : <span>❤️</span>}
                               {MUSCLE_LABELS[muscle]}
                             </span>
                             <span className="text-xs font-black text-gray-950 tabular-nums">

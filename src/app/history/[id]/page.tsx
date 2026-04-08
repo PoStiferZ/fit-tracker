@@ -43,6 +43,7 @@ const MUSCLE_LABELS: Record<string, string> = {
   calves: 'Mollets',
   inner_thighs: 'Adducteurs',
   cardio: 'Cardio',
+  neck: 'Cou',
 }
 
 function formatDate(dateStr: string): string {

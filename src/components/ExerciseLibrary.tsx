@@ -7,6 +7,8 @@ import BottomSheet from '@/components/BottomSheet'
 import { SpeedPickerSheet, InclinePickerSheet } from '@/components/Pickers'
 import { Search, Plus, Check, ChevronLeft, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MUSCLE_IMAGE } from '@/lib/muscles'
+import Image from 'next/image'
 
 // ─── Rest helpers ─────────────────────────────────────────────────────────────
 function formatRest(s: number): string {
@@ -302,6 +304,7 @@ const MUSCLE_FILTERS: { key: MuscleGroup | 'all'; label: string }[] = [
   { key: 'glutes', label: 'Glutes' },
   { key: 'calves', label: 'Calves' },
   { key: 'inner_thighs', label: 'Inner Thighs' },
+  { key: 'neck', label: 'Neck' },
   { key: 'cardio', label: 'Cardio' },
 ]
 
@@ -319,7 +322,7 @@ const MUSCLE_LABELS: Record<MuscleGroup, string> = {
   chest: 'Chest', back: 'Back', shoulders: 'Shoulders', rear_delts: 'Rear Delts',
   biceps: 'Biceps', triceps: 'Triceps', forearms: 'Forearms', traps: 'Traps',
   core: 'Core', quads: 'Quads', hamstrings: 'Hamstrings', glutes: 'Glutes',
-  calves: 'Calves', inner_thighs: 'Inner Thighs', cardio: 'Cardio',
+  calves: 'Calves', inner_thighs: 'Inner Thighs', cardio: 'Cardio', neck: 'Neck',
 }
 
 const EQUIPMENT_LABELS: Record<Equipment, string> = {
@@ -394,7 +397,7 @@ function CreateCustomSheet({
   const MUSCLES: MuscleGroup[] = [
     'chest', 'back', 'shoulders', 'rear_delts', 'biceps', 'triceps',
     'forearms', 'traps', 'core', 'quads', 'hamstrings', 'glutes',
-    'calves', 'inner_thighs', 'cardio',
+    'calves', 'inner_thighs', 'neck', 'cardio',
   ]
 
   async function handleCreate() {
@@ -457,16 +460,23 @@ function CreateCustomSheet({
         <div>
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Muscles principaux</label>
           <div className="flex flex-wrap gap-1.5">
-            {MUSCLES.map(m => (
-              <button key={m} onClick={() => setPrimaryMuscles(prev =>
-                prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
-              )}
-                className={cn('px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
-                  primaryMuscles.includes(m) ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-500'
-                )}>
-                {MUSCLE_LABELS[m]}
-              </button>
-            ))}
+            {MUSCLES.map(m => {
+              const active = primaryMuscles.includes(m)
+              const img = MUSCLE_IMAGE[m]
+              return (
+                <button key={m} onClick={() => setPrimaryMuscles(prev =>
+                  prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+                )}
+                  className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border-2 transition-all',
+                    active ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-500'
+                  )}>
+                  {img && (
+                    <Image src={img} alt={m} width={16} height={16} className={cn('object-contain shrink-0', active ? 'brightness-0 invert' : '')} />
+                  )}
+                  {MUSCLE_LABELS[m]}
+                </button>
+              )
+            })}
           </div>
         </div>
         <button
@@ -905,9 +915,12 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
           </p>
           <div className="flex gap-1 mt-0.5 flex-wrap">
             {ex.muscles_primary.slice(0, 2).map(m => (
-              <span key={m} className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+              <span key={m} className={cn('flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
                 sel ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-600'
               )}>
+                {MUSCLE_IMAGE[m] && !sel && (
+                  <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className="object-contain shrink-0" />
+                )}
                 {MUSCLE_LABELS[m]}
               </span>
             ))}

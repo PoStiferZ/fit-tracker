@@ -44,7 +44,7 @@ const MUSCLE_LABELS: Record<MuscleGroup, string> = {
   chest: 'Chest', back: 'Back', shoulders: 'Épaules', rear_delts: 'Arrière delts',
   biceps: 'Biceps', triceps: 'Triceps', forearms: 'Avant-bras', traps: 'Trapèzes',
   core: 'Abdos', quads: 'Quadriceps', hamstrings: 'Ischio', glutes: 'Fessiers',
-  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio',
+  calves: 'Mollets', inner_thighs: 'Adducteurs', cardio: 'Cardio', neck: 'Cou',
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
