@@ -360,7 +360,7 @@ export default function DashboardPage() {
           : `${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1,3)}. – ${monthEnd.charAt(0).toUpperCase() + monthEnd.slice(1,3)}.`
 
         return (
-          <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100"
+          <div className="sticky top-0 z-20 bg-white border-b border-gray-100"
             style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             {/* Tabs — full width */}
             <div className="grid grid-cols-2 border-b border-gray-100">
