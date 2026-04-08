@@ -908,17 +908,17 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
       <button
         onClick={() => toggleSelect(ex)}
         className={cn(
-          'w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all active:scale-[0.98]',
+          'w-full flex items-center gap-3 px-4 py-5 rounded-2xl border-2 text-left transition-all active:scale-[0.98]',
           sel ? 'border-gray-950 bg-gray-950' : 'border-gray-100 bg-white hover:border-gray-300'
         )}
       >
         <div className={cn(
-          'w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all',
+          'w-8 h-8 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all',
           sel ? 'bg-white border-white' : 'border-gray-300'
         )}>
           {sel
-            ? <Check size={12} className="text-gray-950" strokeWidth={3} />
-            : <Plus size={12} className="text-gray-400" />
+            ? <Check size={14} className="text-gray-950" strokeWidth={3} />
+            : <Plus size={14} className="text-gray-400" />
           }
         </div>
         <div className="flex-1 min-w-0">
@@ -1053,16 +1053,16 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
                           setMuscleFilter(muscle)
                           setFilterLabel(MUSCLE_LABELS[muscle])
                         }}
-                        className="w-full flex items-center gap-3 px-1 py-3 border-b border-gray-100 active:bg-gray-50 transition-colors"
+                        className="w-full flex items-center gap-4 px-1 py-4 border-b border-gray-100 active:bg-gray-50 transition-colors"
                       >
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
-                          {img && <Image src={img} alt={muscle} width={40} height={40} className="object-contain" />}
+                        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                          {img && <Image src={img} alt={muscle} width={64} height={64} className="object-contain p-1" />}
                         </div>
                         <div className="flex-1 text-left">
-                          <p className="text-sm font-semibold text-gray-900">{MUSCLE_LABELS[muscle]}</p>
+                          <p className="text-base font-semibold text-gray-900">{MUSCLE_LABELS[muscle]}</p>
                           <p className="text-xs text-gray-400">{count} exercice{count !== 1 ? 's' : ''}</p>
                         </div>
-                        <ChevronRight size={16} className="text-gray-400 shrink-0" />
+                        <ChevronRight size={18} className="text-gray-400 shrink-0" />
                       </button>
                     )
                   })}
