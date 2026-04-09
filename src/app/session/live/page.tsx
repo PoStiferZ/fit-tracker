@@ -827,9 +827,9 @@ function LiveSessionInner() {
 
   async function abandonSession() {
     if (liveSession) {
-      await supabase.from('live_sessions')
-        .update({ status: 'abandoned', finished_at: new Date().toISOString() })
-        .eq('id', liveSession.id)
+      // Supprime les sets enregistrés puis la session — rien n'est conservé
+      await supabase.from('live_session_sets').delete().eq('session_id', liveSession.id)
+      await supabase.from('live_sessions').delete().eq('id', liveSession.id)
     }
     router.replace('/dashboard')
   }
