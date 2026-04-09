@@ -942,7 +942,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
     const imageUrl = libEx?.image_url ?? null
     const instructions = libEx?.instructions ?? null
     const secondaryMuscles = ex.muscles_secondary ?? []
-    const hasDetail = !!(imageUrl || secondaryMuscles.length > 0 || instructions)
+    const hasInstructions = !!instructions
 
     return (
       <div
@@ -967,10 +967,7 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
             }
           </button>
           {/* Info */}
-          <button
-            onClick={hasDetail ? toggleExpanded : () => toggleSelect(ex)}
-            className="flex-1 min-w-0 text-left"
-          >
+          <div className="flex-1 min-w-0">
             <p className={cn('text-sm font-semibold truncate', sel ? 'text-white' : 'text-gray-900')}>
               {ex.exercise_type === 'cardio' && <span className="mr-1">🏃</span>}
               {ex.name}
@@ -992,9 +989,9 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
                 {EQUIPMENT_LABELS[ex.equipment]}
               </span>
             </div>
-          </button>
-          {/* Expand chevron */}
-          {hasDetail && (
+          </div>
+          {/* Expand chevron — instructions only */}
+          {hasInstructions && (
             <button
               onClick={toggleExpanded}
               className={cn('shrink-0 transition-transform', expanded ? 'rotate-90' : '')}
@@ -1004,12 +1001,12 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
           )}
         </div>
 
-        {/* Expanded detail */}
-        {expanded && (
-          <div className={cn('border-t px-4 pb-4 space-y-3', sel ? 'border-white/20' : 'border-gray-100')}>
+        {/* Always visible: image + secondary muscles */}
+        {(imageUrl || secondaryMuscles.length > 0) && (
+          <div className={cn('border-t px-4 pb-3 pt-3 space-y-2', sel ? 'border-white/20' : 'border-gray-100')}>
             {/* Exercise image */}
             {imageUrl && (
-              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100 mt-3">
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100">
                 <Image
                   src={imageUrl}
                   alt={ex.name}
@@ -1030,26 +1027,27 @@ export default function ExerciseLibrary({ isOpen, onClose, onConfirm, fullPage }
                     <span key={m} className={cn('flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
                       sel ? 'bg-orange-400/30 text-orange-200' : 'bg-orange-50 text-orange-400'
                     )}>
-                      {MUSCLE_IMAGE[m] && (
-                        <Image src={MUSCLE_IMAGE[m]!} alt={m} width={12} height={12} className={cn('object-contain shrink-0', sel ? 'brightness-0 invert opacity-70' : 'opacity-70')} />
+                      {MUSCLE_IMAGE[m as keyof typeof MUSCLE_IMAGE] && (
+                        <Image src={MUSCLE_IMAGE[m as keyof typeof MUSCLE_IMAGE]!} alt={m} width={12} height={12} className={cn('object-contain shrink-0', sel ? 'brightness-0 invert opacity-70' : 'opacity-70')} />
                       )}
-                      {MUSCLE_LABELS[m]}
+                      {MUSCLE_LABELS[m as keyof typeof MUSCLE_LABELS] ?? m}
                     </span>
                   ))}
                 </div>
               </div>
             )}
-            {/* Instructions */}
-            {instructions && (
-              <div>
-                <p className={cn('text-[10px] font-black uppercase tracking-wider mb-1', sel ? 'text-white/50' : 'text-gray-400')}>
-                  Instructions
-                </p>
-                <p className={cn('text-xs leading-relaxed line-clamp-4', sel ? 'text-white/70' : 'text-gray-500')}>
-                  {instructions}
-                </p>
-              </div>
-            )}
+          </div>
+        )}
+
+        {/* Expandable: instructions only */}
+        {expanded && instructions && (
+          <div className={cn('border-t px-4 pb-4 pt-3', sel ? 'border-white/20' : 'border-gray-100')}>
+            <p className={cn('text-[10px] font-black uppercase tracking-wider mb-1', sel ? 'text-white/50' : 'text-gray-400')}>
+              Instructions
+            </p>
+            <p className={cn('text-xs leading-relaxed', sel ? 'text-white/70' : 'text-gray-500')}>
+              {instructions}
+            </p>
           </div>
         )}
       </div>
