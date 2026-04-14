@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { SwipeToDelete } from '@/components/SwipeToDelete'
 import { supabase } from '@/lib/supabase'
 import { getProfileId } from '@/lib/cookies'
@@ -160,6 +161,7 @@ function SwipeableWorkoutCard({
 
 
 export default function ProgramsPage() {
+  const searchParams = useSearchParams()
   const [programs, setPrograms] = useState<ProgramWithWorkouts[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -193,7 +195,7 @@ export default function ProgramsPage() {
   // Exercise edit full page (in detail view)
   const [editExConfig, setEditExConfig] = useState<{ workoutId: string; exerciseId: string; cfg: ConfiguredExercise } | null>(null)
 
-  useEffect(() => { loadPrograms() }, [])
+  useEffect(() => { loadPrograms() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadPrograms() {
     const profileId = getProfileId()
@@ -232,6 +234,18 @@ export default function ProgramsPage() {
     )
     setPrograms(withWorkouts)
     setLoading(false)
+
+    // Deep-link: ?workoutId=xxx → open the right program + workout directly
+    const targetWorkoutId = searchParams.get('workoutId')
+    if (targetWorkoutId) {
+      const targetProgram = withWorkouts.find(p => p.workouts.some(w => w.id === targetWorkoutId))
+      if (targetProgram) {
+        const targetWorkout = targetProgram.workouts.find(w => w.id === targetWorkoutId) ?? null
+        setSelectedProgram(targetProgram)
+        setSelectedWorkout(targetWorkout)
+        setView('workout-detail')
+      }
+    }
   }
 
   // ── Navigation ──────────────────────────────────────────────────────────────

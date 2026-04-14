@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [suppDayOffset, setSuppDayOffset] = useState(0)
   const [launching, setLaunching] = useState(false)
+  const [noExerciseWorkout, setNoExerciseWorkout] = useState<Workout | null>(null)
 
   // Active program
   const [activeProgram, setActiveProgram] = useState<ActiveProgram | null>(null)
@@ -312,6 +313,15 @@ export default function DashboardPage() {
   async function startLiveSessionDirect(workout: Workout) {
     if (launching) return
     const profileId = getProfileId()!
+    // Check exercises exist before launching
+    const { count } = await supabase
+      .from('workout_exercises')
+      .select('*', { count: 'exact', head: true })
+      .eq('workout_id', workout.id)
+    if ((count ?? 0) === 0) {
+      setNoExerciseWorkout(workout)
+      return
+    }
     setLaunching(true)
     // Cancel any lingering non-finished session for this profile
     await supabase
@@ -598,6 +608,31 @@ export default function DashboardPage() {
               Associe d&apos;abord un programme pour planifier tes séances.
             </p>
           )}
+        </div>
+      </BottomSheet>
+
+      {/* Bottom sheet — no exercises warning */}
+      <BottomSheet isOpen={!!noExerciseWorkout} onClose={() => setNoExerciseWorkout(null)} title="Séance sans exercices">
+        <div className="space-y-3 pb-4">
+          <p className="text-gray-500 text-sm">
+            La séance <span className="font-semibold text-gray-900">{noExerciseWorkout?.name}</span> ne contient aucun exercice. Ajoute-en un avant de lancer la séance.
+          </p>
+          <button
+            onClick={() => {
+              const w = noExerciseWorkout!
+              setNoExerciseWorkout(null)
+              router.push(`/programs?workoutId=${w.id}`)
+            }}
+            className="w-full bg-gray-950 text-white rounded-2xl font-semibold min-h-[52px] flex items-center justify-center gap-2 active:scale-[0.97] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.20)]"
+          >
+            + Ajouter un exercice
+          </button>
+          <button
+            onClick={() => setNoExerciseWorkout(null)}
+            className="w-full bg-gray-100 text-gray-700 rounded-2xl font-semibold min-h-[52px] flex items-center justify-center active:scale-[0.97] transition-all"
+          >
+            Annuler
+          </button>
         </div>
       </BottomSheet>
 
