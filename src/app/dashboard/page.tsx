@@ -314,11 +314,12 @@ export default function DashboardPage() {
     if (launching) return
     const profileId = getProfileId()!
     // Check exercises exist before launching
-    const { count } = await supabase
+    const { data: exRows } = await supabase
       .from('workout_exercises')
-      .select('*', { count: 'exact', head: true })
+      .select('id')
       .eq('workout_id', workout.id)
-    if ((count ?? 0) === 0) {
+      .limit(1)
+    if (!exRows || exRows.length === 0) {
       setNoExerciseWorkout(workout)
       return
     }
