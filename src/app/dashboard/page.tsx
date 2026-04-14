@@ -483,10 +483,10 @@ export default function DashboardPage() {
                 </span>
               )}
               {isCurrentWeek && streak > 0 && (
-                <p className="text-orange-400 text-xs font-bold">🔥 {streak} sem. consécutive{streak > 1 ? 's' : ''}</p>
+                <p className="text-orange-400 text-xs font-bold mt-2.5">🔥 {streak} sem. consécutive{streak > 1 ? 's' : ''}</p>
               )}
               {isPastWeek && (
-                <p className="text-white/40 text-xs font-bold flex items-center gap-1"><Lock size={10}/> Historique</p>
+                <p className="text-white/40 text-xs font-bold flex items-center gap-1 mt-2.5"><Lock size={10}/> Historique</p>
               )}
             </div>
 
